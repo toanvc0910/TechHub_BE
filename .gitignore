@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+src/main/resources/script/dev_log.log.2024-07-09.0.gz
+src/main/resources/script/*
