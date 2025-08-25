@@ -1,0 +1,18 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+logging:
+  level:
+    org:
+      hibernate.SQL: DEBUG
+      springframework.web: DEBUG
+      springframework.data: DEBUG
+      boot.autoconfigure.data.rest: DEBUG
+      boot.autoconfigure.data.jpa: DEBUG
+      boot.autoconfigure.orm: DEBUG
