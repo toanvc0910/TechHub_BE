@@ -1,66 +1,39 @@
-2025-08-25 09:46:41.631  INFO 8516 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 8516 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
-2025-08-25 09:46:41.633  INFO 8516 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
-2025-08-25 09:46:42.209  INFO 8516 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
-2025-08-25 09:46:42.434  WARN 8516 --- [main] onfigReactiveWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Unable to start reactive web server; nested exception is java.lang.IllegalStateException: org.springframework.boot.web.server.WebServerException: Could not load key store 'classpath:dev.pfx'
-2025-08-25 09:46:42.446  INFO 8516 --- [main] ConditionEvaluationReportLoggingListener : 
+2025-08-27 08:48:18.795  INFO 21640 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 21640 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 08:48:18.799  INFO 21640 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 08:48:19.543  INFO 21640 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-27 08:48:20.693  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-27 08:48:20.693  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-27 08:48:20.694  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-27 08:48:20.694  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-27 08:48:20.694  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-27 08:48:20.694  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-27 08:48:20.694  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-27 08:48:20.694  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-27 08:48:20.694  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-27 08:48:20.694  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-27 08:48:20.694  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-27 08:48:20.695  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-27 08:48:20.695  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-27 08:48:20.695  INFO 21640 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-27 08:48:21.215  INFO 21640 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8443
+2025-08-27 08:48:21.361  INFO 21640 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 3.061 seconds (JVM running for 4.646)
+2025-08-27 09:18:26.709  INFO 6360 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 6360 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 09:18:26.711  INFO 6360 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 09:18:27.588  INFO 6360 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d36a7fc9-3ee4-3f72-805f-7eacd87fe404
+2025-08-27 09:18:27.642  INFO 6360 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:18:27.643  INFO 6360 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:18:27.644  INFO 6360 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:18:27.838  INFO 6360 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8443 (http)
+2025-08-27 09:18:27.846  INFO 6360 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-08-27 09:18:27.846  INFO 6360 --- [main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.83]
+2025-08-27 09:18:27.963  INFO 6360 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-08-27 09:18:27.963  INFO 6360 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1215 ms
+2025-08-27 09:18:28.151  WARN 6360 --- [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration': Instantiation of bean failed; nested exception is org.springframework.beans.BeanInstantiationException: Failed to instantiate [org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration]: Constructor threw exception; nested exception is org.springframework.cloud.gateway.support.MvcFoundOnClasspathException
+2025-08-27 09:18:28.153  INFO 6360 --- [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-08-27 09:18:28.167  INFO 6360 --- [main] ConditionEvaluationReportLoggingListener : 
 
 Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
-2025-08-25 09:46:42.466 ERROR 8516 --- [main] o.s.boot.SpringApplication               : Application run failed
-
-org.springframework.context.ApplicationContextException: Unable to start reactive web server; nested exception is java.lang.IllegalStateException: org.springframework.boot.web.server.WebServerException: Could not load key store 'classpath:dev.pfx'
-	at org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.onRefresh(ReactiveWebServerApplicationContext.java:84) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:585) ~[spring-context-5.3.31.jar:5.3.31]
-	at org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.refresh(ReactiveWebServerApplicationContext.java:66) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:732) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:409) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.SpringApplication.run(SpringApplication.java:308) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1300) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1289) ~[spring-boot-2.7.18.jar:2.7.18]
-	at com.techhub.app.apigateway.ApigatewayApplication.main(ApigatewayApplication.java:10) ~[classes/:na]
-Caused by: java.lang.IllegalStateException: org.springframework.boot.web.server.WebServerException: Could not load key store 'classpath:dev.pfx'
-	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.getKeyManagerFactory(SslServerCustomizer.java:129) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.createSslContextSpec(SslServerCustomizer.java:93) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.apply(SslServerCustomizer.java:83) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory.customizeSslConfiguration(NettyReactiveWebServerFactory.java:184) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory.createHttpServer(NettyReactiveWebServerFactory.java:170) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory.getWebServer(NettyReactiveWebServerFactory.java:70) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.reactive.context.WebServerManager.<init>(WebServerManager.java:50) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.createWebServer(ReactiveWebServerApplicationContext.java:96) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.onRefresh(ReactiveWebServerApplicationContext.java:81) ~[spring-boot-2.7.18.jar:2.7.18]
-	... 8 common frames omitted
-Caused by: org.springframework.boot.web.server.WebServerException: Could not load key store 'classpath:dev.pfx'
-	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.loadStore(SslServerCustomizer.java:193) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.loadKeyStore(SslServerCustomizer.java:164) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.getKeyStore(SslServerCustomizer.java:137) ~[spring-boot-2.7.18.jar:2.7.18]
-	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.getKeyManagerFactory(SslServerCustomizer.java:115) ~[spring-boot-2.7.18.jar:2.7.18]
-	... 16 common frames omitted
-Caused by: java.io.FileNotFoundException: class path resource [dev.pfx] cannot be resolved to URL because it does not exist
-	at org.springframework.util.ResourceUtils.getURL(ResourceUtils.java:137) ~[spring-core-5.3.31.jar:5.3.31]
-	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.loadStore(SslServerCustomizer.java:187) ~[spring-boot-2.7.18.jar:2.7.18]
-	... 19 common frames omitted
-
-2025-08-25 14:08:41.150  INFO 12128 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 12128 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
-2025-08-25 14:08:41.152  INFO 12128 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
-2025-08-25 14:08:41.740  INFO 12128 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
-2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
-2025-08-25 14:08:42.383  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
-2025-08-25 14:08:42.383  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
-2025-08-25 14:08:42.730  WARN 12128 --- [main] onfigReactiveWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 8080 is already in use
-2025-08-25 14:08:44.835  INFO 12128 --- [main] ConditionEvaluationReportLoggingListener : 
-
-Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
-2025-08-25 14:08:44.851 ERROR 12128 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+2025-08-27 09:18:28.181 ERROR 6360 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
 
 ***************************
 APPLICATION FAILED TO START
@@ -68,34 +41,29 @@ APPLICATION FAILED TO START
 
 Description:
 
-Web server failed to start. Port 8080 was already in use.
+Spring MVC found on classpath, which is incompatible with Spring Cloud Gateway.
 
 Action:
 
-Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+Please set spring.main.web-application-type=reactive or remove spring-boot-starter-web dependency.
 
-2025-08-25 14:10:20.254  INFO 21424 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 21424 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
-2025-08-25 14:10:20.257  INFO 21424 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
-2025-08-25 14:10:20.889  INFO 21424 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
-2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
-2025-08-25 14:10:21.485  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
-2025-08-25 14:10:21.485  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
-2025-08-25 14:10:21.485  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
-2025-08-25 14:10:21.485  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
-2025-08-25 14:10:21.824  WARN 21424 --- [main] onfigReactiveWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 8080 is already in use
-2025-08-25 14:10:23.934  INFO 21424 --- [main] ConditionEvaluationReportLoggingListener : 
+2025-08-27 09:18:40.705  INFO 10448 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 10448 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 09:18:40.707  INFO 10448 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 09:18:41.550  INFO 10448 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d36a7fc9-3ee4-3f72-805f-7eacd87fe404
+2025-08-27 09:18:41.611  INFO 10448 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:18:41.612  INFO 10448 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:18:41.613  INFO 10448 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:18:41.784  INFO 10448 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8443 (http)
+2025-08-27 09:18:41.791  INFO 10448 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-08-27 09:18:41.792  INFO 10448 --- [main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.83]
+2025-08-27 09:18:41.899  INFO 10448 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-08-27 09:18:41.900  INFO 10448 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1155 ms
+2025-08-27 09:18:42.095  WARN 10448 --- [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration': Instantiation of bean failed; nested exception is org.springframework.beans.BeanInstantiationException: Failed to instantiate [org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration]: Constructor threw exception; nested exception is org.springframework.cloud.gateway.support.MvcFoundOnClasspathException
+2025-08-27 09:18:42.096  INFO 10448 --- [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-08-27 09:18:42.110  INFO 10448 --- [main] ConditionEvaluationReportLoggingListener : 
 
 Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
-2025-08-25 14:10:23.948 ERROR 21424 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+2025-08-27 09:18:42.131 ERROR 10448 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
 
 ***************************
 APPLICATION FAILED TO START
@@ -103,104 +71,720 @@ APPLICATION FAILED TO START
 
 Description:
 
-Web server failed to start. Port 8080 was already in use.
+Spring MVC found on classpath, which is incompatible with Spring Cloud Gateway.
 
 Action:
 
-Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+Please set spring.main.web-application-type=reactive or remove spring-boot-starter-web dependency.
 
-2025-08-25 14:14:38.148  INFO 7544 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 7544 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
-2025-08-25 14:14:38.151  INFO 7544 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
-2025-08-25 14:14:38.704  INFO 7544 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
-2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
-2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
-2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
-2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
-2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
-2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
-2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
-2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
-2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
-2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
-2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
-2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
-2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
-2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
-2025-08-25 14:14:39.761  INFO 7544 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
-2025-08-25 14:14:39.823  INFO 7544 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.163 seconds (JVM running for 5.43)
-2025-08-25 15:09:08.997  INFO 11068 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 11068 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
-2025-08-25 15:09:08.999  INFO 11068 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
-2025-08-25 15:09:09.650  INFO 11068 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
-2025-08-25 15:09:10.263  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
-2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
-2025-08-25 15:09:10.265  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
-2025-08-25 15:09:10.612  INFO 11068 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
-2025-08-25 15:09:10.719  INFO 11068 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.246 seconds (JVM running for 2.938)
-2025-08-25 15:11:55.065  INFO 21488 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 21488 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
-2025-08-25 15:11:55.068  INFO 21488 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
-2025-08-25 15:11:55.677  INFO 21488 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
-2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
-2025-08-25 15:11:56.242  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
-2025-08-25 15:11:56.242  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
-2025-08-25 15:11:56.242  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
-2025-08-25 15:11:56.525  INFO 21488 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
-2025-08-25 15:11:56.579  INFO 21488 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.013 seconds (JVM running for 2.775)
-2025-08-25 15:42:20.158  INFO 7068 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 7068 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
-2025-08-25 15:42:20.160  INFO 7068 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
-2025-08-25 15:42:20.670  INFO 7068 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
-2025-08-25 15:42:21.190  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
-2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
-2025-08-25 15:42:21.192  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
-2025-08-25 15:42:21.486  INFO 7068 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
-2025-08-25 15:42:21.544  INFO 7068 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 1.809 seconds (JVM running for 2.39)
-2025-08-25 15:56:23.551  INFO 12132 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 12132 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
-2025-08-25 15:56:23.553  INFO 12132 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
-2025-08-25 15:56:24.128  INFO 12132 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
-2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
-2025-08-25 15:56:24.981  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
-2025-08-25 15:56:24.981  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
-2025-08-25 15:56:24.981  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
-2025-08-25 15:56:24.981  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
-2025-08-25 15:56:25.378  INFO 12132 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
-2025-08-25 15:56:25.465  INFO 12132 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.35 seconds (JVM running for 4.659)
+2025-08-27 09:19:11.817  INFO 23300 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 23300 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 09:19:11.820  INFO 23300 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 09:19:12.712  INFO 23300 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d36a7fc9-3ee4-3f72-805f-7eacd87fe404
+2025-08-27 09:19:12.776  INFO 23300 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:12.777  INFO 23300 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:12.778  INFO 23300 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:12.954  INFO 23300 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8443 (http)
+2025-08-27 09:19:13.109  INFO 23300 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1249 ms
+2025-08-27 09:19:13.311  WARN 23300 --- [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration': Instantiation of bean failed; nested exception is org.springframework.beans.BeanInstantiationException: Failed to instantiate [org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration]: Constructor threw exception; nested exception is org.springframework.cloud.gateway.support.MvcFoundOnClasspathException
+2025-08-27 09:19:23.542  INFO 17148 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 17148 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 09:19:23.547  INFO 17148 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 09:19:24.858  INFO 17148 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d36a7fc9-3ee4-3f72-805f-7eacd87fe404
+2025-08-27 09:19:24.971  INFO 17148 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:24.973  INFO 17148 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:24.974  INFO 17148 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:25.265  INFO 17148 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8443 (http)
+2025-08-27 09:19:25.288  INFO 17148 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-08-27 09:19:25.288  INFO 17148 --- [main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.83]
+2025-08-27 09:19:25.537  INFO 17148 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-08-27 09:19:25.537  INFO 17148 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1940 ms
+2025-08-27 09:19:25.942  WARN 17148 --- [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration': Instantiation of bean failed; nested exception is org.springframework.beans.BeanInstantiationException: Failed to instantiate [org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration]: Constructor threw exception; nested exception is org.springframework.cloud.gateway.support.MvcFoundOnClasspathException
+2025-08-27 09:19:25.947  INFO 17148 --- [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-08-27 09:19:25.972  INFO 17148 --- [main] ConditionEvaluationReportLoggingListener : 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-08-27 09:19:25.995 ERROR 17148 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Spring MVC found on classpath, which is incompatible with Spring Cloud Gateway.
+
+Action:
+
+Please set spring.main.web-application-type=reactive or remove spring-boot-starter-web dependency.
+
+2025-08-27 09:19:35.881  INFO 19692 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 19692 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 09:19:35.884  INFO 19692 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 09:19:36.866  INFO 19692 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d36a7fc9-3ee4-3f72-805f-7eacd87fe404
+2025-08-27 09:19:36.918  INFO 19692 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:36.919  INFO 19692 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:36.920  INFO 19692 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:37.097  INFO 19692 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8443 (http)
+2025-08-27 09:19:37.105  INFO 19692 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-08-27 09:19:37.105  INFO 19692 --- [main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.83]
+2025-08-27 09:19:37.211  INFO 19692 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-08-27 09:19:37.212  INFO 19692 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1292 ms
+2025-08-27 09:19:37.402  WARN 19692 --- [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration': Instantiation of bean failed; nested exception is org.springframework.beans.BeanInstantiationException: Failed to instantiate [org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration]: Constructor threw exception; nested exception is org.springframework.cloud.gateway.support.MvcFoundOnClasspathException
+2025-08-27 09:19:37.404  INFO 19692 --- [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-08-27 09:19:37.419  INFO 19692 --- [main] ConditionEvaluationReportLoggingListener : 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-08-27 09:19:37.436 ERROR 19692 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Spring MVC found on classpath, which is incompatible with Spring Cloud Gateway.
+
+Action:
+
+Please set spring.main.web-application-type=reactive or remove spring-boot-starter-web dependency.
+
+2025-08-27 09:19:50.021  INFO 17728 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 17728 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 09:19:50.024  INFO 17728 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 09:19:50.998  INFO 17728 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d36a7fc9-3ee4-3f72-805f-7eacd87fe404
+2025-08-27 09:19:51.052  INFO 17728 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:51.053  INFO 17728 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:51.054  INFO 17728 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:19:51.278  INFO 17728 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8443 (http)
+2025-08-27 09:19:51.288  INFO 17728 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-08-27 09:19:51.288  INFO 17728 --- [main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.83]
+2025-08-27 09:19:51.458  INFO 17728 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-08-27 09:19:51.459  INFO 17728 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1399 ms
+2025-08-27 09:19:51.741  WARN 17728 --- [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration': Instantiation of bean failed; nested exception is org.springframework.beans.BeanInstantiationException: Failed to instantiate [org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration]: Constructor threw exception; nested exception is org.springframework.cloud.gateway.support.MvcFoundOnClasspathException
+2025-08-27 09:19:51.745  INFO 17728 --- [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-08-27 09:19:51.765  INFO 17728 --- [main] ConditionEvaluationReportLoggingListener : 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-08-27 09:19:51.784 ERROR 17728 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Spring MVC found on classpath, which is incompatible with Spring Cloud Gateway.
+
+Action:
+
+Please set spring.main.web-application-type=reactive or remove spring-boot-starter-web dependency.
+
+2025-08-27 09:21:38.465  INFO 13192 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 13192 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 09:21:38.467  INFO 13192 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 09:21:39.379  INFO 13192 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d36a7fc9-3ee4-3f72-805f-7eacd87fe404
+2025-08-27 09:21:39.435  INFO 13192 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:21:39.436  INFO 13192 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:21:39.437  INFO 13192 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:21:39.616  INFO 13192 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8443 (http)
+2025-08-27 09:21:39.622  INFO 13192 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-08-27 09:21:39.622  INFO 13192 --- [main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.83]
+2025-08-27 09:21:39.741  INFO 13192 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-08-27 09:21:39.742  INFO 13192 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1239 ms
+2025-08-27 09:21:39.939  WARN 13192 --- [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration': Instantiation of bean failed; nested exception is org.springframework.beans.BeanInstantiationException: Failed to instantiate [org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration$SpringMvcFoundOnClasspathConfiguration]: Constructor threw exception; nested exception is org.springframework.cloud.gateway.support.MvcFoundOnClasspathException
+2025-08-27 09:21:39.941  INFO 13192 --- [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-08-27 09:21:39.957  INFO 13192 --- [main] ConditionEvaluationReportLoggingListener : 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-08-27 09:21:39.969 ERROR 13192 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Spring MVC found on classpath, which is incompatible with Spring Cloud Gateway.
+
+Action:
+
+Please set spring.main.web-application-type=reactive or remove spring-boot-starter-web dependency.
+
+2025-08-27 09:22:31.712  INFO 21064 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 21064 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 09:22:31.715  INFO 21064 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 09:22:32.554  INFO 21064 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d2162d75-2b37-3a5b-9057-79f92945949e
+2025-08-27 09:22:32.612  INFO 21064 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:22:32.613  INFO 21064 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:22:32.614  INFO 21064 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-27 09:22:33.226  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-27 09:22:33.227  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-27 09:22:33.227  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-27 09:22:33.227  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-27 09:22:33.227  INFO 21064 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-27 09:22:33.495  INFO 21064 --- [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 18 endpoint(s) beneath base path '/actuator'
+2025-08-27 09:22:33.669  INFO 21064 --- [main] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestTemplate.
+2025-08-27 09:22:33.715  WARN 21064 --- [main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2025-08-27 09:22:33.758  INFO 21064 --- [main] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2025-08-27 09:22:33.785  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2025-08-27 09:22:33.791  INFO 21064 --- [main] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 09:22:33.809  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-08-27 09:22:33.809  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-08-27 09:22:33.809  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-08-27 09:22:33.809  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-08-27 09:22:33.809  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-08-27 09:22:33.810  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2025-08-27 09:22:33.810  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-08-27 09:22:34.116  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2025-08-27 09:22:34.118  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2025-08-27 09:22:34.120  INFO 21064 --- [main] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2025-08-27 09:22:34.124  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1756261354123 with initial instances count: 1
+2025-08-27 09:22:34.125  INFO 21064 --- [main] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application API-GATEWAY with eureka with status UP
+2025-08-27 09:22:34.125  INFO 21064 --- [main] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1756261354125, current=UP, previous=STARTING]
+2025-08-27 09:22:34.126  INFO 21064 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443: registering service...
+2025-08-27 09:22:34.157  INFO 21064 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - registration status: 204
+2025-08-27 09:22:34.259  INFO 21064 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8443
+2025-08-27 09:22:34.260  INFO 21064 --- [main] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8443
+2025-08-27 09:22:34.285  INFO 21064 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 3.116 seconds (JVM running for 3.804)
+2025-08-27 09:27:33.826  INFO 21064 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 09:32:09.639  WARN 21064 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: PROXY-CLIENT
+2025-08-27 09:32:10.797  WARN 21064 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: PROXY-CLIENT
+2025-08-27 09:32:33.833  INFO 21064 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 09:32:56.372  WARN 21064 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: PROXY-CLIENT
+2025-08-27 09:36:15.016 ERROR 21064 --- [reactor-http-nio-7] a.w.r.e.AbstractErrorWebExceptionHandler : [a94d9e22-11]  500 Server Error for HTTP GET "/blog-service/api/v1/blogs/findAll"
+
+io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection timed out: no further information: YNWA.mshome.net/125.235.4.59:8080
+	Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException: 
+Error has been observed at the following site(s):
+	*__checkpoint ⇢ org.springframework.cloud.gateway.filter.WeightCalculatorWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ org.springframework.boot.actuate.metrics.web.reactive.server.MetricsWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ HTTP GET "/blog-service/api/v1/blogs/findAll" [ExceptionHandlingWebHandler]
+Original Stack Trace:
+Caused by: java.net.ConnectException: Connection timed out: no further information
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:682) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:973) ~[na:na]
+	at io.netty.channel.socket.nio.NioSocketChannel.doFinishConnect(NioSocketChannel.java:337) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.finishConnect(AbstractNioChannel.java:334) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:776) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-08-27 09:37:33.841  INFO 21064 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 09:42:33.843  INFO 21064 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 09:47:33.848  INFO 21064 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 09:52:33.852  INFO 21064 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 09:56:38.820 ERROR 21064 --- [reactor-http-nio-1] a.w.r.e.AbstractErrorWebExceptionHandler : [19123824-12]  500 Server Error for HTTP GET "/blog-service/api/v1/blogs/findAll"
+
+io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection timed out: no further information: YNWA.mshome.net/125.235.4.59:8080
+	Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException: 
+Error has been observed at the following site(s):
+	*__checkpoint ⇢ org.springframework.cloud.gateway.filter.WeightCalculatorWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ org.springframework.boot.actuate.metrics.web.reactive.server.MetricsWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ HTTP GET "/blog-service/api/v1/blogs/findAll" [ExceptionHandlingWebHandler]
+Original Stack Trace:
+Caused by: java.net.ConnectException: Connection timed out: no further information
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:682) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:973) ~[na:na]
+	at io.netty.channel.socket.nio.NioSocketChannel.doFinishConnect(NioSocketChannel.java:337) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.finishConnect(AbstractNioChannel.java:334) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:776) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-08-27 09:56:41.305  INFO 21064 --- [SpringApplicationShutdownHook] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application API-GATEWAY with eureka with status DOWN
+2025-08-27 09:56:41.305  INFO 21064 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1756263401305, current=DOWN, previous=UP]
+2025-08-27 09:56:41.305  INFO 21064 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443: registering service...
+2025-08-27 09:56:41.317  INFO 21064 --- [DiscoveryClient-InstanceInfoReplicator-0] c.n.d.s.t.d.RedirectingEurekaHttpClient  : Request execution error. endpoint=DefaultEndpoint{ serviceUrl='http://localhost:8761/eureka/} exception=I/O error on POST request for "http://localhost:8761/eureka/apps/API-GATEWAY": Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect; nested exception is org.apache.http.conn.HttpHostConnectException: Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect stacktrace=org.springframework.web.client.ResourceAccessException: I/O error on POST request for "http://localhost:8761/eureka/apps/API-GATEWAY": Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect; nested exception is org.apache.http.conn.HttpHostConnectException: Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect
+	at org.springframework.web.client.RestTemplate.doExecute(RestTemplate.java:791)
+	at org.springframework.web.client.RestTemplate.execute(RestTemplate.java:717)
+	at org.springframework.web.client.RestTemplate.exchange(RestTemplate.java:608)
+	at org.springframework.cloud.netflix.eureka.http.RestTemplateEurekaHttpClient.register(RestTemplateEurekaHttpClient.java:77)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator$1.execute(EurekaHttpClientDecorator.java:59)
+	at com.netflix.discovery.shared.transport.decorator.RedirectingEurekaHttpClient.execute(RedirectingEurekaHttpClient.java:91)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator$1.execute(EurekaHttpClientDecorator.java:59)
+	at com.netflix.discovery.shared.transport.decorator.RetryableEurekaHttpClient.execute(RetryableEurekaHttpClient.java:120)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator$1.execute(EurekaHttpClientDecorator.java:59)
+	at com.netflix.discovery.shared.transport.decorator.SessionedEurekaHttpClient.execute(SessionedEurekaHttpClient.java:77)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56)
+	at com.netflix.discovery.DiscoveryClient.register(DiscoveryClient.java:876)
+	at com.netflix.discovery.InstanceInfoReplicator.run(InstanceInfoReplicator.java:121)
+	at com.netflix.discovery.InstanceInfoReplicator$1.run(InstanceInfoReplicator.java:101)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: org.apache.http.conn.HttpHostConnectException: Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:156)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:56)
+	at org.springframework.http.client.HttpComponentsClientHttpRequest.executeInternal(HttpComponentsClientHttpRequest.java:87)
+	at org.springframework.http.client.AbstractBufferingClientHttpRequest.executeInternal(AbstractBufferingClientHttpRequest.java:48)
+	at org.springframework.http.client.AbstractClientHttpRequest.execute(AbstractClientHttpRequest.java:66)
+	at org.springframework.web.client.RestTemplate.doExecute(RestTemplate.java:782)
+	... 21 more
+Caused by: java.net.ConnectException: Connection refused: connect
+	at java.base/sun.nio.ch.Net.connect0(Native Method)
+	at java.base/sun.nio.ch.Net.connect(Net.java:589)
+	at java.base/sun.nio.ch.Net.connect(Net.java:578)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:583)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327)
+	at java.base/java.net.Socket.connect(Socket.java:751)
+	at org.apache.http.conn.socket.PlainConnectionSocketFactory.connectSocket(PlainConnectionSocketFactory.java:75)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	... 34 more
+
+2025-08-27 09:56:41.318  WARN 21064 --- [DiscoveryClient-InstanceInfoReplicator-0] c.n.d.s.t.d.RetryableEurekaHttpClient    : Request execution failed with message: I/O error on POST request for "http://localhost:8761/eureka/apps/API-GATEWAY": Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect; nested exception is org.apache.http.conn.HttpHostConnectException: Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect
+2025-08-27 09:56:41.328  INFO 21064 --- [DiscoveryClient-InstanceInfoReplicator-0] c.n.d.s.t.d.RedirectingEurekaHttpClient  : Request execution error. endpoint=DefaultEndpoint{ serviceUrl='http://localhost:8761/eureka/}, exception=I/O error on POST request for "http://localhost:8761/eureka/apps/API-GATEWAY": Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect; nested exception is org.apache.http.conn.HttpHostConnectException: Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect stacktrace=org.springframework.web.client.ResourceAccessException: I/O error on POST request for "http://localhost:8761/eureka/apps/API-GATEWAY": Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect; nested exception is org.apache.http.conn.HttpHostConnectException: Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect
+	at org.springframework.web.client.RestTemplate.doExecute(RestTemplate.java:791)
+	at org.springframework.web.client.RestTemplate.execute(RestTemplate.java:717)
+	at org.springframework.web.client.RestTemplate.exchange(RestTemplate.java:608)
+	at org.springframework.cloud.netflix.eureka.http.RestTemplateEurekaHttpClient.register(RestTemplateEurekaHttpClient.java:77)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator$1.execute(EurekaHttpClientDecorator.java:59)
+	at com.netflix.discovery.shared.transport.decorator.RedirectingEurekaHttpClient.executeOnNewServer(RedirectingEurekaHttpClient.java:121)
+	at com.netflix.discovery.shared.transport.decorator.RedirectingEurekaHttpClient.execute(RedirectingEurekaHttpClient.java:80)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator$1.execute(EurekaHttpClientDecorator.java:59)
+	at com.netflix.discovery.shared.transport.decorator.RetryableEurekaHttpClient.execute(RetryableEurekaHttpClient.java:120)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator$1.execute(EurekaHttpClientDecorator.java:59)
+	at com.netflix.discovery.shared.transport.decorator.SessionedEurekaHttpClient.execute(SessionedEurekaHttpClient.java:77)
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56)
+	at com.netflix.discovery.DiscoveryClient.register(DiscoveryClient.java:876)
+	at com.netflix.discovery.InstanceInfoReplicator.run(InstanceInfoReplicator.java:121)
+	at com.netflix.discovery.InstanceInfoReplicator$1.run(InstanceInfoReplicator.java:101)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: org.apache.http.conn.HttpHostConnectException: Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:156)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:56)
+	at org.springframework.http.client.HttpComponentsClientHttpRequest.executeInternal(HttpComponentsClientHttpRequest.java:87)
+	at org.springframework.http.client.AbstractBufferingClientHttpRequest.executeInternal(AbstractBufferingClientHttpRequest.java:48)
+	at org.springframework.http.client.AbstractClientHttpRequest.execute(AbstractClientHttpRequest.java:66)
+	at org.springframework.web.client.RestTemplate.doExecute(RestTemplate.java:782)
+	... 22 more
+Caused by: java.net.ConnectException: Connection refused: connect
+	at java.base/sun.nio.ch.Net.connect0(Native Method)
+	at java.base/sun.nio.ch.Net.connect(Net.java:589)
+	at java.base/sun.nio.ch.Net.connect(Net.java:578)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:583)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327)
+	at java.base/java.net.Socket.connect(Socket.java:751)
+	at org.apache.http.conn.socket.PlainConnectionSocketFactory.connectSocket(PlainConnectionSocketFactory.java:75)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	... 35 more
+
+2025-08-27 09:56:41.328  WARN 21064 --- [DiscoveryClient-InstanceInfoReplicator-0] c.n.d.s.t.d.RetryableEurekaHttpClient    : Request execution failed with message: I/O error on POST request for "http://localhost:8761/eureka/apps/API-GATEWAY": Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect; nested exception is org.apache.http.conn.HttpHostConnectException: Connect to localhost:8761 [localhost/127.0.0.1, localhost/0:0:0:0:0:0:0:1] failed: Connection refused: connect
+2025-08-27 09:56:41.329  WARN 21064 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - registration failed Cannot execute request on any known server
+
+com.netflix.discovery.shared.transport.TransportException: Cannot execute request on any known server
+	at com.netflix.discovery.shared.transport.decorator.RetryableEurekaHttpClient.execute(RetryableEurekaHttpClient.java:112) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator$1.execute(EurekaHttpClientDecorator.java:59) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.shared.transport.decorator.SessionedEurekaHttpClient.execute(SessionedEurekaHttpClient.java:77) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.DiscoveryClient.register(DiscoveryClient.java:876) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.InstanceInfoReplicator.run(InstanceInfoReplicator.java:121) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.InstanceInfoReplicator$1.run(InstanceInfoReplicator.java:101) ~[eureka-client-1.10.18.jar:1.10.18]
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-08-27 09:56:41.329  WARN 21064 --- [DiscoveryClient-InstanceInfoReplicator-0] c.n.discovery.InstanceInfoReplicator     : There was a problem with the instance info replicator
+
+com.netflix.discovery.shared.transport.TransportException: Cannot execute request on any known server
+	at com.netflix.discovery.shared.transport.decorator.RetryableEurekaHttpClient.execute(RetryableEurekaHttpClient.java:112) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator$1.execute(EurekaHttpClientDecorator.java:59) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.shared.transport.decorator.SessionedEurekaHttpClient.execute(SessionedEurekaHttpClient.java:77) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.shared.transport.decorator.EurekaHttpClientDecorator.register(EurekaHttpClientDecorator.java:56) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.DiscoveryClient.register(DiscoveryClient.java:876) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.InstanceInfoReplicator.run(InstanceInfoReplicator.java:121) ~[eureka-client-1.10.18.jar:1.10.18]
+	at com.netflix.discovery.InstanceInfoReplicator$1.run(InstanceInfoReplicator.java:101) ~[eureka-client-1.10.18.jar:1.10.18]
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-08-27 09:56:43.413  INFO 21064 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2025-08-27 09:56:46.422  INFO 21064 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2025-08-27 09:56:46.429  INFO 21064 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - deregister  status: 404
+2025-08-27 09:56:46.433  INFO 21064 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
+2025-08-27 09:56:51.559  INFO 6360 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 6360 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 09:56:51.561  INFO 6360 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 09:56:52.844  INFO 6360 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d2162d75-2b37-3a5b-9057-79f92945949e
+2025-08-27 09:56:52.915  INFO 6360 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:56:52.917  INFO 6360 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:56:52.918  INFO 6360 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 09:56:53.661  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-27 09:56:53.662  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-27 09:56:53.663  INFO 6360 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-27 09:56:54.032  INFO 6360 --- [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 18 endpoint(s) beneath base path '/actuator'
+2025-08-27 09:56:54.204  INFO 6360 --- [main] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestTemplate.
+2025-08-27 09:56:54.246  WARN 6360 --- [main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2025-08-27 09:56:54.297  INFO 6360 --- [main] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2025-08-27 09:56:54.325  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2025-08-27 09:56:54.330  INFO 6360 --- [main] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 09:56:54.346  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-08-27 09:56:54.347  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-08-27 09:56:54.347  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-08-27 09:56:54.347  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-08-27 09:56:54.347  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-08-27 09:56:54.347  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2025-08-27 09:56:54.347  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-08-27 09:56:54.613  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2025-08-27 09:56:54.615  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2025-08-27 09:56:54.616  INFO 6360 --- [main] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2025-08-27 09:56:54.620  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1756263414619 with initial instances count: 0
+2025-08-27 09:56:54.621  INFO 6360 --- [main] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application API-GATEWAY with eureka with status UP
+2025-08-27 09:56:54.621  INFO 6360 --- [main] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1756263414621, current=UP, previous=STARTING]
+2025-08-27 09:56:54.622  INFO 6360 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443: registering service...
+2025-08-27 09:56:54.651  INFO 6360 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - registration status: 204
+2025-08-27 09:56:54.749  INFO 6360 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8443
+2025-08-27 09:56:54.751  INFO 6360 --- [main] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8443
+2025-08-27 09:56:54.777  INFO 6360 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 3.757 seconds (JVM running for 4.535)
+2025-08-27 09:56:58.164  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:00.436  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:10.037  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:11.073  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:11.989  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:12.871  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:13.905  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:14.902  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:22.149  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:23.128  WARN 6360 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 09:57:24.621  INFO 6360 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-08-27 09:57:24.621  INFO 6360 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-08-27 09:57:24.621  INFO 6360 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-08-27 09:57:24.621  INFO 6360 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-08-27 09:57:24.621  INFO 6360 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-08-27 09:57:24.621  INFO 6360 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application version is -1: false
+2025-08-27 09:57:24.622  INFO 6360 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-08-27 09:57:24.647  INFO 6360 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2025-08-27 09:57:46.014 ERROR 6360 --- [reactor-http-nio-3] a.w.r.e.AbstractErrorWebExceptionHandler : [ee452c11-11]  500 Server Error for HTTP GET "/blog-service/api/v1/blogs/findAll"
+
+io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection timed out: no further information: YNWA.mshome.net/125.235.4.59:8080
+	Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException: 
+Error has been observed at the following site(s):
+	*__checkpoint ⇢ org.springframework.cloud.gateway.filter.WeightCalculatorWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ org.springframework.boot.actuate.metrics.web.reactive.server.MetricsWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ HTTP GET "/blog-service/api/v1/blogs/findAll" [ExceptionHandlingWebHandler]
+Original Stack Trace:
+Caused by: java.net.ConnectException: Connection timed out: no further information
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:682) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:973) ~[na:na]
+	at io.netty.channel.socket.nio.NioSocketChannel.doFinishConnect(NioSocketChannel.java:337) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.finishConnect(AbstractNioChannel.java:334) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:776) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-08-27 10:01:54.359  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:06:54.361  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:11:54.371  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:16:54.385  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:21:54.400  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:26:54.404  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:31:54.415  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:36:54.423  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:41:54.438  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:46:54.452  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:51:54.467  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 10:56:54.478  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:01:54.480  INFO 6360 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:02:37.173 ERROR 6360 --- [reactor-http-nio-1] a.w.r.e.AbstractErrorWebExceptionHandler : [bac5f796-16]  500 Server Error for HTTP GET "/blog-service/api/v1/blogs/findAll"
+
+io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection timed out: no further information: YNWA.mshome.net/125.235.4.59:8080
+	Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException: 
+Error has been observed at the following site(s):
+	*__checkpoint ⇢ org.springframework.cloud.gateway.filter.WeightCalculatorWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ org.springframework.boot.actuate.metrics.web.reactive.server.MetricsWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ HTTP GET "/blog-service/api/v1/blogs/findAll" [ExceptionHandlingWebHandler]
+Original Stack Trace:
+Caused by: java.net.ConnectException: Connection timed out: no further information
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:682) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:973) ~[na:na]
+	at io.netty.channel.socket.nio.NioSocketChannel.doFinishConnect(NioSocketChannel.java:337) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.finishConnect(AbstractNioChannel.java:334) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:776) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-08-27 11:02:58.317  INFO 6360 --- [SpringApplicationShutdownHook] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application API-GATEWAY with eureka with status DOWN
+2025-08-27 11:02:58.317  INFO 6360 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1756267378317, current=DOWN, previous=UP]
+2025-08-27 11:02:58.317  INFO 6360 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443: registering service...
+2025-08-27 11:02:58.324  INFO 6360 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - registration status: 204
+2025-08-27 11:03:03.759  INFO 10300 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 10300 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 11:03:03.762  INFO 10300 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 11:03:04.664  INFO 10300 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d2162d75-2b37-3a5b-9057-79f92945949e
+2025-08-27 11:03:04.725  INFO 10300 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 11:03:04.726  INFO 10300 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 11:03:04.727  INFO 10300 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 11:03:05.307  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-27 11:03:05.307  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-27 11:03:05.307  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-27 11:03:05.308  INFO 10300 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-27 11:03:05.549  INFO 10300 --- [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 18 endpoint(s) beneath base path '/actuator'
+2025-08-27 11:03:05.707  INFO 10300 --- [main] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestTemplate.
+2025-08-27 11:03:05.747  WARN 10300 --- [main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2025-08-27 11:03:05.795  INFO 10300 --- [main] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2025-08-27 11:03:05.820  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2025-08-27 11:03:05.824  INFO 10300 --- [main] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:03:05.838  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-08-27 11:03:05.839  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-08-27 11:03:05.839  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-08-27 11:03:05.839  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-08-27 11:03:05.839  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-08-27 11:03:05.839  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2025-08-27 11:03:05.839  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-08-27 11:03:06.102  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2025-08-27 11:03:06.104  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2025-08-27 11:03:06.106  INFO 10300 --- [main] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2025-08-27 11:03:06.110  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1756267386109 with initial instances count: 2
+2025-08-27 11:03:06.111  INFO 10300 --- [main] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application API-GATEWAY with eureka with status UP
+2025-08-27 11:03:06.112  INFO 10300 --- [main] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1756267386112, current=UP, previous=STARTING]
+2025-08-27 11:03:06.113  INFO 10300 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443: registering service...
+2025-08-27 11:03:06.140  INFO 10300 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - registration status: 204
+2025-08-27 11:03:06.235  INFO 10300 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8443
+2025-08-27 11:03:06.236  INFO 10300 --- [main] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8443
+2025-08-27 11:03:06.260  INFO 10300 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 3.053 seconds (JVM running for 3.81)
+2025-08-27 11:06:43.454  INFO 10300 --- [SpringApplicationShutdownHook] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application API-GATEWAY with eureka with status DOWN
+2025-08-27 11:06:43.454  INFO 10300 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1756267603454, current=DOWN, previous=UP]
+2025-08-27 11:06:43.454  INFO 10300 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443: registering service...
+2025-08-27 11:06:43.576  INFO 10300 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - registration status: 204
+2025-08-27 11:06:45.536  INFO 10300 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2025-08-27 11:06:48.540  INFO 10300 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2025-08-27 11:06:48.558  INFO 10300 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - deregister  status: 200
+2025-08-27 11:06:48.561  INFO 10300 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
+2025-08-27 11:06:50.627  INFO 18048 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 18048 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 11:06:50.629  INFO 18048 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 11:06:51.437  INFO 18048 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=d2162d75-2b37-3a5b-9057-79f92945949e
+2025-08-27 11:06:51.491  INFO 18048 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 11:06:51.492  INFO 18048 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 11:06:51.493  INFO 18048 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-08-27 11:06:52.094  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-27 11:06:52.095  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-27 11:06:52.096  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-27 11:06:52.096  INFO 18048 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-27 11:06:52.335  INFO 18048 --- [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 18 endpoint(s) beneath base path '/actuator'
+2025-08-27 11:06:52.502  INFO 18048 --- [main] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestTemplate.
+2025-08-27 11:06:52.545  WARN 18048 --- [main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2025-08-27 11:06:52.595  INFO 18048 --- [main] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2025-08-27 11:06:52.621  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2025-08-27 11:06:52.625  INFO 18048 --- [main] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:06:52.642  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-08-27 11:06:52.643  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-08-27 11:06:52.643  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-08-27 11:06:52.643  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-08-27 11:06:52.643  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-08-27 11:06:52.643  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2025-08-27 11:06:52.643  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-08-27 11:06:52.903  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2025-08-27 11:06:52.905  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2025-08-27 11:06:52.906  INFO 18048 --- [main] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2025-08-27 11:06:52.910  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1756267612909 with initial instances count: 0
+2025-08-27 11:06:52.911  INFO 18048 --- [main] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application API-GATEWAY with eureka with status UP
+2025-08-27 11:06:52.911  INFO 18048 --- [main] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1756267612911, current=UP, previous=STARTING]
+2025-08-27 11:06:52.913  INFO 18048 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443: registering service...
+2025-08-27 11:06:52.947  INFO 18048 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - registration status: 204
+2025-08-27 11:06:53.034  INFO 18048 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8443
+2025-08-27 11:06:53.034  INFO 18048 --- [main] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8443
+2025-08-27 11:06:53.059  INFO 18048 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.876 seconds (JVM running for 3.588)
+2025-08-27 11:07:22.920  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-08-27 11:07:22.920  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-08-27 11:07:22.920  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-08-27 11:07:22.920  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-08-27 11:07:22.920  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-08-27 11:07:22.920  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application version is -1: false
+2025-08-27 11:07:22.920  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-08-27 11:07:22.948  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2025-08-27 11:09:27.896 ERROR 18048 --- [reactor-http-nio-3] a.w.r.e.AbstractErrorWebExceptionHandler : [f0480e55-4]  500 Server Error for HTTP GET "/blog-service/api/v1/blogs/findAll"
+
+io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection timed out: no further information: YNWA.mshome.net/125.235.4.59:8080
+	Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException: 
+Error has been observed at the following site(s):
+	*__checkpoint ⇢ org.springframework.cloud.gateway.filter.WeightCalculatorWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ org.springframework.boot.actuate.metrics.web.reactive.server.MetricsWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ HTTP GET "/blog-service/api/v1/blogs/findAll" [ExceptionHandlingWebHandler]
+Original Stack Trace:
+Caused by: java.net.ConnectException: Connection timed out: no further information
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:682) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:973) ~[na:na]
+	at io.netty.channel.socket.nio.NioSocketChannel.doFinishConnect(NioSocketChannel.java:337) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.finishConnect(AbstractNioChannel.java:334) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:776) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-08-27 11:11:52.648  INFO 18048 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:16:52.651  INFO 18048 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:21:52.668  INFO 18048 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:26:52.674  INFO 18048 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:28:51.902 ERROR 18048 --- [reactor-http-nio-5] a.w.r.e.AbstractErrorWebExceptionHandler : [0bf31725-5]  500 Server Error for HTTP GET "/blog-service/api/v1/blogs/findAll"
+
+io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection timed out: no further information: YNWA.mshome.net/125.235.4.59:8080
+	Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException: 
+Error has been observed at the following site(s):
+	*__checkpoint ⇢ org.springframework.cloud.gateway.filter.WeightCalculatorWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ org.springframework.boot.actuate.metrics.web.reactive.server.MetricsWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ HTTP GET "/blog-service/api/v1/blogs/findAll" [ExceptionHandlingWebHandler]
+Original Stack Trace:
+Caused by: java.net.ConnectException: Connection timed out: no further information
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:682) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:973) ~[na:na]
+	at io.netty.channel.socket.nio.NioSocketChannel.doFinishConnect(NioSocketChannel.java:337) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.finishConnect(AbstractNioChannel.java:334) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:776) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-08-27 11:31:52.690  INFO 18048 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:32:18.320  WARN 18048 --- [reactor-http-nio-7] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 11:32:19.386  WARN 18048 --- [reactor-http-nio-7] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 11:32:20.301  WARN 18048 --- [reactor-http-nio-7] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 11:32:21.066  WARN 18048 --- [reactor-http-nio-7] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 11:32:27.200  WARN 18048 --- [reactor-http-nio-7] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 11:35:43.786 ERROR 18048 --- [reactor-http-nio-1] a.w.r.e.AbstractErrorWebExceptionHandler : [73135a07-11]  500 Server Error for HTTP GET "/blog-service/api/v1/blogs/findAll"
+
+io.netty.channel.AbstractChannel$AnnotatedConnectException: Connection timed out: no further information: YNWA.mshome.net/125.235.4.59:8080
+	Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException: 
+Error has been observed at the following site(s):
+	*__checkpoint ⇢ org.springframework.cloud.gateway.filter.WeightCalculatorWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ org.springframework.boot.actuate.metrics.web.reactive.server.MetricsWebFilter [DefaultWebFilterChain]
+	*__checkpoint ⇢ HTTP GET "/blog-service/api/v1/blogs/findAll" [ExceptionHandlingWebHandler]
+Original Stack Trace:
+Caused by: java.net.ConnectException: Connection timed out: no further information
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:682) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:973) ~[na:na]
+	at io.netty.channel.socket.nio.NioSocketChannel.doFinishConnect(NioSocketChannel.java:337) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.finishConnect(AbstractNioChannel.java:334) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:776) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.101.Final.jar:4.1.101.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-08-27 11:36:52.699  INFO 18048 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-08-27 11:36:54.413  INFO 18048 --- [DiscoveryClient-HeartbeatExecutor-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - Re-registering apps/API-GATEWAY
+2025-08-27 11:36:54.414  INFO 18048 --- [DiscoveryClient-HeartbeatExecutor-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443: registering service...
+2025-08-27 11:36:54.419  INFO 18048 --- [DiscoveryClient-HeartbeatExecutor-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - registration status: 204
+2025-08-27 11:37:07.554  WARN 18048 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 11:37:08.495  WARN 18048 --- [reactor-http-nio-3] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: BLOG-SERVICE
+2025-08-27 11:37:24.526  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-08-27 11:37:24.526  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-08-27 11:37:24.526  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-08-27 11:37:24.526  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-08-27 11:37:24.526  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-08-27 11:37:24.526  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application version is -1: false
+2025-08-27 11:37:24.526  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-08-27 11:37:24.543  INFO 18048 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2025-08-27 11:40:09.670  INFO 18048 --- [SpringApplicationShutdownHook] o.s.c.n.e.s.EurekaServiceRegistry        : Unregistering application API-GATEWAY with eureka with status DOWN
+2025-08-27 11:40:09.671  INFO 18048 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1756269609671, current=DOWN, previous=UP]
+2025-08-27 11:40:09.671  INFO 18048 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443: registering service...
+2025-08-27 11:40:09.689  INFO 18048 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - registration status: 204
+2025-08-27 11:40:11.753  INFO 18048 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2025-08-27 11:40:14.769  INFO 18048 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2025-08-27 11:40:14.785  INFO 18048 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/YNWA.mshome.net:API-GATEWAY:8443 - deregister  status: 200
+2025-08-27 11:40:14.789  INFO 18048 --- [SpringApplicationShutdownHook] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
