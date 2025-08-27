@@ -1,0 +1,38 @@
+2025-08-27 13:36:35.611  INFO 11144 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 11144 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 13:36:35.614  INFO 11144 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 13:36:36.240  INFO 11144 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-27 13:36:37.119  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-27 13:36:37.119  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-27 13:36:37.121  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-27 13:36:37.121  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-27 13:36:37.121  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-27 13:36:37.121  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-27 13:36:37.121  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-27 13:36:37.121  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-27 13:36:37.121  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-27 13:36:37.122  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-27 13:36:37.122  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-27 13:36:37.122  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-27 13:36:37.122  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-27 13:36:37.122  INFO 11144 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-27 13:36:37.609  INFO 11144 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
+2025-08-27 13:36:37.695  INFO 11144 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.517 seconds (JVM running for 3.189)
+2025-08-27 13:37:06.999  INFO 21708 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 21708 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-27 13:37:07.001  INFO 21708 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-27 13:37:07.506  INFO 21708 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-27 13:37:08.026  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-27 13:37:08.027  INFO 21708 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-27 13:37:08.339  INFO 21708 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
+2025-08-27 13:37:08.393  INFO 21708 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 1.829 seconds (JVM running for 2.392)
