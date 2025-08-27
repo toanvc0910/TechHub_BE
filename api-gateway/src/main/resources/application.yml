@@ -1,15 +1,15 @@
-#server:
+server:
 #  ssl:
 #    key-store: classpath:${ENVIRONMENT:dev}.pfx
 #    key-store-password: ${KEY_STORE_PASSWORD:123456}
 #    key-store-type: pkcs12
 #    key-password: ${KEY_STORE_PASSWORD:123456}
-#  servlet:
-#    context-path: /
-#  port: 8443
-#  error:
-#    whitelabel:
-#      enabled: false
+  servlet:
+    context-path: /
+  port: 8443
+  error:
+    whitelabel:
+      enabled: false
 
 spring:
   zipkin:
@@ -56,10 +56,10 @@ spring:
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/payment-service/**
-        - id: PROXY-CLIENT
-          uri: lb://PROXY-CLIENT
-          predicates:
-            - Path=/app/**
+#        - id: PROXY-CLIENT
+#          uri: lb://PROXY-CLIENT
+#          predicates:
+#            - Path=/app/**
 
 resilience4j:
   circuitbreaker:
