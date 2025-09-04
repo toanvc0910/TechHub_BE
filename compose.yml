@@ -37,7 +37,7 @@ services:
     image: tuyentvwork/api-gateway:0.1.0
     container_name: api-gateway-container
     ports:
-      - 8080:8080
+      - 8443:8443
     environment:
       - SPRING_PROFILES_ACTIVE=dev
     networks:

@@ -8,10 +8,6 @@ spring:
   jackson:
     serialization:
       indent-output: true
-  datasource:
-    url: jdbc:postgresql://${DB_HOSTNAME:172.16.3.12}:${DB_PORT:51173}/pos_web_app_db
-    username: postgres
-    password: ${DB_PASSWORD:HrWL(f#vXnrIWNkL}
 
   jpa:
     show-sql: false
