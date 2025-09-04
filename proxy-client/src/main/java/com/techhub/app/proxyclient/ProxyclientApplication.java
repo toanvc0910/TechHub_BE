@@ -1,4 +1,4 @@
-package com.techhub.app.proxyclient;
+''
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
