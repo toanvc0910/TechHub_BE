@@ -1,0 +1,67 @@
+server:
+  servlet:
+    context-path: /app
+  port: 8900
+
+company:
+  name: techhub
+  version: 1.0.0
+spring:
+  zipkin:
+    base-url: ${SPRING_ZIPKIN_BASE_URL:http://${HOST_IP_ADDRESS:localhost}:9411/}
+  config:
+    import: ${SPRING_CONFIG_IMPORT:optional:configserver:http://${HOST_IP_ADDRESS:localhost}:9296}
+  application:
+    name: PROXY-CLIENT
+  profiles:
+    active:
+    - ${SPRING_PROFILES_ACTIVE:dev}
+
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      proxyService:
+        register-health-indicator: true
+        event-consumer-buffer-size: 10
+        automatic-transition-from-open-to-half-open-enabled: true
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        sliding-window-size: 10
+        wait-duration-in-open-state: 5s
+        sliding-window-type: COUNT_BASED
+
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always
+
+
+#springdoc:
+#  enable-native-support: true
+#  api-docs:
+#    enabled: true
+#    path: /v3/api-docs
+#  swagger-ui:
+#    enabled: true
+#    path: /swagger-ui.html
+#    config-url: /v3/api-docs/swagger-config
+
+#swagger
+#eureka:
+#  client:
+#    register-with-eureka: true
+#    fetch-registry: true
+#  instance:
+#    hostname: localhost
+
+
+
+
+
+
+

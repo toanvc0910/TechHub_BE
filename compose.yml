@@ -1,0 +1,141 @@
+version: '3'
+services:
+  zipkin-container:
+    image: openzipkin/zipkin
+    container_name: zipkin-container
+    ports:
+      - 9411:9411
+    networks:
+      - backend
+    restart: always
+
+  service-discovery-container:
+    build:
+      context: ./service-discovery
+      dockerfile: Dockerfile
+    image: tuyentvwork/service-discovery:0.1.0
+    container_name: service-discovery-container
+    ports:
+      - 8761:8761
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - backend
+    depends_on:
+      - zipkin-container
+    restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  api-gateway-container:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    image: tuyentvwork/api-gateway:0.1.0
+    container_name: api-gateway-container
+    ports:
+      - 8443:8443
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - backend
+    depends_on:
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  proxy-client-container:
+    build:
+      context: ./proxy-client
+      dockerfile: Dockerfile
+    image: tuyentvwork/proxy-client:0.1.0
+    container_name: proxy-client-container
+    ports:
+      - 8085:8085
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - backend
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+    restart: always
+
+  blog-service-container:
+    build:
+      context: ./blog-service
+      dockerfile: Dockerfile
+    image: tuyentvwork/blog-service:0.1.0
+    container_name: blog-service-container
+    ports:
+      - 8081:8081
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - backend
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+    restart: always
+
+  course-service-container:
+    build:
+      context: ./course-service
+      dockerfile: Dockerfile
+    image: tuyentvwork/course-service:0.1.0
+    container_name: course-service-container
+    ports:
+      - 8082:8082
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - backend
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+    restart: always
+
+  learning-path-service-container:
+    build:
+      context: ./learning-path-service
+      dockerfile: Dockerfile
+    image: tuyentvwork/learning-path-service:0.1.0
+    container_name: learning-path-service-container
+    ports:
+      - 8083:8083
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - backend
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+    restart: always
+
+  payment-service-container:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    image: tuyentvwork/payment-service:0.1.0
+    container_name: payment-service-container
+    ports:
+      - 8084:8084
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - backend
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+    restart: always
+
+networks:
+  backend:
