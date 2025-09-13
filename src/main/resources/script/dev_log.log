@@ -1,0 +1,206 @@
+2025-08-25 09:46:41.631  INFO 8516 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 8516 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-25 09:46:41.633  INFO 8516 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-25 09:46:42.209  INFO 8516 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-25 09:46:42.434  WARN 8516 --- [main] onfigReactiveWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Unable to start reactive web server; nested exception is java.lang.IllegalStateException: org.springframework.boot.web.server.WebServerException: Could not load key store 'classpath:dev.pfx'
+2025-08-25 09:46:42.446  INFO 8516 --- [main] ConditionEvaluationReportLoggingListener : 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-08-25 09:46:42.466 ERROR 8516 --- [main] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.context.ApplicationContextException: Unable to start reactive web server; nested exception is java.lang.IllegalStateException: org.springframework.boot.web.server.WebServerException: Could not load key store 'classpath:dev.pfx'
+	at org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.onRefresh(ReactiveWebServerApplicationContext.java:84) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:585) ~[spring-context-5.3.31.jar:5.3.31]
+	at org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.refresh(ReactiveWebServerApplicationContext.java:66) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:732) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:409) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:308) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1300) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1289) ~[spring-boot-2.7.18.jar:2.7.18]
+	at com.techhub.app.apigateway.ApigatewayApplication.main(ApigatewayApplication.java:10) ~[classes/:na]
+Caused by: java.lang.IllegalStateException: org.springframework.boot.web.server.WebServerException: Could not load key store 'classpath:dev.pfx'
+	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.getKeyManagerFactory(SslServerCustomizer.java:129) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.createSslContextSpec(SslServerCustomizer.java:93) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.apply(SslServerCustomizer.java:83) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory.customizeSslConfiguration(NettyReactiveWebServerFactory.java:184) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory.createHttpServer(NettyReactiveWebServerFactory.java:170) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.embedded.netty.NettyReactiveWebServerFactory.getWebServer(NettyReactiveWebServerFactory.java:70) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.reactive.context.WebServerManager.<init>(WebServerManager.java:50) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.createWebServer(ReactiveWebServerApplicationContext.java:96) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext.onRefresh(ReactiveWebServerApplicationContext.java:81) ~[spring-boot-2.7.18.jar:2.7.18]
+	... 8 common frames omitted
+Caused by: org.springframework.boot.web.server.WebServerException: Could not load key store 'classpath:dev.pfx'
+	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.loadStore(SslServerCustomizer.java:193) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.loadKeyStore(SslServerCustomizer.java:164) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.getKeyStore(SslServerCustomizer.java:137) ~[spring-boot-2.7.18.jar:2.7.18]
+	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.getKeyManagerFactory(SslServerCustomizer.java:115) ~[spring-boot-2.7.18.jar:2.7.18]
+	... 16 common frames omitted
+Caused by: java.io.FileNotFoundException: class path resource [dev.pfx] cannot be resolved to URL because it does not exist
+	at org.springframework.util.ResourceUtils.getURL(ResourceUtils.java:137) ~[spring-core-5.3.31.jar:5.3.31]
+	at org.springframework.boot.web.embedded.netty.SslServerCustomizer.loadStore(SslServerCustomizer.java:187) ~[spring-boot-2.7.18.jar:2.7.18]
+	... 19 common frames omitted
+
+2025-08-25 14:08:41.150  INFO 12128 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 12128 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-25 14:08:41.152  INFO 12128 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-25 14:08:41.740  INFO 12128 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-25 14:08:42.382  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-25 14:08:42.383  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-25 14:08:42.383  INFO 12128 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-25 14:08:42.730  WARN 12128 --- [main] onfigReactiveWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 8080 is already in use
+2025-08-25 14:08:44.835  INFO 12128 --- [main] ConditionEvaluationReportLoggingListener : 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-08-25 14:08:44.851 ERROR 12128 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+2025-08-25 14:10:20.254  INFO 21424 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 21424 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-25 14:10:20.257  INFO 21424 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-25 14:10:20.889  INFO 21424 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-25 14:10:21.484  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-25 14:10:21.485  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-25 14:10:21.485  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-25 14:10:21.485  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-25 14:10:21.485  INFO 21424 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-25 14:10:21.824  WARN 21424 --- [main] onfigReactiveWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 8080 is already in use
+2025-08-25 14:10:23.934  INFO 21424 --- [main] ConditionEvaluationReportLoggingListener : 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-08-25 14:10:23.948 ERROR 21424 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+2025-08-25 14:14:38.148  INFO 7544 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 7544 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-25 14:14:38.151  INFO 7544 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-25 14:14:38.704  INFO 7544 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-25 14:14:39.426  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-25 14:14:39.427  INFO 7544 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-25 14:14:39.761  INFO 7544 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
+2025-08-25 14:14:39.823  INFO 7544 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.163 seconds (JVM running for 5.43)
+2025-08-25 15:09:08.997  INFO 11068 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 11068 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-25 15:09:08.999  INFO 11068 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-25 15:09:09.650  INFO 11068 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-25 15:09:10.263  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-25 15:09:10.264  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-25 15:09:10.265  INFO 11068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-25 15:09:10.612  INFO 11068 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
+2025-08-25 15:09:10.719  INFO 11068 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.246 seconds (JVM running for 2.938)
+2025-08-25 15:11:55.065  INFO 21488 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 21488 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-25 15:11:55.068  INFO 21488 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-25 15:11:55.677  INFO 21488 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-25 15:11:56.241  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-25 15:11:56.242  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-25 15:11:56.242  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-25 15:11:56.242  INFO 21488 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-25 15:11:56.525  INFO 21488 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
+2025-08-25 15:11:56.579  INFO 21488 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.013 seconds (JVM running for 2.775)
+2025-08-25 15:42:20.158  INFO 7068 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 7068 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-25 15:42:20.160  INFO 7068 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-25 15:42:20.670  INFO 7068 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-25 15:42:21.190  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-25 15:42:21.191  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-25 15:42:21.192  INFO 7068 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-25 15:42:21.486  INFO 7068 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
+2025-08-25 15:42:21.544  INFO 7068 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 1.809 seconds (JVM running for 2.39)
+2025-08-25 15:56:23.551  INFO 12132 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 21 on YNWA with PID 12132 (D:\Work\TechHub\TechHub_BE\api-gateway\target\classes started by ASUS in D:\Work\TechHub\TechHub_BE)
+2025-08-25 15:56:23.553  INFO 12132 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-08-25 15:56:24.128  INFO 12132 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=541bc432-b48f-33a5-ae3b-196ac636649b
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-08-25 15:56:24.980  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-08-25 15:56:24.981  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-08-25 15:56:24.981  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-08-25 15:56:24.981  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-08-25 15:56:24.981  INFO 12132 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-08-25 15:56:25.378  INFO 12132 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080
+2025-08-25 15:56:25.465  INFO 12132 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 2.35 seconds (JVM running for 4.659)

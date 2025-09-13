@@ -56,14 +56,10 @@ spring:
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/payment-service/**
-        - id: USER-SERVICE
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/user-service/**
-        - id: PROXY-CLIENT
-          uri: lb://PROXY-CLIENT
-          predicates:
-            - Path=/app/**
+#        - id: PROXY-CLIENT
+#          uri: lb://PROXY-CLIENT
+#          predicates:
+#            - Path=/app/**
 
 resilience4j:
   circuitbreaker:
