@@ -1,0 +1,80 @@
+package com.techhub.app.userservice.entity;
+
+import com.techhub.app.userservice.enums.UserRole;
+import com.techhub.app.userservice.enums.UserStatus;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.GenericGenerator;
+
+import javax.persistence.*;
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Size;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "users")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class User {
+
+    @Id
+    @GeneratedValue(generator = "uuid2")
+    @GenericGenerator(name = "uuid2", strategy = "uuid2")
+    @Column(name = "id", columnDefinition = "BINARY(16)")
+    private UUID id;
+
+    @Email
+    @NotBlank
+    @Column(name = "email", unique = true, nullable = false)
+    private String email;
+
+    @NotBlank
+    @Size(min = 3, max = 50)
+    @Column(name = "username", unique = true, nullable = false)
+    private String username;
+
+    @NotBlank
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private UserRole role = UserRole.USER;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private UserStatus status = UserStatus.PENDING;
+
+    @Column(name = "created", nullable = false)
+    private LocalDateTime created;
+
+    @Column(name = "updated")
+    private LocalDateTime updated;
+
+    @Column(name = "created_by", columnDefinition = "BINARY(16)")
+    private UUID createdBy;
+
+    @Column(name = "updated_by", columnDefinition = "BINARY(16)")
+    private UUID updatedBy;
+
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Profile profile;
+
+    @PrePersist
+    protected void onCreate() {
+        created = LocalDateTime.now();
+        updated = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updated = LocalDateTime.now();
+    }
+}
