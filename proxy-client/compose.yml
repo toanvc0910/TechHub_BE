@@ -1,0 +1,8 @@
+version: '3'
+services:
+  proxy-client-container:
+    image: tuyentvwork/proxy-client:0.1.0
+    ports:
+      - 8085:8085
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
