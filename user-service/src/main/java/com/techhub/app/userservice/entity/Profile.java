@@ -1,5 +1,6 @@
 package com.techhub.app.userservice.entity;
 
+import com.techhub.app.userservice.config.BooleanToYNStringConverter;
 import com.techhub.app.userservice.enums.Language;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,11 +21,10 @@ public class Profile {
     @Id
     @GeneratedValue(generator = "uuid2")
     @GenericGenerator(name = "uuid2", strategy = "uuid2")
-    @Column(name = "id", columnDefinition = "BINARY(16)")
     private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
     @Column(name = "full_name")
@@ -43,22 +43,24 @@ public class Profile {
     @Column(name = "preferred_language")
     private Language preferredLanguage = Language.VI;
 
-    @Column(name = "learning_history", columnDefinition = "TEXT")
+    // rely on DB default for JSONB
+    @Column(name = "learning_history")
     private String learningHistory;
 
     @Column(name = "created", nullable = false)
     private LocalDateTime created;
 
-    @Column(name = "updated")
+    @Column(name = "updated", nullable = false)
     private LocalDateTime updated;
 
-    @Column(name = "created_by", columnDefinition = "BINARY(16)")
+    @Column(name = "created_by")
     private UUID createdBy;
 
-    @Column(name = "updated_by", columnDefinition = "BINARY(16)")
+    @Column(name = "updated_by")
     private UUID updatedBy;
 
-    @Column(name = "is_active", nullable = false)
+    @Convert(converter = BooleanToYNStringConverter.class)
+    @Column(name = "is_active", nullable = false, length = 1)
     private Boolean isActive = true;
 
     @PrePersist

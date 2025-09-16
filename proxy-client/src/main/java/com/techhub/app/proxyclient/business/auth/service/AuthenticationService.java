@@ -3,9 +3,9 @@ package com.techhub.app.proxyclient.business.auth.service;
 import com.techhub.app.proxyclient.business.auth.model.request.AuthenticationRequest;
 import com.techhub.app.proxyclient.business.auth.model.response.AuthRespDto;
 import com.techhub.app.proxyclient.business.auth.model.response.AuthenticationResponse;
-import org.common.dbiz.dto.userDto.GetTokenDto;
-import org.common.dbiz.dto.userDto.GetTokenRespDto;
-import org.common.dbiz.dto.userDto.request.RefreshTokenReqDto;
+import com.techhub.app.proxyclient.business.auth.model.request.GetTokenDto;
+import com.techhub.app.proxyclient.business.auth.model.request.RefreshTokenReqDto;
+import com.techhub.app.proxyclient.business.auth.model.response.GetTokenRespDto;
 
 public interface AuthenticationService {
 	

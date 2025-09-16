@@ -3,11 +3,13 @@ package com.techhub.app.userservice.service.impl;
 import com.techhub.app.userservice.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Service
+@ConditionalOnBean(JavaMailSender.class)
 @RequiredArgsConstructor
 @Slf4j
 public class EmailServiceImpl implements EmailService {

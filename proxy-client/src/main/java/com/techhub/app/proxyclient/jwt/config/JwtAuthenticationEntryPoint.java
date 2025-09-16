@@ -1,5 +1,6 @@
 package com.techhub.app.proxyclient.jwt.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techhub.app.proxyclient.exception.payload.ExceptionMsg;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.web.AuthenticationEntryPoint;

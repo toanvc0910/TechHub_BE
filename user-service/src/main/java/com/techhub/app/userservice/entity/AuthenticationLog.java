@@ -1,5 +1,6 @@
 package com.techhub.app.userservice.entity;
 
+import com.techhub.app.userservice.config.BooleanToYNStringConverter;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,14 +20,13 @@ public class AuthenticationLog {
     @Id
     @GeneratedValue(generator = "uuid2")
     @GenericGenerator(name = "uuid2", strategy = "uuid2")
-    @Column(name = "id", columnDefinition = "BINARY(16)")
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "login_time", nullable = false)
+    @Column(name = "login_time")
     private LocalDateTime loginTime;
 
     @Column(name = "ip_address")
@@ -41,16 +41,17 @@ public class AuthenticationLog {
     @Column(name = "created", nullable = false)
     private LocalDateTime created;
 
-    @Column(name = "updated")
+    @Column(name = "updated", nullable = false)
     private LocalDateTime updated;
 
-    @Column(name = "created_by", columnDefinition = "BINARY(16)")
+    @Column(name = "created_by")
     private UUID createdBy;
 
-    @Column(name = "updated_by", columnDefinition = "BINARY(16)")
+    @Column(name = "updated_by")
     private UUID updatedBy;
 
-    @Column(name = "is_active", nullable = false)
+    @Convert(converter = BooleanToYNStringConverter.class)
+    @Column(name = "is_active", nullable = false, length = 1)
     private Boolean isActive = true;
 
     @PrePersist

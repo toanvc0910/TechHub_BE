@@ -35,7 +35,7 @@ public class OTPServiceImpl implements OTPService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Invalidate existing OTPs for this user and type
+        // Deactivate existing active OTPs for this user and type
         invalidateAllOTPsForUser(userId, type);
 
         // Generate new OTP code
@@ -47,7 +47,7 @@ public class OTPServiceImpl implements OTPService {
         otp.setCode(otpCode);
         otp.setType(type);
         otp.setExpiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES));
-        otp.setIsUsed(false);
+        otp.setIsActive(true);
 
         otpRepository.save(otp);
 
@@ -58,43 +58,39 @@ public class OTPServiceImpl implements OTPService {
     @Override
     @Transactional(readOnly = true)
     public boolean validateOTP(String code, OtpType type) {
-        return otpRepository.findByCodeAndTypeAndIsUsedFalseAndExpiresAtAfter(
+        return otpRepository.findByCodeAndTypeAndIsActiveTrueAndExpiresAtAfter(
             code, type, LocalDateTime.now()).isPresent();
     }
 
     @Override
     @Transactional(readOnly = true)
     public boolean validateOTPForUser(UUID userId, String code, OtpType type) {
-        return otpRepository.findByCodeAndTypeAndIsUsedFalseAndExpiresAtAfter(
-            code, type, LocalDateTime.now())
+        return otpRepository.findByCodeAndTypeAndIsActiveTrueAndExpiresAtAfter(
+                code, type, LocalDateTime.now())
             .map(otp -> otp.getUser().getId().equals(userId))
             .orElse(false);
     }
 
     @Override
     public void markOTPAsUsed(String code, OtpType type) {
-        log.info("Marking OTP as used: {} for type: {}", code, type);
-
-        OTP otp = otpRepository.findByCodeAndTypeAndIsUsedFalseAndExpiresAtAfter(
-            code, type, LocalDateTime.now())
-            .orElseThrow(() -> new RuntimeException("Invalid or expired OTP"));
-
-        otp.setIsUsed(true);
-        otpRepository.save(otp);
-
-        log.info("OTP marked as used successfully");
+        log.info("Deactivating OTP: {} for type: {}", code, type);
+        otpRepository.findByCodeAndTypeAndIsActiveTrueAndExpiresAtAfter(code, type, LocalDateTime.now())
+            .ifPresent(otp -> {
+                otp.setIsActive(false);
+                otpRepository.save(otp);
+            });
     }
 
     @Override
     public void invalidateAllOTPsForUser(UUID userId, OtpType type) {
         log.info("Invalidating all OTPs for user ID: {} and type: {}", userId, type);
-        otpRepository.markAllAsUsedByUserIdAndType(userId, type);
+        otpRepository.deactivateAllByUserIdAndType(userId, type);
     }
 
     @Override
     public void cleanupExpiredOTPs() {
         log.info("Cleaning up expired OTPs");
-        otpRepository.deleteByExpiresAtBeforeOrIsUsedTrue(LocalDateTime.now());
+        otpRepository.deleteByExpiresAtBefore(LocalDateTime.now());
         log.info("Expired OTPs cleaned up successfully");
     }
 

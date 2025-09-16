@@ -16,15 +16,15 @@ import java.util.UUID;
 @Repository
 public interface OTPRepository extends JpaRepository<OTP, UUID> {
 
-    Optional<OTP> findByCodeAndTypeAndIsUsedFalseAndExpiresAtAfter(
+    Optional<OTP> findByCodeAndTypeAndIsActiveTrueAndExpiresAtAfter(
         String code, OtpType type, LocalDateTime currentTime);
 
-    List<OTP> findByUserIdAndTypeAndIsUsedFalseAndExpiresAtAfter(
+    List<OTP> findByUser_IdAndTypeAndIsActiveTrueAndExpiresAtAfter(
         UUID userId, OtpType type, LocalDateTime currentTime);
 
     @Modifying
-    @Query("UPDATE OTP o SET o.isUsed = true WHERE o.userId = :userId AND o.type = :type")
-    void markAllAsUsedByUserIdAndType(@Param("userId") UUID userId, @Param("type") OtpType type);
+    @Query("UPDATE OTP o SET o.isActive = false WHERE o.user.id = :userId AND o.type = :type AND o.isActive = true")
+    void deactivateAllByUserIdAndType(@Param("userId") UUID userId, @Param("type") OtpType type);
 
-    void deleteByExpiresAtBeforeOrIsUsedTrue(LocalDateTime dateTime);
+    void deleteByExpiresAtBefore(LocalDateTime dateTime);
 }

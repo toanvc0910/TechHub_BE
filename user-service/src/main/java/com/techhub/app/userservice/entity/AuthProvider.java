@@ -1,5 +1,6 @@
 package com.techhub.app.userservice.entity;
 
+import com.techhub.app.userservice.config.BooleanToYNStringConverter;
 import com.techhub.app.userservice.enums.AuthProviderType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,7 +21,6 @@ public class AuthProvider {
     @Id
     @GeneratedValue(generator = "uuid2")
     @GenericGenerator(name = "uuid2", strategy = "uuid2")
-    @Column(name = "id", columnDefinition = "BINARY(16)")
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -31,10 +31,10 @@ public class AuthProvider {
     @Column(name = "provider", nullable = false)
     private AuthProviderType provider;
 
-    @Column(name = "access_token", columnDefinition = "TEXT")
+    @Column(name = "access_token")
     private String accessToken;
 
-    @Column(name = "refresh_token", columnDefinition = "TEXT")
+    @Column(name = "refresh_token")
     private String refreshToken;
 
     @Column(name = "expires_at")
@@ -43,16 +43,17 @@ public class AuthProvider {
     @Column(name = "created", nullable = false)
     private LocalDateTime created;
 
-    @Column(name = "updated")
+    @Column(name = "updated", nullable = false)
     private LocalDateTime updated;
 
-    @Column(name = "created_by", columnDefinition = "BINARY(16)")
+    @Column(name = "created_by")
     private UUID createdBy;
 
-    @Column(name = "updated_by", columnDefinition = "BINARY(16)")
+    @Column(name = "updated_by")
     private UUID updatedBy;
 
-    @Column(name = "is_active", nullable = false)
+    @Convert(converter = BooleanToYNStringConverter.class)
+    @Column(name = "is_active", nullable = false, length = 1)
     private Boolean isActive = true;
 
     @PrePersist

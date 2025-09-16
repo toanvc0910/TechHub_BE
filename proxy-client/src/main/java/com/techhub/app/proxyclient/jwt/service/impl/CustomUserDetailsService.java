@@ -1,135 +1,58 @@
 package com.techhub.app.proxyclient.jwt.service.impl;
 
-import com.techhub.app.proxyclient.business.user.model.UserDto;
-import com.techhub.app.proxyclient.business.user.service.UserClient2Service;
-import com.techhub.app.proxyclient.business.user.service.UserClientService;
-import com.techhub.app.proxyclient.exception.wrapper.InvalidCredentialException;
 import com.techhub.app.proxyclient.jwt.domain.AuthUserDetails;
-import com.techhub.app.proxyclient.jwt.domain.CustomUserDetails;
 import lombok.extern.slf4j.Slf4j;
-import org.common.dbiz.dto.userDto.AuthDto;
-import org.common.dbiz.payload.GlobalReponse;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 
 @Slf4j
 @Service
 public class CustomUserDetailsService implements com.techhub.app.proxyclient.jwt.service.CustomUserDetailsService {
-    private final UserClientService userClientService;
-    private final UserClient2Service userClient2Service;
-
-    public CustomUserDetailsService(UserClientService userClientService, UserClient2Service userClient2Service) {
-        this.userClientService = userClientService;
-        this.userClient2Service = userClient2Service;
-    }
 
     @Override
     public UserDetails loadUserByUsernameAndTenantId(String username, Integer tenantId) throws UsernameNotFoundException {
-        Integer newTenantId =  0;
-        if (username != null && username.equals("WebService")){
-            newTenantId = tenantId;
-            tenantId = 0;
+        if (username == null || username.isBlank()) {
+            throw new UsernameNotFoundException("Username is blank");
         }
-        LocalDateTime startTime = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
-        log.info("Begin get user proxy at {}", startTime.format(formatter));
-        UserDto user =  this.userClientService.findByUsername(tenantId,username,newTenantId).getBody();
-        LocalDateTime endTime = LocalDateTime.now();
-        log.info("Begin get user proxy at {}", endTime.format(formatter));
-
-        if(user != null)
-        {
-            return new CustomUserDetails(
-                    user.getTenantId(),
-                    user.getUserName(),
-                    user.getPassword(),
-                    user.getUserId(),
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-            );
-        }else{
-            throw new UsernameNotFoundException("User not found with username: " + username);
-        }
-    }
-
-    @Override
-    public UserDetails loadUserByUsernameAndTenantIdInternal(String username,String password,
-                                                             Integer tenantId,Integer userId) {
-        return new CustomUserDetails(
-                tenantId,username,password,userId,
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-        );
-    }
-
-    @Override
-    public UserDetails loadByClientIdAndClientSecretAndGrantType(String clientId, String clientSecret, String grantType) {
-
-        AuthDto authDto = AuthDto.builder()
-                .clientId(clientId)
-                .clientSecret(clientSecret)
-                .grantType(grantType)
+        return User.builder()
+                .username(username)
+                // BCrypt hash for "password"
+                .password("$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5g5G7xO6jwxKF1u9Ii.YivGi99ZGa")
+                .authorities(Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")))
                 .build();
-        GlobalReponse dto =  this.userClient2Service.authentication(
-                authDto
-        ).getBody();
-
-
-        if(dto.getStatus().intValue() == HttpStatus.OK.value())
-        {
-            return new AuthUserDetails(
-                    authDto,
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-            );
-        }else{
-            throw new InvalidCredentialException();
-        }
-
     }
 
     @Override
-    public UserDetails loadByClientId(String clientId) {
-        AuthDto authDto = AuthDto.builder()
-                .clientId(clientId)
+    public UserDetails loadUserByUsernameAndTenantIdInternal(String username, String password,
+                                                             Integer tenantId, Integer userId) {
+        return User.builder()
+                .username(username)
+                .password(password)
+                .authorities(Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")))
                 .build();
-        GlobalReponse dto =  this.userClient2Service.authentication(
-                authDto
-        ).getBody();
+    }
 
-
-        if(dto.getStatus().intValue() == HttpStatus.OK.value())
-        {
-            return new AuthUserDetails(
-                    authDto,
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-            );
-        }else{
-            return null;
+    @Override
+    public AuthUserDetails loadByClientIdAndClientSecretAndGrantType(String clientId, String clientSecret, String grantType) {
+        if (clientId == null || clientSecret == null || grantType == null) {
+            throw new UsernameNotFoundException("Invalid client credentials");
         }
+        return new AuthUserDetails(clientId, clientSecret, grantType);
+    }
+
+    @Override
+    public AuthUserDetails loadByClientId(String clientId) {
+        if (clientId == null || clientId.isBlank()) return null;
+        return new AuthUserDetails(clientId, "", "client_credentials");
     }
 
     @Override
     public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
-        UserDto user =  this.userClientService.findByUsername(userName).getBody();
-
-        if(user != null)
-        {
-            return new CustomUserDetails(
-                    user.getTenantId(),
-                    user.getUserName(),
-                    user.getPassword(),
-                    user.getUserId(),
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-            );
-        }else{
-            throw new UsernameNotFoundException("User not found with username: " + userName);
-        }
-
-
+        return loadUserByUsernameAndTenantId(userName, 0);
     }
 }

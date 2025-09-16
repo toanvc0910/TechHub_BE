@@ -15,9 +15,9 @@ import java.util.UUID;
 @Repository
 public interface AuthenticationLogRepository extends JpaRepository<AuthenticationLog, UUID> {
 
-    Page<AuthenticationLog> findByUserIdOrderByLoginTimeDesc(UUID userId, Pageable pageable);
+    Page<AuthenticationLog> findByUser_IdOrderByLoginTimeDesc(UUID userId, Pageable pageable);
 
-    List<AuthenticationLog> findByUserIdAndLoginTimeBetween(
+    List<AuthenticationLog> findByUser_IdAndLoginTimeBetween(
         UUID userId, LocalDateTime start, LocalDateTime end);
 
     @Query("SELECT COUNT(a) FROM AuthenticationLog a WHERE a.user.id = :userId " +

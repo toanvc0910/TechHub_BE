@@ -1,14 +1,13 @@
 package com.techhub.app.proxyclient.business.auth.controller;
 
 import com.techhub.app.proxyclient.business.auth.model.request.AuthenticationRequest;
+import com.techhub.app.proxyclient.business.auth.model.request.GetTokenDto;
+import com.techhub.app.proxyclient.business.auth.model.request.RefreshTokenReqDto;
 import com.techhub.app.proxyclient.business.auth.model.response.AuthenticationResponse;
+import com.techhub.app.proxyclient.business.auth.model.response.GetTokenRespDto;
 import com.techhub.app.proxyclient.business.auth.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.common.dbiz.dto.userDto.GetTokenDto;
-import org.common.dbiz.dto.userDto.GetTokenRespDto;
-import org.common.dbiz.dto.userDto.request.RefreshTokenReqDto;
-import org.springframework.boot.autoconfigure.couchbase.CouchbaseProperties;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,7 +18,6 @@ import javax.validation.constraints.NotNull;
 @RequestMapping("/api/v1/authenticate")
 @Slf4j
 @RequiredArgsConstructor
-//@CrossOrigin(origins = "https://dbizpos.digitalbiz.com.vn",methods = {RequestMethod.GET,RequestMethod.POST,RequestMethod.PUT,RequestMethod.PATCH,RequestMethod.DELETE,RequestMethod.OPTIONS},allowedHeaders ="https://dbizpos.digitalbiz.com.vn")
 public class AuthenticationController {
 	
 	private final AuthenticationService authenticationService;
@@ -37,7 +35,6 @@ public class AuthenticationController {
 	@GetMapping("/jwt/{jwt}")
 	public ResponseEntity<Boolean> authenticate(@PathVariable("jwt") final String jwt) {
 		log.info("**Authentication controller, proceed with the request  rebuild ---*\n");
-		CouchbaseProperties.Env env = new CouchbaseProperties.Env();
 		return ResponseEntity.ok(this.authenticationService.authenticate(jwt));
 	}
 
@@ -62,13 +59,3 @@ public class AuthenticationController {
 
 	}
 }
-
-
-
-
-
-
-
-
-
-

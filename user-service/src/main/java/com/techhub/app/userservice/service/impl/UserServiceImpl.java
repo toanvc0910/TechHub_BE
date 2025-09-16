@@ -43,33 +43,29 @@ public class UserServiceImpl implements UserService {
     public UserResponse createUser(CreateUserRequest request) {
         log.info("Creating user with email: {}", request.getEmail());
 
-        // Validate email and username uniqueness
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already exists");
         }
-
-        if (userRepository.existsByUsername(request.getUsername())) {
+        if (request.getUsername() != null && userRepository.existsByUsername(request.getUsername())) {
             throw new RuntimeException("Username already exists");
         }
 
-        // Create user
         User user = new User();
         user.setEmail(request.getEmail());
         user.setUsername(request.getUsername());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole(UserRole.USER);
-        user.setStatus(UserStatus.PENDING);
+        user.setRole(UserRole.LEARNER);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setIsActive(true);
 
         User savedUser = userRepository.save(user);
 
-        // Create profile
         Profile profile = new Profile();
         profile.setUser(savedUser);
         profile.setFullName(request.getFullName());
         profile.setPreferredLanguage(Language.VI);
         profileRepository.save(profile);
 
-        // Send welcome email
         emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getUsername());
 
         log.info("User created successfully with ID: {}", savedUser.getId());
@@ -81,7 +77,6 @@ public class UserServiceImpl implements UserService {
     public UserResponse getUserById(UUID userId) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         Profile profile = profileRepository.findByUserId(userId).orElse(null);
         return mapToUserResponse(user, profile);
     }
@@ -91,7 +86,6 @@ public class UserServiceImpl implements UserService {
     public UserResponse getUserByEmail(String email) {
         User user = userRepository.findByEmailAndIsActiveTrue(email)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         Profile profile = profileRepository.findByUserId(user.getId()).orElse(null);
         return mapToUserResponse(user, profile);
     }
@@ -101,7 +95,6 @@ public class UserServiceImpl implements UserService {
     public UserResponse getUserByUsername(String username) {
         User user = userRepository.findByUsernameAndIsActiveTrue(username)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         Profile profile = profileRepository.findByUserId(user.getId()).orElse(null);
         return mapToUserResponse(user, profile);
     }
@@ -113,7 +106,6 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Update user fields
         if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
             if (userRepository.existsByEmail(request.getEmail())) {
                 throw new RuntimeException("Email already exists");
@@ -130,26 +122,17 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
-        // Update profile
         Profile profile = profileRepository.findByUserId(userId)
             .orElseGet(() -> {
-                Profile newProfile = new Profile();
-                newProfile.setUser(savedUser);
-                return newProfile;
+                Profile p = new Profile();
+                p.setUser(savedUser);
+                return p;
             });
 
-        if (request.getFullName() != null) {
-            profile.setFullName(request.getFullName());
-        }
-        if (request.getBio() != null) {
-            profile.setBio(request.getBio());
-        }
-        if (request.getLocation() != null) {
-            profile.setLocation(request.getLocation());
-        }
-        if (request.getAvatarUrl() != null) {
-            profile.setAvatarUrl(request.getAvatarUrl());
-        }
+        if (request.getFullName() != null) profile.setFullName(request.getFullName());
+        if (request.getBio() != null) profile.setBio(request.getBio());
+        if (request.getLocation() != null) profile.setLocation(request.getLocation());
+        if (request.getAvatarUrl() != null) profile.setAvatarUrl(request.getAvatarUrl());
         if (request.getPreferredLanguage() != null) {
             profile.setPreferredLanguage(Language.valueOf(request.getPreferredLanguage()));
         }
@@ -162,16 +145,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteUser(UUID userId) {
-        log.info("Deleting user with ID: {}", userId);
-
+        log.info("Soft-deleting user with ID: {}", userId);
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         user.setIsActive(false);
-        user.setStatus(UserStatus.DELETED);
+        user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
-
-        log.info("User deleted successfully with ID: {}", userId);
+        log.info("User soft-deleted successfully with ID: {}", userId);
     }
 
     @Override
@@ -181,101 +161,72 @@ public class UserServiceImpl implements UserService {
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             throw new RuntimeException("New password and confirm password do not match");
         }
-
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
             throw new RuntimeException("Current password is incorrect");
         }
-
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-
         log.info("Password changed successfully for user ID: {}", userId);
     }
 
     @Override
     public void forgotPassword(ForgotPasswordRequest request) {
-        log.info("Processing forgot password request for email: {}", request.getEmail());
-
+        log.info("Processing forgot password for: {}", request.getEmail());
         User user = userRepository.findByEmailAndIsActiveTrue(request.getEmail())
             .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Generate OTP
-        String otpCode = otpService.generateOTP(user.getId(), OtpType.PASSWORD_RESET);
-
-        // Send reset email
+        String otpCode = otpService.generateOTP(user.getId(), OtpType.RESET);
         emailService.sendPasswordResetEmail(user.getEmail(), otpCode);
-
-        log.info("Password reset email sent for user: {}", request.getEmail());
+        log.info("Password reset email sent for {}", request.getEmail());
     }
 
     @Override
     public void resetPassword(String email, ResetPasswordRequest request) {
-        log.info("Processing password reset for email: {}", email);
-
+        log.info("Resetting password for: {}", email);
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             throw new RuntimeException("New password and confirm password do not match");
         }
-
         User user = userRepository.findByEmailAndIsActiveTrue(email)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Validate OTP
-        if (!otpService.validateOTPForUser(user.getId(), request.getOtpCode(), OtpType.PASSWORD_RESET)) {
+        if (!otpService.validateOTPForUser(user.getId(), request.getOtpCode(), OtpType.RESET)) {
             throw new RuntimeException("Invalid or expired OTP");
         }
-
-        // Update password
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-
-        // Mark OTP as used
-        otpService.markOTPAsUsed(request.getOtpCode(), OtpType.PASSWORD_RESET);
-
-        log.info("Password reset successfully for user: {}", email);
+        otpService.markOTPAsUsed(request.getOtpCode(), OtpType.RESET);
+        log.info("Password reset successfully for {}", email);
     }
 
     @Override
     public void activateUser(UUID userId) {
         log.info("Activating user with ID: {}", userId);
-
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         user.setStatus(UserStatus.ACTIVE);
         user.setIsActive(true);
         userRepository.save(user);
-
         emailService.sendAccountActivationEmail(user.getEmail(), user.getUsername());
-
         log.info("User activated successfully with ID: {}", userId);
     }
 
     @Override
     public void deactivateUser(UUID userId) {
         log.info("Deactivating user with ID: {}", userId);
-
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
-
         log.info("User deactivated successfully with ID: {}", userId);
     }
 
     @Override
     public void changeUserStatus(UUID userId, UserStatus status) {
         log.info("Changing status for user ID: {} to {}", userId, status);
-
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         user.setStatus(status);
         userRepository.save(user);
-
         log.info("User status changed successfully for ID: {}", userId);
     }
 
@@ -336,7 +287,6 @@ public class UserServiceImpl implements UserService {
         response.setStatus(user.getStatus());
         response.setCreated(user.getCreated());
         response.setUpdated(user.getUpdated());
-
         if (profile != null) {
             response.setFullName(profile.getFullName());
             response.setAvatarUrl(profile.getAvatarUrl());
@@ -344,7 +294,6 @@ public class UserServiceImpl implements UserService {
             response.setLocation(profile.getLocation());
             response.setPreferredLanguage(profile.getPreferredLanguage());
         }
-
         return response;
     }
 }

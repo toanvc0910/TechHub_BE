@@ -2,7 +2,6 @@ package com.techhub.app.proxyclient.jwt.service.impl;
 
 import com.techhub.app.proxyclient.business.auth.model.response.AuthRespDto;
 import com.techhub.app.proxyclient.jwt.domain.AuthUserDetails;
-import com.techhub.app.proxyclient.jwt.domain.CustomUserDetails;
 import com.techhub.app.proxyclient.jwt.service.JwtService;
 import com.techhub.app.proxyclient.jwt.util.JwtUtil;
 import io.jsonwebtoken.Claims;
@@ -40,27 +39,21 @@ public class JwtServiceImpl implements JwtService {
 	}
 
 	@Override
-	public Integer extractdTenantIdExpired(String token) {
-		log.info("**Date, jwt service extract tenantId from given Expired token!*");
-		return this.jwtUtil.extractdTenantIdExpired(token);
-	}
-	
-	@Override
 	public <T> T extractClaims(final String token, final Function<Claims, T> claimsResolver) {
 		log.info("**T, jwt service extract claims from given token and claimResolver Function!*");
 		return this.jwtUtil.extractClaims(token, claimsResolver);
 	}
 	
 	@Override
-	public String generateAccessToken(final CustomUserDetails userDetails,Integer dOrgId,String language){
+	public String generateAccessToken(final UserDetails userDetails){
 		log.info("**String, jwt service generate access token from given userDetails!*");
-		return this.jwtUtil.generateAccessToken(userDetails,dOrgId,language);
+		return this.jwtUtil.generateAccessToken(userDetails);
 	}
 
 	@Override
-	public String generateRefreshToken(final CustomUserDetails userDetails,Integer dOrgId,String language){
+	public String generateRefreshToken(final UserDetails userDetails){
 		log.info("**String, jwt service generate refresh token from given userDetails!*");
-		return this.jwtUtil.generateRefreshToken(userDetails,dOrgId,language);
+		return this.jwtUtil.generateRefreshToken(userDetails);
 	}
 
 	@Override
@@ -76,11 +69,6 @@ public class JwtServiceImpl implements JwtService {
 	}
 
 	@Override
-	public Integer extractTenantId(String token) {
-		return this.jwtUtil.extractdTenantId(token);
-	}
-
-	@Override
 	public AuthRespDto generateToken(AuthUserDetails userDetails) {
 		return this.jwtUtil.generateToken(userDetails);
 	}
@@ -92,13 +80,3 @@ public class JwtServiceImpl implements JwtService {
 
 
 }
-
-
-
-
-
-
-
-
-
-
