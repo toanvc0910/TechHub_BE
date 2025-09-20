@@ -1,0 +1,68 @@
+server:
+  port: 8700
+
+spring:
+  zipkin:
+    base-url: ${SPRING_ZIPKIN_BASE_URL:http://${HOST_IP_ADDRESS:localhost}:9411/}
+  application:
+    name: USER-SERVICE
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/techhub}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQL10Dialect
+        format_sql: true
+    show-sql: false
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      serviceDiscovery:
+        register-health-indicator: true
+        event-consumer-buffer-size: 10
+        automatic-transition-from-open-to-half-open-enabled: true
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        sliding-window-size: 10
+        wait-duration-in-open-state: 5s
+        sliding-window-type: COUNT_BASED
+#swagger
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always
+
+
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: INFO
+      springframework:
+        web: INFO
+        data: INFO
+      boot:
+        autoconfigure:
+          data:
+            rest: INFO
+            jpa: INFO
+            orm: INFO

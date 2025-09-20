@@ -115,6 +115,7 @@
 		<module>course-service</module>
 		<module>common-service</module>
 		<module>blog-service</module>
+		<module>user-service</module>
 	</modules>
 	<build>
 		<plugins>
