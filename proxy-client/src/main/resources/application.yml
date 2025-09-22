@@ -1,38 +1,57 @@
 server:
-  servlet:
-    context-path: /app
   port: 8900
 
-company:
-  name: dbiz
-  version: 1.0.0
 spring:
-  zipkin:
-    base-url: ${SPRING_ZIPKIN_BASE_URL:http://${HOST_IP_ADDRESS:localhost}:9411/}
-  config:
-    import: ${SPRING_CONFIG_IMPORT:optional:configserver:http://${HOST_IP_ADDRESS:localhost}:9296}
   application:
     name: PROXY-CLIENT
-  profiles:
-    active:
-    - ${SPRING_PROFILES_ACTIVE:dev}
 
+  # Database configuration (if needed for session storage)
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/techhub}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
 
-resilience4j:
-  circuitbreaker:
-    instances:
-      proxyService:
-        register-health-indicator: true
-        event-consumer-buffer-size: 10
-        automatic-transition-from-open-to-half-open-enabled: true
-        failure-rate-threshold: 50
-        minimum-number-of-calls: 5
-        permitted-number-of-calls-in-half-open-state: 3
-        sliding-window-size: 10
-        wait-duration-in-open-state: 5s
-        sliding-window-type: COUNT_BASED
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQL10Dialect
 
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:myTechHubSecretKeyForJWTTokenGenerationAndValidation}
+  expiration: ${JWT_EXPIRATION:86400} # 24 hours in seconds
+
+# Service URLs
+services:
+  user-service:
+    url: ${USER_SERVICE_URL:http://localhost:8700}
+  course-service:
+    url: ${COURSE_SERVICE_URL:http://localhost:8701}
+  blog-service:
+    url: ${BLOG_SERVICE_URL:http://localhost:8702}
+  payment-service:
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8703}
+  learning-path-service:
+    url: ${LEARNING_PATH_SERVICE_URL:http://localhost:8704}
+
+# Feign Configuration
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 10000
+        logger-level: basic
+
+# Management endpoints
 management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
   health:
     circuitbreakers:
       enabled: true
@@ -40,4 +59,9 @@ management:
     health:
       show-details: always
 
-#swagger and eureka config can be added per env profiles
+# Logging
+logging:
+  level:
+    com.techhub.app.proxyclient: INFO
+    feign: DEBUG
+    org.springframework.security: DEBUG

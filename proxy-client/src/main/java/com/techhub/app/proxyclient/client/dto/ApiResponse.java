@@ -1,23 +1,31 @@
 package com.techhub.app.proxyclient.client.dto;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
-public class ApiResponse {
+@NoArgsConstructor
+@AllArgsConstructor
+public class ApiResponse<T> {
     private boolean success;
     private String message;
-    private Object data;
+    private T data;
     private String errorCode;
 
-    public boolean isSuccess() {
-        return success;
+    public static <T> ApiResponse<T> success(T data) {
+        return new ApiResponse<>(true, "Success", data, null);
     }
 
-    public <T> T getData(Class<T> clazz) {
-        if (data == null) return null;
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.convertValue(data, clazz);
+    public static <T> ApiResponse<T> success(String message, T data) {
+        return new ApiResponse<>(true, message, data, null);
+    }
+
+    public static <T> ApiResponse<T> error(String message) {
+        return new ApiResponse<>(false, message, null, null);
+    }
+
+    public static <T> ApiResponse<T> error(String message, String errorCode) {
+        return new ApiResponse<>(false, message, null, errorCode);
     }
 }
-

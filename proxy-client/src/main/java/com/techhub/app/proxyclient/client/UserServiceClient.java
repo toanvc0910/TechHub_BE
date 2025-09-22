@@ -3,55 +3,46 @@ package com.techhub.app.proxyclient.client;
 import com.techhub.app.proxyclient.client.dto.ApiResponse;
 import com.techhub.app.proxyclient.client.dto.CreateUserRequest;
 import com.techhub.app.proxyclient.client.dto.UserResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import com.techhub.app.proxyclient.config.FeignConfig;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.data.domain.Page;
+import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.UUID;
 
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class UserServiceClient {
+@FeignClient(
+    name = "user-service",
+    url = "${services.user-service.url:http://localhost:8700}",
+    configuration = FeignConfig.class
+)
+public interface UserServiceClient {
 
-    private final RestTemplate restTemplate;
+    @PostMapping("/api/users")
+    ApiResponse<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request);
 
-    @Value("${client.userservice.base-url:http://localhost:8700}")
-    private String baseUrl;
+    @GetMapping("/api/users/{userId}")
+    ApiResponse<UserResponse> getUserById(@PathVariable UUID userId);
 
-    public UserResponse getUserById(UUID id) {
-        String url = baseUrl + "/api/users/" + id;
-        ResponseEntity<ApiResponse> resp = restTemplate.getForEntity(url, ApiResponse.class);
-        ApiResponse body = resp.getBody();
-        if (body == null || !body.isSuccess()) {
-            throw new RuntimeException("UserService getUserById failed: " + (body != null ? body.getMessage() : "no body"));
-        }
-        return body.getData(UserResponse.class);
-    }
+    @GetMapping("/api/users/email/{email}")
+    ApiResponse<UserResponse> getUserByEmail(@PathVariable String email);
 
-    public UserResponse getUserByEmail(String email) {
-        String url = baseUrl + "/api/users/email/" + email;
-        ResponseEntity<ApiResponse> resp = restTemplate.getForEntity(url, ApiResponse.class);
-        ApiResponse body = resp.getBody();
-        if (body == null || !body.isSuccess()) {
-            throw new RuntimeException("UserService getUserByEmail failed: " + (body != null ? body.getMessage() : "no body"));
-        }
-        return body.getData(UserResponse.class);
-    }
+    @GetMapping("/api/users/username/{username}")
+    ApiResponse<UserResponse> getUserByUsername(@PathVariable String username);
 
-    public UserResponse createUser(CreateUserRequest request) {
-        String url = baseUrl + "/api/users";
-        ResponseEntity<ApiResponse> resp = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(request), ApiResponse.class);
-        ApiResponse body = resp.getBody();
-        if (body == null || !body.isSuccess()) {
-            throw new RuntimeException("UserService createUser failed: " + (body != null ? body.getMessage() : "no body"));
-        }
-        return body.getData(UserResponse.class);
-    }
+    @GetMapping("/api/users")
+    ApiResponse<Page<UserResponse>> getAllUsers(@RequestParam int page, @RequestParam int size);
+
+    @GetMapping("/api/users/search")
+    ApiResponse<Page<UserResponse>> searchUsers(
+        @RequestParam String keyword,
+        @RequestParam int page,
+        @RequestParam int size
+    );
+
+    @GetMapping("/api/users/exists/email/{email}")
+    ApiResponse<Boolean> checkEmailExists(@PathVariable String email);
+
+    @GetMapping("/api/users/exists/username/{username}")
+    ApiResponse<Boolean> checkUsernameExists(@PathVariable String username);
 }
-

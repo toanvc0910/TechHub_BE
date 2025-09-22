@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -16,6 +18,8 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@TypeDef(name = "jsonb", typeClass = com.techhub.app.userservice.config.JsonbType.class)
+@TypeDef(name = "pgsql_enum", typeClass = com.techhub.app.userservice.config.PostgreSQLEnumType.class)
 public class Profile {
 
     @Id
@@ -40,12 +44,13 @@ public class Profile {
     private String location;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "preferred_language")
+    @Type(type = "pgsql_enum")
+    @Column(name = "preferred_language", columnDefinition = "lang")
     private Language preferredLanguage = Language.VI;
 
-    // rely on DB default for JSONB
-    @Column(name = "learning_history")
-    private String learningHistory;
+    @Type(type = "jsonb")
+    @Column(name = "learning_history", columnDefinition = "jsonb")
+    private String learningHistory = "{}";
 
     @Column(name = "created", nullable = false)
     private LocalDateTime created;
@@ -67,6 +72,9 @@ public class Profile {
     protected void onCreate() {
         created = LocalDateTime.now();
         updated = LocalDateTime.now();
+        if (learningHistory == null) {
+            learningHistory = "{}";
+        }
     }
 
     @PreUpdate

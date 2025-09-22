@@ -2,6 +2,8 @@ server:
   port: 8700
 
 spring:
+  profiles:
+    active: prod  # Change from dev to prod to enable email sending
   zipkin:
     base-url: ${SPRING_ZIPKIN_BASE_URL:http://${HOST_IP_ADDRESS:localhost}:9411/}
   application:
@@ -9,16 +11,27 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/techhub}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: none
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQL10Dialect
+        dialect: com.techhub.app.userservice.config.PostgreSQLEnumDialect
         format_sql: true
     show-sql: false
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: dinhtrung0012@gmail.com
+    password: rool wgxr yqkk ahbw
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 resilience4j:
   circuitbreaker:

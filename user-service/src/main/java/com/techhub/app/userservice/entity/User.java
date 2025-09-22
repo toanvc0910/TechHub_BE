@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
 import javax.validation.constraints.Email;
@@ -20,6 +22,7 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@TypeDef(name = "pgsql_enum", typeClass = com.techhub.app.userservice.config.PostgreSQLEnumType.class)
 public class User {
 
     @Id
@@ -43,11 +46,13 @@ public class User {
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
+    @Type(type = "pgsql_enum")
+    @Column(name = "role", nullable = false, columnDefinition = "user_role")
     private UserRole role = UserRole.LEARNER;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Type(type = "pgsql_enum")
+    @Column(name = "status", nullable = false, columnDefinition = "user_status")
     private UserStatus status = UserStatus.ACTIVE;
 
     @Column(name = "created", nullable = false)
