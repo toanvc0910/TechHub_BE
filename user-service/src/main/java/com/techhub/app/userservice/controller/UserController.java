@@ -1,12 +1,14 @@
 package com.techhub.app.userservice.controller;
 
+import com.techhub.app.commonservice.payload.GlobalResponse;
+import com.techhub.app.commonservice.payload.PageGlobalResponse;
 import com.techhub.app.userservice.dto.request.ChangePasswordRequest;
 import com.techhub.app.userservice.dto.request.CreateUserRequest;
 import com.techhub.app.userservice.dto.request.ForgotPasswordRequest;
 import com.techhub.app.userservice.dto.request.ResetPasswordRequest;
 import com.techhub.app.userservice.dto.request.UpdateUserRequest;
-import com.techhub.app.userservice.dto.response.ApiResponse;
 import com.techhub.app.userservice.dto.response.UserResponse;
+import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.enums.UserStatus;
 import com.techhub.app.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -14,53 +16,65 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.Email;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Slf4j
-@Validated
+@CrossOrigin(origins = "*")
 public class UserController {
 
     private final UserService userService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request) {
+    public ResponseEntity<GlobalResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request, HttpServletRequest httpServletRequest) {
         try {
             UserResponse user = userService.createUser(request);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("User created successfully", user));
+            return ResponseEntity.status(201)
+                .body(GlobalResponse.success("User created successfully", user)
+                    .withPath(httpServletRequest.getRequestURI()));
         } catch (Exception e) {
             log.error("Error creating user", e);
             return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+                .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID userId) {
+    public ResponseEntity<GlobalResponse<UserResponse>> getUserById(@PathVariable UUID userId, HttpServletRequest request) {
         try {
-            UserResponse user = userService.getUserById(userId);
-            return ResponseEntity.ok(ApiResponse.success(user));
+            UserResponse userResponse = userService.getUserById(userId);
+
+            return ResponseEntity.ok(
+                GlobalResponse.success("User retrieved successfully", userResponse)
+                    .withPath(request.getRequestURI())
+            );
+
         } catch (Exception e) {
-            log.error("Error getting user by ID: {}", userId, e);
-            return ResponseEntity.notFound().build();
+            log.error("Error retrieving user with id: {}", userId, e);
+            return ResponseEntity.badRequest().body(
+                GlobalResponse.<UserResponse>error("User not found", 404)
+                    .withPath(request.getRequestURI())
+            );
         }
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserByEmail(@PathVariable @Email String email) {
+    public ResponseEntity<GlobalResponse<UserResponse>> getUserByEmail(@PathVariable @Email String email, HttpServletRequest request) {
         try {
-            UserResponse user = userService.getUserByEmail(email);
-            return ResponseEntity.ok(ApiResponse.success(user));
+            UserResponse userResponse = userService.getUserByEmail(email);
+            return ResponseEntity.ok(GlobalResponse.success(userResponse)
+                    .withPath(request.getRequestURI()));
         } catch (Exception e) {
             log.error("Error getting user by email: {}", email, e);
             return ResponseEntity.notFound().build();
@@ -68,10 +82,11 @@ public class UserController {
     }
 
     @GetMapping("/username/{username}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<GlobalResponse<UserResponse>> getUserByUsername(@PathVariable String username, HttpServletRequest request) {
         try {
             UserResponse user = userService.getUserByUsername(username);
-            return ResponseEntity.ok(ApiResponse.success(user));
+            return ResponseEntity.ok(GlobalResponse.success(user)
+                    .withPath(request.getRequestURI()));
         } catch (Exception e) {
             log.error("Error getting user by username: {}", username, e);
             return ResponseEntity.notFound().build();
@@ -79,189 +94,204 @@ public class UserController {
     }
 
     @PutMapping("/{userId}")
-    public ResponseEntity<ApiResponse<UserResponse>> updateUser(
+    public ResponseEntity<GlobalResponse<UserResponse>> updateUser(
             @PathVariable UUID userId,
-            @Valid @RequestBody UpdateUserRequest request) {
+            @Valid @RequestBody UpdateUserRequest request, HttpServletRequest httpServletRequest) {
         try {
-            UserResponse user = userService.updateUser(userId, request);
-            return ResponseEntity.ok(ApiResponse.success("User updated successfully", user));
+            UserResponse userResponse = userService.updateUser(userId, request);
+
+            return ResponseEntity.ok(
+                GlobalResponse.success("User updated successfully", userResponse)
+                    .withPath(httpServletRequest.getRequestURI())
+            );
+
         } catch (Exception e) {
-            log.error("Error updating user: {}", userId, e);
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+            log.error("Error updating user with id: {}", userId, e);
+            return ResponseEntity.badRequest().body(
+                GlobalResponse.<UserResponse>error(e.getMessage(), 400)
+                    .withPath(httpServletRequest.getRequestURI())
+            );
         }
     }
 
     @DeleteMapping("/{userId}")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable UUID userId) {
+    public ResponseEntity<GlobalResponse<String>> deleteUser(@PathVariable UUID userId, HttpServletRequest httpServletRequest) {
         try {
             userService.deleteUser(userId);
-            return ResponseEntity.ok(ApiResponse.success("User deleted successfully", null));
+
+            return ResponseEntity.ok(
+                GlobalResponse.success("User deleted successfully", "User with id " + userId + " has been deleted")
+                    .withPath(httpServletRequest.getRequestURI())
+            );
+
         } catch (Exception e) {
-            log.error("Error deleting user: {}", userId, e);
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+            log.error("Error deleting user with id: {}", userId, e);
+            return ResponseEntity.badRequest().body(
+                GlobalResponse.<String>error(e.getMessage(), 400)
+                    .withPath(httpServletRequest.getRequestURI())
+            );
         }
     }
 
     @PostMapping("/{userId}/change-password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(
+    public ResponseEntity<GlobalResponse<Void>> changePassword(
             @PathVariable UUID userId,
             @Valid @RequestBody ChangePasswordRequest request) {
         try {
             userService.changePassword(userId, request);
-            return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
+            return ResponseEntity.ok(GlobalResponse.success("Password changed successfully", null));
         } catch (Exception e) {
             log.error("Error changing password for user: {}", userId, e);
             return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+                .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<GlobalResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         try {
             userService.forgotPassword(request);
-            return ResponseEntity.ok(ApiResponse.success("Password reset email sent", null));
+            return ResponseEntity.ok(GlobalResponse.success("Password reset email sent", null));
         } catch (Exception e) {
             log.error("Error processing forgot password request", e);
             return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+                .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
     @PostMapping("/reset-password/{email}")
-    public ResponseEntity<ApiResponse<Void>> resetPassword(
+    public ResponseEntity<GlobalResponse<Void>> resetPassword(
             @PathVariable @Email String email,
             @Valid @RequestBody ResetPasswordRequest request) {
         try {
             userService.resetPassword(email, request);
-            return ResponseEntity.ok(ApiResponse.success("Password reset successfully", null));
+            return ResponseEntity.ok(GlobalResponse.success("Password reset successfully", null));
         } catch (Exception e) {
             log.error("Error resetting password for email: {}", email, e);
             return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+                .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
     @PostMapping("/{userId}/activate")
-    public ResponseEntity<ApiResponse<Void>> activateUser(@PathVariable UUID userId) {
+    public ResponseEntity<GlobalResponse<Void>> activateUser(@PathVariable UUID userId) {
         try {
             userService.activateUser(userId);
-            return ResponseEntity.ok(ApiResponse.success("User activated successfully", null));
+            return ResponseEntity.ok(GlobalResponse.success("User activated successfully", null));
         } catch (Exception e) {
             log.error("Error activating user: {}", userId, e);
             return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+                .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
     @PostMapping("/{userId}/deactivate")
-    public ResponseEntity<ApiResponse<Void>> deactivateUser(@PathVariable UUID userId) {
+    public ResponseEntity<GlobalResponse<Void>> deactivateUser(@PathVariable UUID userId) {
         try {
             userService.deactivateUser(userId);
-            return ResponseEntity.ok(ApiResponse.success("User deactivated successfully", null));
+            return ResponseEntity.ok(GlobalResponse.success("User deactivated successfully", null));
         } catch (Exception e) {
             log.error("Error deactivating user: {}", userId, e);
             return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+                .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
     @PutMapping("/{userId}/status/{status}")
-    public ResponseEntity<ApiResponse<Void>> changeUserStatus(
+    public ResponseEntity<GlobalResponse<Void>> changeUserStatus(
             @PathVariable UUID userId,
             @PathVariable UserStatus status) {
         try {
             userService.changeUserStatus(userId, status);
-            return ResponseEntity.ok(ApiResponse.success("User status changed successfully", null));
+            return ResponseEntity.ok(GlobalResponse.success("User status changed successfully", null));
         } catch (Exception e) {
             log.error("Error changing user status: {}", userId, e);
             return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+                .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
+    @PreAuthorize("hasAuthority('USER_READ')")
+    public ResponseEntity<PageGlobalResponse<UserResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            HttpServletRequest request) {
+
         try {
             Pageable pageable = PageRequest.of(page, size);
-            Page<UserResponse> users = userService.getAllUsers(pageable);
-            return ResponseEntity.ok(ApiResponse.success(users));
+            Page<UserResponse> userPage;
+
+            if (search != null && !search.trim().isEmpty()) {
+                userPage = userService.searchUsers(search.trim(), pageable);
+            } else {
+                userPage = userService.getAllUsers(pageable);
+            }
+
+            PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                    .page(userPage.getNumber())
+                    .size(userPage.getSize())
+                    .totalElements(userPage.getTotalElements())
+                    .totalPages(userPage.getTotalPages())
+                    .first(userPage.isFirst())
+                    .last(userPage.isLast())
+                    .hasNext(userPage.hasNext())
+                    .hasPrevious(userPage.hasPrevious())
+                    .build();
+
+            return ResponseEntity.ok(
+                PageGlobalResponse.success("Users retrieved successfully", userPage.getContent(), paginationInfo)
+                    .withPath(request.getRequestURI())
+            );
+
         } catch (Exception e) {
-            log.error("Error getting all users", e);
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+            log.error("Error retrieving users", e);
+            return ResponseEntity.badRequest().body(
+                PageGlobalResponse.<UserResponse>error("Failed to retrieve users")
+                    .withPath(request.getRequestURI())
+            );
         }
     }
 
-    @GetMapping("/status/{status}")
-    public ResponseEntity<ApiResponse<Page<UserResponse>>> getUsersByStatus(
-            @PathVariable UserStatus status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+    @GetMapping("/profile")
+    public ResponseEntity<GlobalResponse<UserResponse>> getCurrentUserProfile(
+            HttpServletRequest request,
+            @RequestHeader("Authorization") String authHeader) {
+
         try {
-            Pageable pageable = PageRequest.of(page, size);
-            Page<UserResponse> users = userService.getUsersByStatus(status, pageable);
-            return ResponseEntity.ok(ApiResponse.success(users));
+            String token = authHeader.substring(7); // Remove "Bearer "
+            User user = userService.getCurrentUser(token);
+            UserResponse userResponse = convertToUserResponse(user);
+
+            return ResponseEntity.ok(
+                GlobalResponse.success("Profile retrieved successfully", userResponse)
+                    .withPath(request.getRequestURI())
+            );
+
         } catch (Exception e) {
-            log.error("Error getting users by status: {}", status, e);
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
+            log.error("Error retrieving current user profile", e);
+            return ResponseEntity.badRequest().body(
+                GlobalResponse.<UserResponse>error("Failed to retrieve profile", 400)
+                    .withPath(request.getRequestURI())
+            );
         }
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<ApiResponse<Page<UserResponse>>> searchUsers(
-            @RequestParam String keyword,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        try {
-            Pageable pageable = PageRequest.of(page, size);
-            Page<UserResponse> users = userService.searchUsers(keyword, pageable);
-            return ResponseEntity.ok(ApiResponse.success(users));
-        } catch (Exception e) {
-            log.error("Error searching users with keyword: {}", keyword, e);
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
-        }
-    }
+    private UserResponse convertToUserResponse(User user) {
+        List<String> roles = user.getUserRoles().stream()
+                .map(userRole -> userRole.getRole().getName())
+                .collect(Collectors.toList());
 
-    @GetMapping("/exists/email/{email}")
-    public ResponseEntity<ApiResponse<Boolean>> checkEmailExists(@PathVariable @Email String email) {
-        try {
-            boolean exists = userService.existsByEmail(email);
-            return ResponseEntity.ok(ApiResponse.success(exists));
-        } catch (Exception e) {
-            log.error("Error checking email existence: {}", email, e);
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    @GetMapping("/exists/username/{username}")
-    public ResponseEntity<ApiResponse<Boolean>> checkUsernameExists(@PathVariable String username) {
-        try {
-            boolean exists = userService.existsByUsername(username);
-            return ResponseEntity.ok(ApiResponse.success(exists));
-        } catch (Exception e) {
-            log.error("Error checking username existence: {}", username, e);
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    @GetMapping("/count/status/{status}")
-    public ResponseEntity<ApiResponse<Long>> countUsersByStatus(@PathVariable UserStatus status) {
-        try {
-            long count = userService.countUsersByStatus(status);
-            return ResponseEntity.ok(ApiResponse.success(count));
-        } catch (Exception e) {
-            log.error("Error counting users by status: {}", status, e);
-            return ResponseEntity.badRequest()
-                .body(ApiResponse.error(e.getMessage()));
-        }
+        return UserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .username(user.getUsername())
+                .roles(roles)
+                .status(user.getStatus().name())
+                .created(user.getCreated())
+                .updated(user.getUpdated())
+                .isActive(user.getIsActive())
+                .build();
     }
 }

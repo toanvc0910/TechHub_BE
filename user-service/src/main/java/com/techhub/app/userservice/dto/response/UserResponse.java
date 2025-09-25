@@ -1,28 +1,26 @@
 package com.techhub.app.userservice.dto.response;
 
-import com.techhub.app.userservice.enums.Language;
-import com.techhub.app.userservice.enums.UserRole;
-import com.techhub.app.userservice.enums.UserStatus;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserResponse {
 
     private UUID id;
     private String email;
     private String username;
-    private UserRole role;
-    private UserStatus status;
+    private List<String> roles;
+    private String status;
     private LocalDateTime created;
     private LocalDateTime updated;
-
-    // Profile information
-    private String fullName;
-    private String avatarUrl;
-    private String bio;
-    private String location;
-    private Language preferredLanguage;
+    private Boolean isActive;
 }

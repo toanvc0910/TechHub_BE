@@ -14,28 +14,14 @@ import java.util.UUID;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
-
-    Optional<User> findByEmail(String email);
-
-    Optional<User> findByUsername(String username);
-
     Optional<User> findByEmailAndIsActiveTrue(String email);
-
     Optional<User> findByUsernameAndIsActiveTrue(String username);
-
     boolean existsByEmail(String email);
-
     boolean existsByUsername(String username);
-
-    Page<User> findByIsActiveTrueOrderByCreatedDesc(Pageable pageable);
-
     Page<User> findByStatusAndIsActiveTrueOrderByCreatedDesc(UserStatus status, Pageable pageable);
-
-    @Query("SELECT u FROM User u WHERE u.isActive = true AND " +
-           "(LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(u.profile.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')))")
-    Page<User> searchUsers(@Param("keyword") String keyword, Pageable pageable);
-
+    Page<User> findByIsActiveTrueOrderByCreatedDesc(Pageable pageable);
     long countByStatusAndIsActiveTrue(UserStatus status);
+
+    @Query("SELECT u FROM User u WHERE (u.email LIKE %:keyword% OR u.username LIKE %:keyword%) AND u.isActive = true ORDER BY u.created DESC")
+    Page<User> searchUsers(@Param("keyword") String keyword, Pageable pageable);
 }

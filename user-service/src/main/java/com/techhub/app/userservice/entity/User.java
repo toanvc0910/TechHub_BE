@@ -1,20 +1,18 @@
 package com.techhub.app.userservice.entity;
 
 import com.techhub.app.userservice.config.BooleanToYNStringConverter;
-import com.techhub.app.userservice.enums.UserRole;
+import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.enums.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
-import javax.validation.constraints.Email;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -22,37 +20,30 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@TypeDef(name = "pgsql_enum", typeClass = com.techhub.app.userservice.config.PostgreSQLEnumType.class)
+@ToString(exclude = {"userRoles"})
 public class User {
 
     @Id
     @GeneratedValue(generator = "uuid2")
     @GenericGenerator(name = "uuid2", strategy = "uuid2")
-    // use PostgreSQL uuid default mapping
+    @Column(name = "id")
     private UUID id;
 
-    @Email
-    @NotBlank
-    @Column(name = "email", unique = true, nullable = false)
+    @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
-    @NotBlank
-    @Size(min = 3, max = 50)
-    @Column(name = "username", unique = true)
+    @Column(name = "username", unique = true, length = 255)
     private String username;
 
-    @NotBlank
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum")
-    @Column(name = "role", nullable = false, columnDefinition = "user_role")
-    private UserRole role = UserRole.LEARNER;
+    @Column(name = "role", nullable = false)
+    private UserRoleEnum role;
 
     @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum")
-    @Column(name = "status", nullable = false, columnDefinition = "user_status")
+    @Column(name = "status")
     private UserStatus status = UserStatus.ACTIVE;
 
     @Column(name = "created", nullable = false)
@@ -71,8 +62,9 @@ public class User {
     @Column(name = "is_active", nullable = false, length = 1)
     private Boolean isActive = true;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private Profile profile;
+    // Fix: Use the correct UserRole entity for the relationship
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private List<UserRole> userRoles = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

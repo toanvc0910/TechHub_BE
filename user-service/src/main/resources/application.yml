@@ -1,26 +1,22 @@
 server:
-  port: 8700
+  port: 8082
 
 spring:
-  profiles:
-    active: prod  # Change from dev to prod to enable email sending
-  zipkin:
-    base-url: ${SPRING_ZIPKIN_BASE_URL:http://${HOST_IP_ADDRESS:localhost}:9411/}
   application:
-    name: USER-SERVICE
+    name: user-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/techhub}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    url: jdbc:postgresql://localhost:5432/techhub
+    username: postgres
+    password: 123456
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
+    show-sql: false
     properties:
       hibernate:
         dialect: com.techhub.app.userservice.config.PostgreSQLEnumDialect
         format_sql: true
-    show-sql: false
   mail:
     host: smtp.gmail.com
     port: 587
@@ -33,49 +29,22 @@ spring:
           starttls:
             enable: true
 
-resilience4j:
-  circuitbreaker:
-    instances:
-      serviceDiscovery:
-        register-health-indicator: true
-        event-consumer-buffer-size: 10
-        automatic-transition-from-open-to-half-open-enabled: true
-        failure-rate-threshold: 50
-        minimum-number-of-calls: 5
-        permitted-number-of-calls-in-half-open-state: 3
-        sliding-window-size: 10
-        wait-duration-in-open-state: 5s
-        sliding-window-type: COUNT_BASED
-#swagger
+# JWT Configuration
+jwt:
+  secret: mySecretKey123456789012345678901234567890
+  expiration: 86400000  # 24 hours
+  refresh-expiration: 604800000  # 7 days
+
 eureka:
   client:
-    register-with-eureka: false
-    fetch-registry: false
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
-  health:
-    circuitbreakers:
-      enabled: true
-  endpoint:
-    health:
-      show-details: always
-
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
 
 logging:
   level:
-    org:
-      hibernate:
-        SQL: INFO
-      springframework:
-        web: INFO
-        data: INFO
-      boot:
-        autoconfigure:
-          data:
-            rest: INFO
-            jpa: INFO
-            orm: INFO
+    com.techhub.app.userservice: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

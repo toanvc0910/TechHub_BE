@@ -1,76 +1,129 @@
 package com.techhub.app.proxyclient.controller;
 
 import com.techhub.app.proxyclient.client.UserServiceClient;
-import com.techhub.app.proxyclient.client.dto.ApiResponse;
-import com.techhub.app.proxyclient.client.dto.CreateUserRequest;
-import com.techhub.app.proxyclient.client.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
-import java.util.UUID;
-
 @RestController
-@RequestMapping("/app/api/users")
+@RequestMapping("/api/proxy/users")
 @RequiredArgsConstructor
-@Slf4j
 public class UserProxyController {
 
     private final UserServiceClient userServiceClient;
 
+    @GetMapping
+    public ResponseEntity<String> getAllUsers(@RequestParam(defaultValue = "0") int page,
+                                            @RequestParam(defaultValue = "10") int size,
+                                            @RequestParam(required = false) String search,
+                                            @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getAllUsers(page, size, search, authHeader);
+    }
+
     @PostMapping
-    public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request) {
-        log.info("Proxy: Creating user via gateway -> proxy -> user-service");
-        return ResponseEntity.ok(userServiceClient.createUser(request));
+    public ResponseEntity<String> createUser(@RequestBody Object createUserRequest) {
+        return userServiceClient.createUser(createUserRequest);
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID userId) {
-        log.info("Proxy: Getting user by ID: {}", userId);
-        return ResponseEntity.ok(userServiceClient.getUserById(userId));
+    public ResponseEntity<String> getUserById(@PathVariable String userId,
+                                            @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getUserById(userId, authHeader);
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserByEmail(@PathVariable String email) {
-        log.info("Proxy: Getting user by email: {}", email);
-        return ResponseEntity.ok(userServiceClient.getUserByEmail(email));
+    public ResponseEntity<String> getUserByEmail(@PathVariable String email,
+                                               @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getUserByEmail(email, authHeader);
     }
 
     @GetMapping("/username/{username}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserByUsername(@PathVariable String username) {
-        log.info("Proxy: Getting user by username: {}", username);
-        return ResponseEntity.ok(userServiceClient.getUserByUsername(username));
+    public ResponseEntity<String> getUserByUsername(@PathVariable String username,
+                                                  @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getUserByUsername(username, authHeader);
     }
 
-    @GetMapping
-    public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("Proxy: Getting all users with pagination");
-        return ResponseEntity.ok(userServiceClient.getAllUsers(page, size));
+    @PutMapping("/{userId}")
+    public ResponseEntity<String> updateUser(@PathVariable String userId,
+                                           @RequestBody Object updateRequest,
+                                           @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.updateUser(userId, updateRequest, authHeader);
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<ApiResponse<Page<UserResponse>>> searchUsers(
-            @RequestParam String keyword,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("Proxy: Searching users with keyword: {}", keyword);
-        return ResponseEntity.ok(userServiceClient.searchUsers(keyword, page, size));
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<String> deleteUser(@PathVariable String userId,
+                                           @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.deleteUser(userId, authHeader);
     }
 
-    @GetMapping("/exists/email/{email}")
-    public ResponseEntity<ApiResponse<Boolean>> checkEmailExists(@PathVariable String email) {
-        log.info("Proxy: Checking if email exists: {}", email);
-        return ResponseEntity.ok(userServiceClient.checkEmailExists(email));
+    // Password management endpoints
+    @PostMapping("/{userId}/change-password")
+    public ResponseEntity<String> changePassword(@PathVariable String userId,
+                                                @RequestBody Object changePasswordRequest,
+                                                @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.changePassword(userId, changePasswordRequest, authHeader);
     }
 
-    @GetMapping("/exists/username/{username}")
-    public ResponseEntity<ApiResponse<Boolean>> checkUsernameExists(@PathVariable String username) {
-        log.info("Proxy: Checking if username exists: {}", username);
-        return ResponseEntity.ok(userServiceClient.checkUsernameExists(username));
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody Object forgotPasswordRequest) {
+        return userServiceClient.forgotPassword(forgotPasswordRequest);
+    }
+
+    @PostMapping("/reset-password/{email}")
+    public ResponseEntity<String> resetPassword(@PathVariable String email,
+                                              @RequestBody Object resetPasswordRequest) {
+        return userServiceClient.resetPassword(email, resetPasswordRequest);
+    }
+
+    // User status management endpoints
+    @PostMapping("/{userId}/activate")
+    public ResponseEntity<String> activateUser(@PathVariable String userId,
+                                             @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.activateUser(userId, authHeader);
+    }
+
+    @PostMapping("/{userId}/deactivate")
+    public ResponseEntity<String> deactivateUser(@PathVariable String userId,
+                                               @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.deactivateUser(userId, authHeader);
+    }
+
+    @PutMapping("/{userId}/status/{status}")
+    public ResponseEntity<String> changeUserStatus(@PathVariable String userId,
+                                                  @PathVariable String status,
+                                                  @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.changeUserStatus(userId, status, authHeader);
+    }
+
+    // Profile endpoint
+    @GetMapping("/profile")
+    public ResponseEntity<String> getCurrentUserProfile(@RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getCurrentUserProfile(authHeader);
+    }
+
+    // Auth-related endpoints
+    @PostMapping("/auth/register")
+    public ResponseEntity<String> register(@RequestBody Object registerRequest) {
+        return userServiceClient.register(registerRequest);
+    }
+
+    @PostMapping("/auth/login")
+    public ResponseEntity<String> login(@RequestBody Object loginRequest) {
+        return userServiceClient.login(loginRequest);
+    }
+
+    @PostMapping("/auth/logout")
+    public ResponseEntity<String> logout(@RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.logout(authHeader);
+    }
+
+    @PostMapping("/auth/validate")
+    public ResponseEntity<String> validateToken(@RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.validateToken(authHeader);
+    }
+
+    @GetMapping("/auth/health")
+    public ResponseEntity<String> authHealth() {
+        return userServiceClient.authHealth();
     }
 }

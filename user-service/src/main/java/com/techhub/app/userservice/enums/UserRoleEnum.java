@@ -1,6 +1,6 @@
 package com.techhub.app.userservice.enums;
 
-public enum UserRole {
+public enum UserRoleEnum {
     LEARNER,
     INSTRUCTOR,
     ADMIN

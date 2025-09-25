@@ -1,67 +1,41 @@
 server:
-  port: 8900
+  port: 8084
 
 spring:
   application:
-    name: PROXY-CLIENT
+    name: proxy-client
+  profiles:
+    active: local
 
-  # Database configuration (if needed for session storage)
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/techhub}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:123456}
-    driver-class-name: org.postgresql.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: none
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQL10Dialect
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    hostname: localhost
+    prefer-ip-address: true
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:myTechHubSecretKeyForJWTTokenGenerationAndValidation}
-  expiration: ${JWT_EXPIRATION:86400} # 24 hours in seconds
+  secret: mySecretKey123456789012345678901234567890
+  expiration: 86400000  # 24 hours
+  refresh-expiration: 604800000  # 7 days
 
-# Service URLs
-services:
-  user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8700}
-  course-service:
-    url: ${COURSE_SERVICE_URL:http://localhost:8701}
-  blog-service:
-    url: ${BLOG_SERVICE_URL:http://localhost:8702}
-  payment-service:
-    url: ${PAYMENT_SERVICE_URL:http://localhost:8703}
-  learning-path-service:
-    url: ${LEARNING_PATH_SERVICE_URL:http://localhost:8704}
-
-# Feign Configuration
-feign:
-  client:
-    config:
-      default:
-        connect-timeout: 5000
-        read-timeout: 10000
-        logger-level: basic
+# Logging configuration
+logging:
+  level:
+    com.techhub.app.proxyclient: DEBUG
+    org.springframework.security: DEBUG
+    feign: DEBUG
 
 # Management endpoints
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
-  health:
-    circuitbreakers:
-      enabled: true
+        include: health,info,metrics
   endpoint:
     health:
       show-details: always
-
-# Logging
-logging:
-  level:
-    com.techhub.app.proxyclient: INFO
-    feign: DEBUG
-    org.springframework.security: DEBUG
