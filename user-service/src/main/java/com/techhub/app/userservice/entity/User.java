@@ -1,6 +1,7 @@
 package com.techhub.app.userservice.entity;
 
 import com.techhub.app.userservice.config.BooleanToYNStringConverter;
+import com.techhub.app.userservice.config.PostgreSQLEnumType;
 import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.enums.UserStatus;
 import lombok.AllArgsConstructor;
@@ -8,6 +9,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Parameter;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -17,6 +21,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
+@TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -38,12 +43,12 @@ public class User {
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
+    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.UserRoleEnum"))
+    @Column(name = "role", nullable = false, columnDefinition = "user_role")
     private UserRoleEnum role;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status")
+    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.UserStatus"))
+    @Column(name = "status", columnDefinition = "user_status")
     private UserStatus status = UserStatus.ACTIVE;
 
     @Column(name = "created", nullable = false)

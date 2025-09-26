@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "blog-service", url = AppConstant.DiscoveredDomainsApi.BLOG_SERVICE_HOST)
+@FeignClient(name = "BLOG-SERVICE")
 public interface BlogServiceClient {
 
     @GetMapping("/api/blogs")

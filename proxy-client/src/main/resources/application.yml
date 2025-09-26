@@ -1,11 +1,20 @@
 server:
   port: 8084
+  servlet:
+    context-path: /app
 
 spring:
   application:
-    name: proxy-client
+    name: PROXY-CLIENT
   profiles:
     active: local
+  cloud:
+    loadbalancer:
+      retry:
+        enabled: true  # Retry nếu no instance
+      cache:
+        enabled: true
+        ttl: 10s
 
 eureka:
   client:

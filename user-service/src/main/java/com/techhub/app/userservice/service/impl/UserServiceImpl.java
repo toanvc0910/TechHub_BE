@@ -12,6 +12,7 @@ import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.entity.UserRole;
 import com.techhub.app.userservice.entity.UserRoleId;
 import com.techhub.app.userservice.enums.UserStatus;
+import com.techhub.app.userservice.enums.UserRoleEnum;  // Import enum UserRole (LEARNER, INSTRUCTOR, ADMIN)
 import com.techhub.app.userservice.repository.RoleRepository;
 import com.techhub.app.userservice.repository.UserRepository;
 import com.techhub.app.userservice.repository.UserRoleRepository;
@@ -59,23 +60,30 @@ public class UserServiceImpl implements UserService {
         user.setEmail(request.getEmail());
         user.setUsername(request.getUsername());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setRole(UserRoleEnum.LEARNER);  // Set ENUM role to satisfy NOT NULL in DB
         user.setStatus(UserStatus.ACTIVE);
         user.setIsActive(true);
         user.setCreated(LocalDateTime.now());
         user.setUpdated(LocalDateTime.now());
 
-        user = userRepository.save(user);
-
-        // Assign default USER role
-        Role userRole = roleRepository.findByName("USER")
-                .orElseThrow(() -> new RuntimeException("Default USER role not found"));
-
-        UserRole userRoleEntity = new UserRole();
-        userRoleEntity.setUser(user);
-        userRoleEntity.setRole(userRole);
-        userRoleRepository.save(userRoleEntity);
+        user = userRepository.save(user);  // Save user first
 
         log.info("User created successfully with ID: {}", user.getId());
+
+        // Assign default LEARNER role via join table (many-to-many)
+        Role learnerRoleEntity = roleRepository.findByName("LEARNER")
+                .orElseThrow(() -> new RuntimeException("Default LEARNER role not found"));
+
+        UserRole userRoleEntity = new UserRole();
+        // Manually set IDs for composite key (assuming UserRole uses @EmbeddedId or separate userId/roleId fields)
+        userRoleEntity.setUserId(user.getId());  // ← Fix: Explicitly set user_id
+        userRoleEntity.setRoleId(learnerRoleEntity.getId());  // ← Fix: Explicitly set role_id
+        userRoleEntity.setIsActive(true);
+        userRoleEntity.setAssignedAt(LocalDateTime.now());
+        userRoleEntity.setCreated(LocalDateTime.now());
+        userRoleEntity.setUpdated(LocalDateTime.now());
+        userRoleRepository.save(userRoleEntity);  // Now IDs are set, save succeeds
+
         return convertToUserResponse(user);
     }
 

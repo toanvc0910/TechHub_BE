@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "payment-service", url = AppConstant.DiscoveredDomainsApi.PAYMENT_SERVICE_HOST)
+@FeignClient(name = "PAYMENT-SERVICE")
 public interface PaymentServiceClient {
 
     @PostMapping("/api/payments/create")

@@ -64,6 +64,8 @@ spring:
           uri: lb://PROXY-CLIENT
           predicates:
             - Path=/app/**
+          filters:
+            - RewritePath=/app/(?<segment>.*), /app/$\{segment}
 
 resilience4j:
   circuitbreaker:

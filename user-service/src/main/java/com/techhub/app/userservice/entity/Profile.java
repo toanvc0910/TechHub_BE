@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Parameter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
 
@@ -44,7 +45,7 @@ public class Profile {
     private String location;
 
     @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum")
+    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.Language"))
     @Column(name = "preferred_language", columnDefinition = "lang")
     private Language preferredLanguage = Language.VI;
 

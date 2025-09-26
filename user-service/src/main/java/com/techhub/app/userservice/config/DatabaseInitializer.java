@@ -6,6 +6,7 @@ import com.techhub.app.userservice.entity.RolePermission;
 import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.entity.UserRole;
 import com.techhub.app.userservice.enums.PermissionMethod;
+import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.enums.UserStatus;
 import com.techhub.app.userservice.repository.PermissionRepository;
 import com.techhub.app.userservice.repository.RolePermissionRepository;
@@ -143,21 +144,21 @@ public class DatabaseInitializer implements CommandLineRunner {
         // 4. Create Sample Users
         if (userRepository.count() == 0) {
             // Admin User
-            User adminUser = createUser("admin@techhub.com", "admin", "TechHub Admin", "admin123");
+            User adminUser = createUser("admin@techhub.com", "admin", "TechHub Admin", "admin123", UserRoleEnum.ADMIN);
             adminUser = userRepository.save(adminUser);
             if (adminRole != null) {
                 createUserRole(adminUser.getId(), adminRole.getId());
             }
 
             // Instructor User
-            User instructorUser = createUser("instructor@techhub.com", "instructor", "TechHub Instructor", "instructor123");
+            User instructorUser = createUser("instructor@techhub.com", "instructor", "TechHub Instructor", "instructor123", UserRoleEnum.INSTRUCTOR);
             instructorUser = userRepository.save(instructorUser);
             if (instructorRole != null) {
                 createUserRole(instructorUser.getId(), instructorRole.getId());
             }
 
             // Learner User
-            User learnerUser = createUser("learner@techhub.com", "learner", "TechHub Learner", "learner123");
+            User learnerUser = createUser("learner@techhub.com", "learner", "TechHub Learner", "learner123", UserRoleEnum.LEARNER);
             learnerUser = userRepository.save(learnerUser);
             if (learnerRole != null) {
                 createUserRole(learnerUser.getId(), learnerRole.getId());
@@ -182,11 +183,12 @@ public class DatabaseInitializer implements CommandLineRunner {
         return permission;
     }
 
-    private User createUser(String email, String username, String fullName, String password) {
+    private User createUser(String email, String username, String fullName, String password, UserRoleEnum userRole) {
         User user = new User();
         user.setEmail(email);
         user.setUsername(username);
         user.setPasswordHash(passwordEncoder.encode(password));
+        user.setRole(userRole); // Set the specific role passed as parameter
         user.setStatus(UserStatus.ACTIVE);
         user.setIsActive(true);
         user.setCreated(LocalDateTime.now());

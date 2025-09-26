@@ -15,6 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.http.HttpMethod;
 
 import java.util.Arrays;
 
@@ -58,15 +59,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeRequests()
-                // Allow public endpoints
-                .antMatchers("/api/auth/**").permitAll()
-                .antMatchers("/api/users").permitAll() // Allow user registration
-                .antMatchers("/api/users/forgot-password").permitAll()
-                .antMatchers("/api/users/reset-password/**").permitAll()
-                .antMatchers("/actuator/health").permitAll()
-                .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                // Require authentication for all other endpoints
-                .anyRequest().authenticated()
+            // Allow public endpoints (match full URI with context-path /user-service)
+            .antMatchers(HttpMethod.POST, "/api/auth/register").permitAll()  // Explicit POST register
+            .antMatchers("/api/auth/**").permitAll()
+            .antMatchers("/api/users").permitAll() // Allow user registration (POST)
+            .antMatchers("/api/users/forgot-password").permitAll()
+            .antMatchers("/api/users/reset-password/**").permitAll()
+            .antMatchers("/actuator/health").permitAll()
+            .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+            // Require authentication for all other endpoints
+            .anyRequest().authenticated()
             .and()
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
     }

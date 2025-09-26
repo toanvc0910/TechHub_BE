@@ -100,30 +100,4 @@ public class UserProxyController {
     public ResponseEntity<String> getCurrentUserProfile(@RequestHeader("Authorization") String authHeader) {
         return userServiceClient.getCurrentUserProfile(authHeader);
     }
-
-    // Auth-related endpoints
-    @PostMapping("/auth/register")
-    public ResponseEntity<String> register(@RequestBody Object registerRequest) {
-        return userServiceClient.register(registerRequest);
-    }
-
-    @PostMapping("/auth/login")
-    public ResponseEntity<String> login(@RequestBody Object loginRequest) {
-        return userServiceClient.login(loginRequest);
-    }
-
-    @PostMapping("/auth/logout")
-    public ResponseEntity<String> logout(@RequestHeader("Authorization") String authHeader) {
-        return userServiceClient.logout(authHeader);
-    }
-
-    @PostMapping("/auth/validate")
-    public ResponseEntity<String> validateToken(@RequestHeader("Authorization") String authHeader) {
-        return userServiceClient.validateToken(authHeader);
-    }
-
-    @GetMapping("/auth/health")
-    public ResponseEntity<String> authHealth() {
-        return userServiceClient.authHealth();
-    }
 }

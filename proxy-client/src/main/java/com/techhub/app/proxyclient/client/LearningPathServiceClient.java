@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "learning-path-service", url = AppConstant.DiscoveredDomainsApi.LEARNING_PATH_SERVICE_HOST)
+@FeignClient(name = "LEARNING-PATH-SERVICE")
 public interface LearningPathServiceClient {
 
     @GetMapping("/api/learning-paths")

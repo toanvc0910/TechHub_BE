@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "course-service", url = AppConstant.DiscoveredDomainsApi.COURSE_SERVICE_HOST)
+@FeignClient(name = "COURSE-SERVICE")
 public interface CourseServiceClient {
 
     @GetMapping("/api/courses")

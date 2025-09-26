@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Parameter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
 
@@ -37,8 +38,8 @@ public class Permission {
     @Column(name = "url", nullable = false, length = 500)
     private String url;
 
-    @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum")
+    // FIXED: Add enumClass parameter for PostgreSQL enum type
+    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.PermissionMethod"))
     @Column(name = "method", nullable = false, columnDefinition = "permission_method")
     private PermissionMethod method;
 

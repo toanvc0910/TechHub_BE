@@ -89,12 +89,12 @@ public class PermissionInterceptor implements HandlerInterceptor {
     private boolean isPublicEndpoint(String uri, String method) {
         // Danh sách các endpoint công khai
         return (uri.startsWith("/api/auth/") && !uri.equals("/api/auth/validate")) ||
-               uri.equals("/api/users") && "POST".equals(method) || // Register
-               uri.startsWith("/api/users/forgot-password") ||
-               uri.startsWith("/api/users/reset-password") ||
-               uri.startsWith("/actuator/") ||
-               uri.startsWith("/swagger-ui/") ||
-               uri.startsWith("/v3/api-docs/");
+                (uri.equals("/api/users") && "POST".equals(method)) || // Register
+                uri.startsWith("/api/users/forgot-password") ||
+                uri.startsWith("/api/users/reset-password") ||
+                uri.startsWith("/actuator/") ||
+                uri.startsWith("/swagger-ui/") ||
+                uri.startsWith("/v3/api-docs/");
     }
 
     private boolean hasPermission(User user, String requestURI, String httpMethod) {
