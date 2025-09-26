@@ -1,67 +1,50 @@
 server:
+  port: 8084
   servlet:
     context-path: /app
-  port: 8900
 
-company:
-  name: techhub
-  version: 1.0.0
 spring:
-  zipkin:
-    base-url: ${SPRING_ZIPKIN_BASE_URL:http://${HOST_IP_ADDRESS:localhost}:9411/}
-  config:
-    import: ${SPRING_CONFIG_IMPORT:optional:configserver:http://${HOST_IP_ADDRESS:localhost}:9296}
   application:
     name: PROXY-CLIENT
   profiles:
-    active:
-    - ${SPRING_PROFILES_ACTIVE:dev}
+    active: local
+  cloud:
+    loadbalancer:
+      retry:
+        enabled: true  # Retry nếu no instance
+      cache:
+        enabled: true
+        ttl: 10s
 
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    hostname: localhost
+    prefer-ip-address: true
 
-resilience4j:
-  circuitbreaker:
-    instances:
-      proxyService:
-        register-health-indicator: true
-        event-consumer-buffer-size: 10
-        automatic-transition-from-open-to-half-open-enabled: true
-        failure-rate-threshold: 50
-        minimum-number-of-calls: 5
-        permitted-number-of-calls-in-half-open-state: 3
-        sliding-window-size: 10
-        wait-duration-in-open-state: 5s
-        sliding-window-type: COUNT_BASED
+# JWT Configuration
+jwt:
+  secret: mySecretKey123456789012345678901234567890
+  expiration: 86400000  # 24 hours
+  refresh-expiration: 604800000  # 7 days
 
+# Logging configuration
+logging:
+  level:
+    com.techhub.app.proxyclient: DEBUG
+    org.springframework.security: DEBUG
+    feign: DEBUG
+
+# Management endpoints
 management:
-  health:
-    circuitbreakers:
-      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
   endpoint:
     health:
       show-details: always
-
-
-#springdoc:
-#  enable-native-support: true
-#  api-docs:
-#    enabled: true
-#    path: /v3/api-docs
-#  swagger-ui:
-#    enabled: true
-#    path: /swagger-ui.html
-#    config-url: /v3/api-docs/swagger-config
-
-#swagger
-#eureka:
-#  client:
-#    register-with-eureka: true
-#    fetch-registry: true
-#  instance:
-#    hostname: localhost
-
-
-
-
-
-
-
