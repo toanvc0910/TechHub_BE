@@ -51,3 +51,15 @@ logging:
     org.springframework.security: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# OAuth Providers (configure via env/profiles in real deployments)
+oauth:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+    client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+  facebook:
+    app-id: ${FACEBOOK_APP_ID:your-facebook-app-id}
+    app-secret: ${FACEBOOK_APP_SECRET:your-facebook-app-secret}
+  github:
+    client-id: ${GITHUB_CLIENT_ID:your-github-client-id}
+    client-secret: ${GITHUB_CLIENT_SECRET:your-github-client-secret}

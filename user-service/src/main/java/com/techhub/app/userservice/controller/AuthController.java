@@ -3,9 +3,11 @@ package com.techhub.app.userservice.controller;
 import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.userservice.dto.request.CreateUserRequest;
 import com.techhub.app.userservice.dto.request.LoginRequest;
+import com.techhub.app.userservice.dto.request.OAuthLoginRequest;
 import com.techhub.app.userservice.dto.response.AuthResponse;
 import com.techhub.app.userservice.dto.response.UserResponse;
 import com.techhub.app.userservice.service.AuthService;
+import com.techhub.app.userservice.service.OAuthAuthService;
 import com.techhub.app.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+    private final OAuthAuthService oAuthAuthService;
 
     @PostMapping("/register")
     public ResponseEntity<GlobalResponse<UserResponse>> register(
@@ -60,6 +63,66 @@ public class AuthController {
             );
         } catch (Exception e) {
             log.error("Login failed for email: {}", request.getEmail(), e);
+            return ResponseEntity.badRequest().body(
+                    GlobalResponse.<AuthResponse>error(e.getMessage(), 400)
+                            .withPath(httpRequest.getRequestURI())
+            );
+        }
+    }
+
+    // Google OAuth login
+    @PostMapping("/oauth/google")
+    public ResponseEntity<GlobalResponse<AuthResponse>> oauthGoogle(
+            @Valid @RequestBody OAuthLoginRequest request,
+            HttpServletRequest httpRequest) {
+        try {
+            AuthResponse auth = oAuthAuthService.loginWithGoogle(request.getIdToken(), request.getAccessToken());
+            return ResponseEntity.ok(
+                    GlobalResponse.success("Login with Google successful", auth)
+                            .withPath(httpRequest.getRequestURI())
+            );
+        } catch (Exception e) {
+            log.error("Google OAuth login failed", e);
+            return ResponseEntity.badRequest().body(
+                    GlobalResponse.<AuthResponse>error(e.getMessage(), 400)
+                            .withPath(httpRequest.getRequestURI())
+            );
+        }
+    }
+
+    // Facebook OAuth login
+    @PostMapping("/oauth/facebook")
+    public ResponseEntity<GlobalResponse<AuthResponse>> oauthFacebook(
+            @Valid @RequestBody OAuthLoginRequest request,
+            HttpServletRequest httpRequest) {
+        try {
+            AuthResponse auth = oAuthAuthService.loginWithFacebook(request.getAccessToken());
+            return ResponseEntity.ok(
+                    GlobalResponse.success("Login with Facebook successful", auth)
+                            .withPath(httpRequest.getRequestURI())
+            );
+        } catch (Exception e) {
+            log.error("Facebook OAuth login failed", e);
+            return ResponseEntity.badRequest().body(
+                    GlobalResponse.<AuthResponse>error(e.getMessage(), 400)
+                            .withPath(httpRequest.getRequestURI())
+            );
+        }
+    }
+
+    // GitHub OAuth login
+    @PostMapping("/oauth/github")
+    public ResponseEntity<GlobalResponse<AuthResponse>> oauthGithub(
+            @Valid @RequestBody OAuthLoginRequest request,
+            HttpServletRequest httpRequest) {
+        try {
+            AuthResponse auth = oAuthAuthService.loginWithGithub(request.getAccessToken());
+            return ResponseEntity.ok(
+                    GlobalResponse.success("Login with GitHub successful", auth)
+                            .withPath(httpRequest.getRequestURI())
+            );
+        } catch (Exception e) {
+            log.error("GitHub OAuth login failed", e);
             return ResponseEntity.badRequest().body(
                     GlobalResponse.<AuthResponse>error(e.getMessage(), 400)
                             .withPath(httpRequest.getRequestURI())
