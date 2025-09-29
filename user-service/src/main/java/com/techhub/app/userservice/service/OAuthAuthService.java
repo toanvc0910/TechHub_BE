@@ -61,21 +61,26 @@ public class OAuthAuthService {
             // Verify ID token via Google endpoint
             String url = "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken;
             Map<?, ?> info = restTemplate.getForObject(url, Map.class);
-            if (info == null || info.get("aud") == null) throw new RuntimeException("Invalid Google token");
+            if (info == null || info.get("aud") == null)
+                throw new RuntimeException("Invalid Google token");
             if (googleClientId != null && !googleClientId.isBlank()) {
-                if (!googleClientId.equals(info.get("aud"))) throw new RuntimeException("Google client mismatch");
+                if (!googleClientId.equals(info.get("aud")))
+                    throw new RuntimeException("Google client mismatch");
             }
             email = (String) info.get("email");
             name = (String) info.get("name");
-            if (email == null || email.isBlank()) throw new RuntimeException("Google email not available");
+            if (email == null || email.isBlank())
+                throw new RuntimeException("Google email not available");
         } else if (accessToken != null && !accessToken.isBlank()) {
             // Fallback: use access token to fetch userinfo
             String url = "https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=" + accessToken;
             Map<?, ?> info = restTemplate.getForObject(url, Map.class);
-            if (info == null) throw new RuntimeException("Invalid Google access token");
+            if (info == null)
+                throw new RuntimeException("Invalid Google access token");
             email = (String) info.get("email");
             name = (String) info.get("name");
-            if (email == null || email.isBlank()) throw new RuntimeException("Google email not available");
+            if (email == null || email.isBlank())
+                throw new RuntimeException("Google email not available");
         } else {
             throw new RuntimeException("Missing Google token");
         }
@@ -85,33 +90,40 @@ public class OAuthAuthService {
 
     @Transactional
     public AuthResponse loginWithFacebook(String accessToken) {
-        if (accessToken == null || accessToken.isBlank()) throw new RuntimeException("Missing Facebook access token");
+        if (accessToken == null || accessToken.isBlank())
+            throw new RuntimeException("Missing Facebook access token");
 
         // Validate token via debug endpoint
-        if (facebookAppId == null || facebookAppId.isBlank() || facebookAppSecret == null || facebookAppSecret.isBlank()) {
+        if (facebookAppId == null || facebookAppId.isBlank() || facebookAppSecret == null
+                || facebookAppSecret.isBlank()) {
             throw new RuntimeException("Facebook App credentials not configured");
         }
         String appToken = facebookAppId + "|" + facebookAppSecret;
-        String debugUrl = "https://graph.facebook.com/debug_token?input_token=" + accessToken + "&access_token=" + appToken;
+        String debugUrl = "https://graph.facebook.com/debug_token?input_token=" + accessToken + "&access_token="
+                + appToken;
         Map<?, ?> debug = restTemplate.getForObject(debugUrl, Map.class);
-        if (debug == null || debug.get("data") == null || !Boolean.TRUE.equals(((Map<?, ?>) debug.get("data")).get("is_valid"))) {
+        if (debug == null || debug.get("data") == null
+                || !Boolean.TRUE.equals(((Map<?, ?>) debug.get("data")).get("is_valid"))) {
             throw new RuntimeException("Invalid Facebook token");
         }
 
         // Fetch profile
         String url = "https://graph.facebook.com/me?fields=id,name,email&access_token=" + accessToken;
         Map<?, ?> profile = restTemplate.getForObject(url, Map.class);
-        if (profile == null) throw new RuntimeException("Unable to fetch Facebook profile");
+        if (profile == null)
+            throw new RuntimeException("Unable to fetch Facebook profile");
         String email = (String) profile.get("email");
         String name = (String) profile.get("name");
-        if (email == null || email.isBlank()) throw new RuntimeException("Facebook email not available (request email scope)");
+        if (email == null || email.isBlank())
+            throw new RuntimeException("Facebook email not available (request email scope)");
 
         return loginOrCreate(email, name, AuthProviderType.FACEBOOK, accessToken);
     }
 
     @Transactional
     public AuthResponse loginWithGithub(String accessToken) {
-        if (accessToken == null || accessToken.isBlank()) throw new RuntimeException("Missing GitHub access token");
+        if (accessToken == null || accessToken.isBlank())
+            throw new RuntimeException("Missing GitHub access token");
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "token " + accessToken);
@@ -120,7 +132,8 @@ public class OAuthAuthService {
         ResponseEntity<Map> userResp = restTemplate.exchange(
                 "https://api.github.com/user", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
         Map<?, ?> user = userResp.getBody();
-        if (user == null) throw new RuntimeException("Invalid GitHub token");
+        if (user == null)
+            throw new RuntimeException("Invalid GitHub token");
 
         String email = (String) user.get("email");
         String name = (String) user.get("name");
@@ -130,18 +143,21 @@ public class OAuthAuthService {
                     "https://api.github.com/user/emails", HttpMethod.GET, new HttpEntity<>(headers), List.class);
             List<?> emails = emailsResp.getBody();
             if (emails != null) {
-                Optional<?> primary = emails.stream().filter(e -> Boolean.TRUE.equals(((Map<?, ?>) e).get("primary"))).findFirst();
-                if (primary.isPresent()) email = (String) ((Map<?, ?>) primary.get()).get("email");
+                Optional<?> primary = emails.stream().filter(e -> Boolean.TRUE.equals(((Map<?, ?>) e).get("primary")))
+                        .findFirst();
+                if (primary.isPresent())
+                    email = (String) ((Map<?, ?>) primary.get()).get("email");
             }
         }
-        if (email == null || email.isBlank()) throw new RuntimeException("GitHub email not available (request user:email scope)");
+        if (email == null || email.isBlank())
+            throw new RuntimeException("GitHub email not available (request user:email scope)");
 
         return loginOrCreate(email, name, AuthProviderType.GITHUB, accessToken);
     }
 
     private AuthResponse loginOrCreate(String email, String name, AuthProviderType providerType, String accessToken) {
         User user = userRepository.findByEmailAndIsActiveTrue(email).orElse(null);
-        
+
         // Check if user exists but is inactive
         if (user == null) {
             Optional<User> inactiveUser = userRepository.findByEmail(email);
@@ -149,7 +165,7 @@ public class OAuthAuthService {
                 throw new RuntimeException("Account is disabled. Please contact support.");
             }
         }
-        
+
         if (user == null) {
             user = new User();
             user.setEmail(email);
@@ -180,7 +196,7 @@ public class OAuthAuthService {
         AuthProvider authProvider = authProviderRepository
                 .findByUserIdAndProviderAndIsActiveTrue(user.getId(), providerType)
                 .orElse(new AuthProvider());
-        
+
         authProvider.setUser(user);
         authProvider.setProvider(providerType);
         authProvider.setAccessToken(accessToken);

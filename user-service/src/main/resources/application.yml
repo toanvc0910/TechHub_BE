@@ -32,8 +32,8 @@ spring:
 # JWT Configuration
 jwt:
   secret: mySecretKey123456789012345678901234567890
-  expiration: 86400000  # 24 hours
-  refresh-expiration: 604800000  # 7 days
+  expiration: 86400000 # 24 hours
+  refresh-expiration: 604800000 # 7 days
 
 eureka:
   client:

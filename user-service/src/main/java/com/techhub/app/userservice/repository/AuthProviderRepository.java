@@ -10,8 +10,8 @@ import java.util.UUID;
 
 @Repository
 public interface AuthProviderRepository extends JpaRepository<AuthProvider, UUID> {
-    
+
     Optional<AuthProvider> findByUserIdAndProviderAndIsActiveTrue(UUID userId, AuthProviderType provider);
-    
+
     boolean existsByUserIdAndProviderAndIsActiveTrue(UUID userId, AuthProviderType provider);
 }
