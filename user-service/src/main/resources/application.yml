@@ -1,9 +1,11 @@
 server:
-  port: 8082
+  port: 8080
 
 spring:
   application:
     name: USER-SERVICE
+  profiles:
+    active: prod
   datasource:
     url: jdbc:postgresql://localhost:5432/techhub
     username: postgres
@@ -20,8 +22,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: dinhtrung0012@gmail.com
-    password: rool wgxr yqkk ahbw
+    username: trungphandinh340@gmail.com
+    password: zqik zowr vngn cgsx
     properties:
       mail:
         smtp:
@@ -29,11 +31,29 @@ spring:
           starttls:
             enable: true
 
-# JWT Configuration
-jwt:
-  secret: mySecretKey123456789012345678901234567890
-  expiration: 86400000  # 24 hours
-  refresh-expiration: 604800000  # 7 days
+  # OAuth2 Configuration for Social Login
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: your-google-client-id
+            client-secret: your-google-client-secret
+            scope:
+              - email
+              - profile
+          facebook:
+            client-id: your-facebook-app-id
+            client-secret: your-facebook-app-secret
+            scope:
+              - email
+              - public_profile
+          github:
+            client-id: your-github-client-id
+            client-secret: your-github-client-secret
+            scope:
+              - user:email
+              - read:user
 
 eureka:
   client:

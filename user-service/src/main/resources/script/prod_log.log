@@ -1,0 +1,81 @@
+2025-10-02 15:55:22.080  INFO 13588 --- [main] c.t.a.u.UserserviceApplication           : Starting UserserviceApplication using Java 11.0.27 on TonyNyan with PID 13588 (E:\University\HK1_FourYear\POSE\TLCN\techhub-microservice-backend\user-service\target\classes started by ADMIN in E:\University\HK1_FourYear\POSE\TLCN\techhub-microservice-backend\user-service)
+2025-10-02 15:55:22.087 DEBUG 13588 --- [main] c.t.a.u.UserserviceApplication           : Running with Spring Boot v2.5.12, Spring v5.3.18
+2025-10-02 15:55:22.088  INFO 13588 --- [main] c.t.a.u.UserserviceApplication           : The following 1 profile is active: "prod"
+2025-10-02 15:55:23.167  INFO 13588 --- [main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-10-02 15:55:23.304  INFO 13588 --- [main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 124 ms. Found 9 JPA repository interfaces.
+2025-10-02 15:55:23.523  INFO 13588 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=c529d021-44b7-30fb-861b-89a1548507e5
+2025-10-02 15:55:24.162  INFO 13588 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8080 (http)
+2025-10-02 15:55:24.169  INFO 13588 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-10-02 15:55:24.170  INFO 13588 --- [main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.60]
+2025-10-02 15:55:24.293  INFO 13588 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-10-02 15:55:24.293  INFO 13588 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2174 ms
+2025-10-02 15:55:24.411  INFO 13588 --- [main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-10-02 15:55:24.443  INFO 13588 --- [main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 5.4.33
+2025-10-02 15:55:24.522  INFO 13588 --- [main] o.hibernate.annotations.common.Version   : HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2025-10-02 15:55:24.599  INFO 13588 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-10-02 15:55:24.747  INFO 13588 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-10-02 15:55:24.760  INFO 13588 --- [main] org.hibernate.dialect.Dialect            : HHH000400: Using dialect: com.techhub.app.userservice.config.PostgreSQLEnumDialect
+2025-10-02 15:55:25.672  INFO 13588 --- [main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-10-02 15:55:25.682  INFO 13588 --- [main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-10-02 15:55:26.483 DEBUG 13588 --- [main] swordEncoderAuthenticationManagerBuilder : No authenticationProviders and no parentAuthenticationManager defined. Returning null.
+2025-10-02 15:55:26.539 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='/api/auth/**']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='POST']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='/api/users']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='/api/users/forgot-password']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='/api/users/reset-password/**']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='/oauth2/**']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='/actuator/**']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='/health']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='/swagger-ui/**']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [permitAll] for Ant [pattern='/v3/api-docs/**']
+2025-10-02 15:55:26.541 DEBUG 13588 --- [main] edFilterInvocationSecurityMetadataSource : Adding web access control expression [authenticated] for any request
+2025-10-02 15:55:26.546  INFO 13588 --- [main] o.s.s.web.DefaultSecurityFilterChain     : Will not secure any request
+2025-10-02 15:55:26.606  WARN 13588 --- [main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-10-02 15:55:28.416  INFO 13588 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2025-10-02 15:55:28.444  INFO 13588 --- [main] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestTemplate.
+2025-10-02 15:55:29.912  INFO 13588 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2025-10-02 15:55:29.947  WARN 13588 --- [main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2025-10-02 15:55:29.967  INFO 13588 --- [main] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2025-10-02 15:55:30.042  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2025-10-02 15:55:30.046  INFO 13588 --- [main] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-10-02 15:55:30.062  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-10-02 15:55:30.064  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-10-02 15:55:30.064  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-10-02 15:55:30.065  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-10-02 15:55:30.065  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-10-02 15:55:30.065  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2025-10-02 15:55:30.065  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-10-02 15:55:30.335  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2025-10-02 15:55:30.338  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2025-10-02 15:55:30.340  INFO 13588 --- [main] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2025-10-02 15:55:30.344  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1759395330343 with initial instances count: 3
+2025-10-02 15:55:30.345  INFO 13588 --- [main] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application USER-SERVICE with eureka with status UP
+2025-10-02 15:55:30.346  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1759395330346, current=UP, previous=STARTING]
+2025-10-02 15:55:30.347  INFO 13588 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_USER-SERVICE/localhost:USER-SERVICE:8080: registering service...
+2025-10-02 15:55:30.356  WARN 13588 --- [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 8080 is already in use
+2025-10-02 15:55:30.361  INFO 13588 --- [main] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-10-02 15:55:30.363  INFO 13588 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2025-10-02 15:55:30.374  INFO 13588 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2025-10-02 15:55:30.374  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Shutting down DiscoveryClient ...
+2025-10-02 15:55:30.391  INFO 13588 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_USER-SERVICE/localhost:USER-SERVICE:8080 - registration status: 204
+2025-10-02 15:55:30.392  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Unregistering ...
+2025-10-02 15:55:30.395  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_USER-SERVICE/localhost:USER-SERVICE:8080 - deregister  status: 200
+2025-10-02 15:55:30.400  INFO 13588 --- [main] com.netflix.discovery.DiscoveryClient    : Completed shut down of DiscoveryClient
+2025-10-02 15:55:30.401  INFO 13588 --- [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2025-10-02 15:55:30.414  INFO 13588 --- [main] ConditionEvaluationReportLoggingListener : 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-10-02 15:55:30.443 ERROR 13588 --- [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+

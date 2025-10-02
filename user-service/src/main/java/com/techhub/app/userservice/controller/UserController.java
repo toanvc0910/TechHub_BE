@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "*")
 public class UserController {
 
     private final UserService userService;
@@ -212,7 +211,7 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('USER_READ')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<PageGlobalResponse<UserResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -257,12 +256,20 @@ public class UserController {
     @GetMapping("/profile")
     public ResponseEntity<GlobalResponse<UserResponse>> getCurrentUserProfile(
             HttpServletRequest request,
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @RequestHeader(value = "X-User-Email", required = false) String userEmail) {
 
         try {
-            String token = authHeader.substring(7); // Remove "Bearer "
-            User user = userService.getCurrentUser(token);
-            UserResponse userResponse = convertToUserResponse(user);
+            // Get user info from headers set by Proxy-Client (not from JWT)
+            if (userIdHeader == null || userIdHeader.isEmpty()) {
+                return ResponseEntity.badRequest().body(
+                    GlobalResponse.<UserResponse>error("User ID header missing - ensure request goes through Proxy-Client", 400)
+                        .withPath(request.getRequestURI())
+                );
+            }
+
+            UUID userId = UUID.fromString(userIdHeader);
+            UserResponse userResponse = userService.getUserById(userId);
 
             return ResponseEntity.ok(
                 GlobalResponse.success("Profile retrieved successfully", userResponse)
@@ -276,22 +283,5 @@ public class UserController {
                     .withPath(request.getRequestURI())
             );
         }
-    }
-
-    private UserResponse convertToUserResponse(User user) {
-        List<String> roles = user.getUserRoles().stream()
-                .map(userRole -> userRole.getRole().getName())
-                .collect(Collectors.toList());
-
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .username(user.getUsername())
-                .roles(roles)
-                .status(user.getStatus().name())
-                .created(user.getCreated())
-                .updated(user.getUpdated())
-                .isActive(user.getIsActive())
-                .build();
     }
 }

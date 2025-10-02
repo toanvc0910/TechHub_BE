@@ -1,75 +1,41 @@
 package com.techhub.app.userservice.config;
 
-import com.techhub.app.commonservice.jwt.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.http.HttpMethod;
+import org.springframework.security.web.SecurityFilterChain;
 
-import java.util.Arrays;
-
+/**
+ * Security configuration for User Service
+ * Disables CSRF and allows auth endpoints to be accessed without authentication
+ */
 @Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)
-@RequiredArgsConstructor
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
-
-    private final JwtUtil jwtUtil;
+public class SecurityConfig {
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtUtil);
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http.cors().configurationSource(corsConfigurationSource())
-            .and()
-            .csrf().disable()
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf().disable()
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeRequests()
-            // Allow public endpoints (match full URI with context-path /user-service)
-            .antMatchers(HttpMethod.POST, "/api/auth/register").permitAll()  // Explicit POST register
+            // Public auth endpoints
             .antMatchers("/api/auth/**").permitAll()
-            .antMatchers("/api/users").permitAll() // Allow user registration (POST)
-            .antMatchers("/api/users/forgot-password").permitAll()
-            .antMatchers("/api/users/reset-password/**").permitAll()
-            .antMatchers("/actuator/health").permitAll()
+            // Public user registration
+            .antMatchers("POST", "/api/users").permitAll()
+            // Public password reset endpoints
+            .antMatchers("/api/users/forgot-password", "/api/users/reset-password/**").permitAll()
+            // Public OAuth2 endpoints
+            .antMatchers("/oauth2/**").permitAll()
+            // Health check and monitoring
+            .antMatchers("/actuator/**", "/health").permitAll()
+            // API documentation
             .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-            // Require authentication for all other endpoints
-            .anyRequest().authenticated()
-            .and()
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+            // All other endpoints require authentication (handled by proxy-client)
+            .anyRequest().authenticated();
+
+        return http.build();
     }
 }

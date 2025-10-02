@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping("/api/proxy/users")
 @RequiredArgsConstructor
@@ -97,7 +99,16 @@ public class UserProxyController {
 
     // Profile endpoint
     @GetMapping("/profile")
-    public ResponseEntity<String> getCurrentUserProfile(@RequestHeader("Authorization") String authHeader) {
-        return userServiceClient.getCurrentUserProfile(authHeader);
+    public ResponseEntity<String> getCurrentUserProfile(@RequestHeader("Authorization") String authHeader,
+                                                       HttpServletRequest request) {
+        // Get user info from request attributes (set by JwtAuthenticationFilter)
+        Object userId = request.getAttribute("userId");
+        Object userEmail = request.getAttribute("userEmail");
+
+        if (userId == null || userEmail == null) {
+            return ResponseEntity.badRequest().body("{\"error\": \"User context missing\"}");
+        }
+
+        return userServiceClient.getCurrentUserProfile(authHeader, userId.toString(), userEmail.toString());
     }
 }

@@ -82,5 +82,7 @@ public interface UserServiceClient {
 
     // Profile endpoint
     @GetMapping("/api/users/profile")
-    ResponseEntity<String> getCurrentUserProfile(@RequestHeader("Authorization") String authHeader);
+    ResponseEntity<String> getCurrentUserProfile(@RequestHeader("Authorization") String authHeader,
+                                                @RequestHeader("X-User-Id") String userId,
+                                                @RequestHeader("X-User-Email") String userEmail);
 }

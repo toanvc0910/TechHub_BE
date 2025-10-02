@@ -1,20 +1,13 @@
 package com.techhub.app.userservice.service;
 
-import com.techhub.app.userservice.enums.OtpType;
+import com.techhub.app.userservice.enums.OTPTypeEnum;
 
 import java.util.UUID;
 
 public interface OTPService {
-
-    String generateOTP(UUID userId, OtpType type);
-
-    boolean validateOTP(String code, OtpType type);
-
-    boolean validateOTPForUser(UUID userId, String code, OtpType type);
-
-    void markOTPAsUsed(String code, OtpType type);
-
-    void invalidateAllOTPsForUser(UUID userId, OtpType type);
-
-    void cleanupExpiredOTPs();
+    String generateOTP();
+    void saveOTP(UUID userId, String otpCode, OTPTypeEnum type);
+    boolean validateOTP(UUID userId, String otpCode, OTPTypeEnum type);
+    void deleteOTP(UUID userId, OTPTypeEnum type);
+    boolean isOTPExpired(UUID userId, OTPTypeEnum type);
 }

@@ -67,6 +67,7 @@ public class User {
     @Column(name = "is_active", nullable = false, length = 1)
     private Boolean isActive = true;
 
+
     // Fix: Use the correct UserRole entity for the relationship
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<UserRole> userRoles = new ArrayList<>();

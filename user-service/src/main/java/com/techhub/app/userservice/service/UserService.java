@@ -50,6 +50,4 @@ public interface UserService {
     boolean existsByUsername(String username);
 
     long countUsersByStatus(UserStatus status);
-
-    User getCurrentUser(String token);
 }

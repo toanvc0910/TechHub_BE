@@ -26,8 +26,11 @@ public class AuthService {
     private final UserRepository userRepository;
     private final AuthenticationLogRepository authLogRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil; // Add JwtUtil dependency
 
+    /**
+     * Authenticate user credentials and generate JWT tokens
+     */
     @Transactional
     public AuthResponse authenticate(LoginRequest request) {
         log.info("Authenticating user with email: {}", request.getEmail());
@@ -47,19 +50,19 @@ public class AuthService {
             throw new RuntimeException("Invalid credentials");
         }
 
-        // Get user roles from entity-based system instead of enum
+        // Get user roles from entity-based system
         List<String> roles = user.getUserRoles().stream()
                 .map(userRole -> userRole.getRole().getName())
                 .collect(Collectors.toList());
 
-        // Generate tokens
-        String accessToken = jwtUtil.generateToken(user.getId(), user.getEmail(), roles);
-        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getEmail());
-
         // Log successful authentication
         logSuccessfulAuthentication(user);
 
-        // Build response
+        // Generate JWT tokens
+        String accessToken = jwtUtil.generateToken(user.getId(), user.getEmail(), roles);
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getEmail());
+
+        // Build response WITH JWT tokens
         AuthResponse.UserInfo userInfo = AuthResponse.UserInfo.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -77,24 +80,29 @@ public class AuthService {
                 .build();
     }
 
+    /**
+     * Logout user - Remove JWT token validation as it should be handled by proxy-client
+     */
     @Transactional
-    public void logout(String token) {
+    public void logout(String userEmail) {
         try {
-            String email = jwtUtil.getEmailFromToken(token);
-            User user = userRepository.findByEmailAndIsActiveTrue(email)
+            User user = userRepository.findByEmailAndIsActiveTrue(userEmail)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
             logLogout(user);
-            log.info("User {} logged out successfully", email);
+            log.info("User {} logged out successfully", userEmail);
         } catch (Exception e) {
             log.error("Error during logout: {}", e.getMessage());
             throw new RuntimeException("Logout failed");
         }
     }
 
-    public boolean validateToken(String token) {
-        return jwtUtil.validateToken(token);
-    }
+    /**
+     * Remove token validation - this should be handled by proxy-client
+     */
+    // public boolean validateToken(String token) {
+    //     return jwtUtil.validateToken(token);
+    // }
 
     private void logSuccessfulAuthentication(User user) {
         AuthenticationLog authLog = new AuthenticationLog();

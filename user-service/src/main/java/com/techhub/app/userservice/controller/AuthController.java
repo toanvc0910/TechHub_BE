@@ -19,7 +19,6 @@ import javax.validation.Valid;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "*")
 public class AuthController {
 
     private final AuthService authService;
@@ -89,33 +88,6 @@ public class AuthController {
             log.error("Logout failed", e);
             return ResponseEntity.badRequest().body(
                     GlobalResponse.<String>error("Logout failed", 400)
-                            .withPath(httpRequest.getRequestURI())
-            );
-        }
-    }
-
-    @PostMapping("/validate")
-    public ResponseEntity<GlobalResponse<Boolean>> validateToken(
-            @RequestHeader("Authorization") String authHeader,
-            HttpServletRequest httpRequest) {
-        try {
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
-                boolean isValid = authService.validateToken(token);
-
-                return ResponseEntity.ok(
-                        GlobalResponse.success("Token validation completed", isValid)
-                                .withPath(httpRequest.getRequestURI())
-                );
-            }
-            return ResponseEntity.badRequest().body(
-                    GlobalResponse.<Boolean>error("Invalid token format", 400)
-                            .withPath(httpRequest.getRequestURI())
-            );
-        } catch (Exception e) {
-            log.error("Token validation failed", e);
-            return ResponseEntity.badRequest().body(
-                    GlobalResponse.<Boolean>error("Token validation failed", 400)
                             .withPath(httpRequest.getRequestURI())
             );
         }

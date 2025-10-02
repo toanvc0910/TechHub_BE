@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to TechHub</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #007bff; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9f9f9; }
+        .footer { text-align: center; padding: 10px; color: #666; }
+        .btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to TechHub!</h1>
+        </div>
+        <div class="content">
+            <h2>Hello <span th:text="${username ?: 'there'}">User</span>!</h2>
+            <p>Thank you for joining TechHub. Your account has been successfully created!</p>
+            <p>You can now:</p>
+            <ul>
+                <li>Browse our extensive course catalog</li>
+                <li>Create personalized learning paths</li>
+                <li>Connect with other learners</li>
+                <li>Track your progress</li>
+            </ul>
+            <p>Start your learning journey today!</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br>The TechHub Team</p>
+        </div>
+    </div>
+</body>
+</html>
+

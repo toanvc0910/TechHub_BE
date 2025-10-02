@@ -1,10 +1,8 @@
 package com.techhub.app.userservice.service.impl;
 
-import com.techhub.app.userservice.entity.OTP;
-import com.techhub.app.userservice.entity.User;
-import com.techhub.app.userservice.enums.OtpType;
+import com.techhub.app.userservice.entity.OTPCode;
+import com.techhub.app.userservice.enums.OTPTypeEnum;
 import com.techhub.app.userservice.repository.OTPRepository;
-import com.techhub.app.userservice.repository.UserRepository;
 import com.techhub.app.userservice.service.OTPService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,92 +11,74 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional
 public class OTPServiceImpl implements OTPService {
 
     private final OTPRepository otpRepository;
-    private final UserRepository userRepository;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    private static final int OTP_LENGTH = 6;
-    private static final int OTP_EXPIRY_MINUTES = 15;
+    @Override
+    public String generateOTP() {
+        int otp = 100000 + secureRandom.nextInt(900000); // Generate 6-digit OTP
+        return String.valueOf(otp);
+    }
 
     @Override
-    public String generateOTP(UUID userId, OtpType type) {
-        log.info("Generating OTP for user ID: {} and type: {}", userId, type);
+    @Transactional
+    public void saveOTP(UUID userId, String otpCode, OTPTypeEnum type) {
+        // Deactivate any existing OTP for this user and type
+        otpRepository.deactivateByUserIdAndType(userId, type);
 
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+        // Create new OTP
+        OTPCode otpEntity = new OTPCode();
+        otpEntity.setUserId(userId);
+        otpEntity.setCode(otpCode);
+        otpEntity.setType(type);
+        otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(10)); // 10 minutes expiry
 
-        // Deactivate existing active OTPs for this user and type
-        invalidateAllOTPsForUser(userId, type);
+        otpRepository.save(otpEntity);
+        log.info("OTP saved for user: {} type: {}", userId, type);
+    }
 
-        // Generate new OTP code
-        String otpCode = generateRandomOTPCode();
+    @Override
+    @Transactional
+    public boolean validateOTP(UUID userId, String otpCode, OTPTypeEnum type) {
+        Optional<OTPCode> otpOptional = otpRepository.findByUserIdAndCodeAndTypeAndIsActiveTrue(userId, otpCode, type);
 
-        // Create OTP entity
-        OTP otp = new OTP();
-        otp.setUser(user);
-        otp.setCode(otpCode);
-        otp.setType(type);
-        otp.setExpiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES));
-        otp.setIsActive(true);
+        if (otpOptional.isEmpty()) {
+            log.warn("Invalid OTP attempted for user: {} type: {}", userId, type);
+            return false;
+        }
 
+        OTPCode otp = otpOptional.get();
+
+        if (otp.getExpiresAt().isBefore(LocalDateTime.now())) {
+            log.warn("Expired OTP attempted for user: {} type: {}", userId, type);
+            return false;
+        }
+
+        // Mark OTP as used (deactivate)
+        otp.setIsActive(false);
         otpRepository.save(otp);
 
-        log.info("OTP generated successfully for user ID: {}", userId);
-        return otpCode;
+        log.info("OTP validated successfully for user: {} type: {}", userId, type);
+        return true;
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public boolean validateOTP(String code, OtpType type) {
-        return otpRepository.findByCodeAndTypeAndIsActiveTrueAndExpiresAtAfter(
-            code, type, LocalDateTime.now()).isPresent();
+    @Transactional
+    public void deleteOTP(UUID userId, OTPTypeEnum type) {
+        otpRepository.deactivateByUserIdAndType(userId, type);
+        log.info("OTP deleted for user: {} type: {}", userId, type);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public boolean validateOTPForUser(UUID userId, String code, OtpType type) {
-        return otpRepository.findByCodeAndTypeAndIsActiveTrueAndExpiresAtAfter(
-                code, type, LocalDateTime.now())
-            .map(otp -> otp.getUser().getId().equals(userId))
-            .orElse(false);
-    }
-
-    @Override
-    public void markOTPAsUsed(String code, OtpType type) {
-        log.info("Deactivating OTP: {} for type: {}", code, type);
-        otpRepository.findByCodeAndTypeAndIsActiveTrueAndExpiresAtAfter(code, type, LocalDateTime.now())
-            .ifPresent(otp -> {
-                otp.setIsActive(false);
-                otpRepository.save(otp);
-            });
-    }
-
-    @Override
-    public void invalidateAllOTPsForUser(UUID userId, OtpType type) {
-        log.info("Invalidating all OTPs for user ID: {} and type: {}", userId, type);
-        otpRepository.deactivateAllByUserIdAndType(userId, type);
-    }
-
-    @Override
-    public void cleanupExpiredOTPs() {
-        log.info("Cleaning up expired OTPs");
-        otpRepository.deleteByExpiresAtBefore(LocalDateTime.now());
-        log.info("Expired OTPs cleaned up successfully");
-    }
-
-    private String generateRandomOTPCode() {
-        StringBuilder otp = new StringBuilder();
-        for (int i = 0; i < OTP_LENGTH; i++) {
-            otp.append(secureRandom.nextInt(10));
-        }
-        return otp.toString();
+    public boolean isOTPExpired(UUID userId, OTPTypeEnum type) {
+        return !otpRepository.existsByUserIdAndTypeAndIsActiveTrueAndExpiresAtAfter(userId, type, LocalDateTime.now());
     }
 }

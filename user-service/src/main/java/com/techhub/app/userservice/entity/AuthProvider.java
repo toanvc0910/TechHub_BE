@@ -1,11 +1,15 @@
 package com.techhub.app.userservice.entity;
 
 import com.techhub.app.userservice.config.BooleanToYNStringConverter;
-import com.techhub.app.userservice.enums.AuthProviderType;
+import com.techhub.app.userservice.config.PostgreSQLEnumType;
+import com.techhub.app.userservice.enums.AuthProviderEnum;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Parameter;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -13,6 +17,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "auth_providers")
+@TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,18 +28,17 @@ public class AuthProvider {
     @GenericGenerator(name = "uuid2", strategy = "uuid2")
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "provider", nullable = false)
-    private AuthProviderType provider;
+    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.AuthProviderEnum"))
+    @Column(name = "provider", nullable = false, columnDefinition = "auth_provider")
+    private AuthProviderEnum provider;
 
-    @Column(name = "access_token")
+    @Column(name = "access_token", columnDefinition = "TEXT")
     private String accessToken;
 
-    @Column(name = "refresh_token")
+    @Column(name = "refresh_token", columnDefinition = "TEXT")
     private String refreshToken;
 
     @Column(name = "expires_at")
@@ -55,6 +59,10 @@ public class AuthProvider {
     @Convert(converter = BooleanToYNStringConverter.class)
     @Column(name = "is_active", nullable = false, length = 1)
     private Boolean isActive = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    private User user;
 
     @PrePersist
     protected void onCreate() {

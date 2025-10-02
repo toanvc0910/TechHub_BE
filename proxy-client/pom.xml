@@ -18,11 +18,17 @@
 		<spring-cloud.version>2021.0.9</spring-cloud.version>
 	</properties>
 	<dependencies>
-		<!-- Common Service Dependency -->
+		<!-- Common Service Dependency (but exclude UserContextInterceptor from scanning) -->
 		<dependency>
 			<groupId>com.techhub.app</groupId>
 			<artifactId>common-service</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+
+		<!-- Eureka client -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
 		</dependency>
 
 		<!-- Spring Boot Starter Web -->
@@ -35,12 +41,6 @@
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
-		</dependency>
-
-		<!-- Eureka Client -->
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
 		</dependency>
 
 		<!-- Spring Security for JWT -->

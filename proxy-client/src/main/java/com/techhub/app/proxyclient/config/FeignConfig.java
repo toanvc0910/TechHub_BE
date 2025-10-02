@@ -8,6 +8,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 @Configuration
 public class FeignConfig {
@@ -21,13 +22,25 @@ public class FeignConfig {
                 if (attributes != null) {
                     HttpServletRequest request = attributes.getRequest();
 
-                    // Forward Authorization header
-                    String authHeader = request.getHeader("Authorization");
-                    if (authHeader != null) {
-                        template.header("Authorization", authHeader);
+                    // Forward user context via custom headers (NOT JWT token)
+                    Object userId = request.getAttribute("userId");
+                    if (userId != null) {
+                        template.header("X-User-Id", userId.toString());
                     }
 
-                    // Forward other important headers
+                    Object userEmail = request.getAttribute("userEmail");
+                    if (userEmail != null) {
+                        template.header("X-User-Email", userEmail.toString());
+                    }
+
+                    Object userRoles = request.getAttribute("userRoles");
+                    if (userRoles != null) {
+                        @SuppressWarnings("unchecked")
+                        List<String> roles = (List<String>) userRoles;
+                        template.header("X-User-Roles", String.join(",", roles));
+                    }
+
+                    // Forward other important headers for tracing
                     String userAgent = request.getHeader("User-Agent");
                     if (userAgent != null) {
                         template.header("User-Agent", userAgent);
@@ -37,6 +50,9 @@ public class FeignConfig {
                     if (xForwardedFor != null) {
                         template.header("X-Forwarded-For", xForwardedFor);
                     }
+
+                    // Add trace header for debugging
+                    template.header("X-Request-Source", "proxy-client");
                 }
             }
         };

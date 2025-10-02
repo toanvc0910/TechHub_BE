@@ -1,6 +1,5 @@
 package com.techhub.app.userservice.service.impl;
 
-import com.techhub.app.commonservice.jwt.JwtUtil;
 import com.techhub.app.userservice.dto.request.ChangePasswordRequest;
 import com.techhub.app.userservice.dto.request.CreateUserRequest;
 import com.techhub.app.userservice.dto.request.ForgotPasswordRequest;
@@ -18,6 +17,8 @@ import com.techhub.app.userservice.repository.UserRepository;
 import com.techhub.app.userservice.repository.UserRoleRepository;
 import com.techhub.app.userservice.service.EmailService;
 import com.techhub.app.userservice.service.UserService;
+import com.techhub.app.userservice.service.OTPService;
+import com.techhub.app.userservice.enums.OTPTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -41,7 +42,7 @@ public class UserServiceImpl implements UserService {
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
-    private final JwtUtil jwtUtil;
+    private final OTPService otpService;
 
     @Override
     @Transactional
@@ -83,6 +84,15 @@ public class UserServiceImpl implements UserService {
         userRoleEntity.setCreated(LocalDateTime.now());
         userRoleEntity.setUpdated(LocalDateTime.now());
         userRoleRepository.save(userRoleEntity);  // Now IDs are set, save succeeds
+
+        // Send welcome email
+        try {
+            emailService.sendWelcomeEmail(user.getEmail(), user.getUsername());
+            log.info("Welcome email sent to: {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send welcome email to: {}", user.getEmail(), e);
+            // Don't fail registration if email fails
+        }
 
         return convertToUserResponse(user);
     }
@@ -163,14 +173,22 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmailAndIsActiveTrue(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Generate OTP and send email (implementation depends on your OTP service)
-        // For now, just log it
-        log.info("Password reset requested for user: {}", request.getEmail());
+        // Generate OTP and send email
+        String otpCode = otpService.generateOTP();
+        OTPTypeEnum otpType = OTPTypeEnum.RESET;
 
-        // In a real implementation, you would:
-        // 1. Generate OTP
-        // 2. Save OTP to database with expiration
-        // 3. Send email with OTP
+        try {
+            // Save OTP to database using userId
+            otpService.saveOTP(user.getId(), otpCode, otpType);
+
+            // Send password reset email with OTP
+            emailService.sendPasswordResetEmail(user.getEmail(), otpCode);
+
+            log.info("Password reset OTP sent to: {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to process forgot password for: {}", user.getEmail(), e);
+            throw new RuntimeException("Failed to send password reset email");
+        }
     }
 
     @Override
@@ -179,17 +197,25 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmailAndIsActiveTrue(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Validate OTP (implementation depends on your OTP service)
-        // For now, just validate password confirmation
+        // Validate OTP using userId
+        if (!otpService.validateOTP(user.getId(), request.getOtp(), OTPTypeEnum.RESET)) {
+            throw new RuntimeException("Invalid or expired OTP code");
+        }
+
+        // Validate password confirmation
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             throw new RuntimeException("Password confirmation does not match");
         }
 
+        // Update password
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setUpdated(LocalDateTime.now());
         userRepository.save(user);
 
-        log.info("Password reset for user: {}", email);
+        // Clean up used OTP
+        otpService.deleteOTP(user.getId(), OTPTypeEnum.RESET);
+
+        log.info("Password reset successfully for user: {}", email);
     }
 
     @Override
@@ -256,17 +282,29 @@ public class UserServiceImpl implements UserService {
         return userRepository.countByStatusAndIsActiveTrue(status);
     }
 
-    @Override
-    public User getCurrentUser(String token) {
-        UUID userId = jwtUtil.getUserIdFromToken(token);
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
-    }
-
     private UserResponse convertToUserResponse(User user) {
-        List<String> roles = user.getUserRoles().stream()
-                .map(userRole -> userRole.getRole().getName())
-                .collect(Collectors.toList());
+        List<String> roles;
+        try {
+            // Try to get roles from user.getUserRoles() first
+            roles = user.getUserRoles().stream()
+                    .filter(userRole -> userRole.getIsActive())
+                    .map(userRole -> userRole.getRole().getName())
+                    .collect(Collectors.toList());
+
+            log.debug("Loaded {} roles for user {}: {}", roles.size(), user.getEmail(), roles);
+
+            // If no roles found, add default role based on user.role enum
+            if (roles.isEmpty()) {
+                roles.add(user.getRole().name());
+                log.warn("No UserRole entities found for user {}, using default role: {}",
+                        user.getEmail(), user.getRole().name());
+            }
+        } catch (Exception e) {
+            log.error("Error loading roles for user {}, falling back to default role: {}",
+                    user.getEmail(), e.getMessage());
+            // Fallback to the role enum field
+            roles = List.of(user.getRole().name());
+        }
 
         return UserResponse.builder()
                 .id(user.getId())
@@ -280,3 +318,4 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 }
+

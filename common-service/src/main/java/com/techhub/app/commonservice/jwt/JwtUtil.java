@@ -46,6 +46,17 @@ public class JwtUtil {
                 .compact();
     }
 
+    public String generateTokenFromUserId(UUID userId) {
+        // Generate basic token with userId only - for OAuth2 flow
+        return Jwts.builder()
+                .setSubject(userId.toString())
+                .claim("type", "access")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
     private String createToken(UUID userId, String email, List<String> roles, long expiration) {
         return Jwts.builder()
                 .setSubject(userId.toString())

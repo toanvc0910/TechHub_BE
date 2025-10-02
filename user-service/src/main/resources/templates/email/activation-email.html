@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Activated - TechHub</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #28a745; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9f9f9; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin: 15px 0; }
+        .footer { text-align: center; padding: 10px; color: #666; }
+        .btn { display: inline-block; padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Account Activated!</h1>
+        </div>
+        <div class="content">
+            <h2>Hello <span th:text="${username ?: 'there'}">User</span>!</h2>
+            <div class="success">
+                <strong>Great news!</strong> Your TechHub account has been successfully activated.
+            </div>
+            <p>You now have full access to:</p>
+            <ul>
+                <li>All course materials and videos</li>
+                <li>Interactive learning exercises</li>
+                <li>Community discussions</li>
+                <li>Progress tracking and certificates</li>
+            </ul>
+            <p>Ready to start learning?</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br>The TechHub Team</p>
+        </div>
+    </div>
+</body>
+</html>
+
