@@ -75,9 +75,9 @@ public class EmailServiceImpl implements EmailService {
                 "Hello,\n\n" +
                 "Your verification code for %s is: %s\n\n" +
                 "This code will expire in 15 minutes.\n\n" +
-                "If you didn't request this code, please ignore this email or contact support if you have concerns.\n\n" +
+                "If you did not request this code, please ignore this email or contact our support team if you have concerns.\n\n" +
                 "Best regards,\n" +
-                "TechHub Team",
+                "The TechHub Team",
                 purpose, otpCode));
             message.setFrom(fromEmail);
 
@@ -108,7 +108,7 @@ public class EmailServiceImpl implements EmailService {
             String htmlContent = templateEngine.process("email/welcome-email", context);
 
             helper.setTo(email);
-            helper.setSubject("🎉 Chào mừng bạn đến với TechHub!");
+            helper.setSubject("🎉 Welcome to TechHub - Your Learning Journey Begins!");
             helper.setText(htmlContent, true);
             helper.setFrom(fromEmail);
 
@@ -131,12 +131,12 @@ public class EmailServiceImpl implements EmailService {
             message.setSubject("Welcome to TechHub!");
             message.setText(String.format(
                 "Hello %s,\n\n" +
-                "Welcome to TechHub! Your account has been created successfully.\n\n" +
+                "Welcome to TechHub! Your account has been successfully created.\n\n" +
                 "You can now start exploring our courses and learning resources.\n\n" +
-                "If you have any questions, feel free to contact our support team.\n\n" +
+                "If you have any questions, don't hesitate to reach out to our support team.\n\n" +
                 "Happy learning!\n\n" +
                 "Best regards,\n" +
-                "TechHub Team",
+                "The TechHub Team",
                 username));
             message.setFrom(fromEmail);
 
@@ -167,7 +167,7 @@ public class EmailServiceImpl implements EmailService {
             String htmlContent = templateEngine.process("email/password-reset-email", context);
 
             helper.setTo(email);
-            helper.setSubject("🔒 TechHub - Yêu cầu đặt lại mật khẩu");
+            helper.setSubject("🔒 TechHub - Password Reset Request");
             helper.setText(htmlContent, true);
             helper.setFrom(fromEmail);
 
@@ -192,9 +192,9 @@ public class EmailServiceImpl implements EmailService {
                 "You have requested to reset your password for your TechHub account.\n\n" +
                 "Your password reset OTP code is: %s\n\n" +
                 "This code will expire in 15 minutes.\n\n" +
-                "If you didn't request a password reset, please ignore this email or contact support if you have concerns.\n\n" +
+                "If you did not request a password reset, please ignore this email or contact our support team if you have concerns.\n\n" +
                 "Best regards,\n" +
-                "TechHub Team",
+                "The TechHub Security Team",
                 otpCode));
             message.setFrom(fromEmail);
 
@@ -225,7 +225,7 @@ public class EmailServiceImpl implements EmailService {
             String htmlContent = templateEngine.process("email/activation-email", context);
 
             helper.setTo(email);
-            helper.setSubject("✅ TechHub - Tài khoản được kích hoạt!");
+            helper.setSubject("✅ TechHub - Account Activated Successfully!");
             helper.setText(htmlContent, true);
             helper.setFrom(fromEmail);
 
@@ -247,11 +247,11 @@ public class EmailServiceImpl implements EmailService {
             message.setSubject("TechHub - Account Activated");
             message.setText(String.format(
                 "Hello %s,\n\n" +
-                "Great news! Your TechHub account has been activated.\n\n" +
-                "You can now access all features and start your learning journey.\n\n" +
+                "Great news! Your TechHub account has been successfully activated.\n\n" +
+                "You now have full access to all features and can begin your learning journey.\n\n" +
                 "Thank you for joining TechHub!\n\n" +
                 "Best regards,\n" +
-                "TechHub Team",
+                "The TechHub Team",
                 username));
             message.setFrom(fromEmail);
 

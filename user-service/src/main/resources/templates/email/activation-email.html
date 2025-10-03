@@ -3,40 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Account Activated - TechHub</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #28a745; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; }
-        .success { background: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin: 15px 0; }
-        .footer { text-align: center; padding: 10px; color: #666; }
-        .btn { display: inline-block; padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f7fa; }
+        .email-wrapper { width: 100%; padding: 40px 20px; background-color: #f5f7fa; }
+        .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07); overflow: hidden; }
+        .email-header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 50px 40px; text-align: center; }
+        .email-header .icon { font-size: 64px; margin-bottom: 15px; animation: bounce 1s ease-in-out; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .email-header h1 { color: #ffffff; font-size: 32px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .email-header p { color: rgba(255, 255, 255, 0.95); font-size: 16px; }
+        .email-body { padding: 50px 40px; }
+        .greeting { font-size: 24px; color: #1a202c; margin-bottom: 20px; font-weight: 600; }
+        .highlight-name { color: #11998e; }
+        .success-badge { display: inline-block; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 8px 20px; border-radius: 25px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3); }
+        .message { font-size: 16px; color: #4a5568; line-height: 1.8; margin-bottom: 30px; }
+        .benefits-section { background: linear-gradient(135deg, #e0f7fa 0%, #e8f5e9 100%); border-radius: 12px; padding: 35px; margin: 35px 0; }
+        .benefits-title { font-size: 20px; color: #2d3748; font-weight: 700; margin-bottom: 25px; text-align: center; }
+        .benefits-grid { display: grid; gap: 15px; }
+        .benefit-item { background-color: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
+        .benefit-item:hover { transform: translateY(-2px); }
+        .benefit-icon { font-size: 28px; margin-bottom: 10px; }
+        .benefit-title { font-size: 16px; color: #2d3748; font-weight: 600; margin-bottom: 5px; }
+        .benefit-desc { font-size: 14px; color: #718096; line-height: 1.5; }
+        .cta-section { text-align: center; margin: 40px 0 30px 0; }
+        .cta-button { display: inline-block; padding: 18px 45px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 17px; font-weight: 600; box-shadow: 0 6px 20px rgba(17, 153, 142, 0.35); transition: all 0.3s; }
+        .cta-button:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(17, 153, 142, 0.45); }
+        .support-section { background-color: #f7fafc; border-radius: 8px; padding: 25px; margin-top: 35px; text-align: center; }
+        .support-text { color: #718096; font-size: 14px; line-height: 1.7; }
+        .support-link { color: #11998e; text-decoration: none; font-weight: 600; }
+        .support-link:hover { text-decoration: underline; }
+        .email-footer { background-color: #f7fafc; padding: 30px 40px; text-align: center; border-top: 1px solid #e2e8f0; }
+        .footer-text { font-size: 14px; color: #718096; margin-bottom: 5px; }
+        .company-name { font-weight: 600; color: #2d3748; }
+        .footer-copyright { font-size: 12px; color: #a0aec0; margin-top: 15px; }
+        @media only screen and (max-width: 600px) {
+            .email-header { padding: 40px 30px; }
+            .email-header h1 { font-size: 28px; }
+            .email-body { padding: 40px 30px; }
+            .greeting { font-size: 22px; }
+            .benefits-section { padding: 25px 20px; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Account Activated!</h1>
-        </div>
-        <div class="content">
-            <h2>Hello <span th:text="${username ?: 'there'}">User</span>!</h2>
-            <div class="success">
-                <strong>Great news!</strong> Your TechHub account has been successfully activated.
+    <div class="email-wrapper">
+        <div class="email-container">
+            <div class="email-header">
+                <div class="icon">🎉</div>
+                <h1>Account Activated!</h1>
+                <p>You're All Set to Start Learning</p>
             </div>
-            <p>You now have full access to:</p>
-            <ul>
-                <li>All course materials and videos</li>
-                <li>Interactive learning exercises</li>
-                <li>Community discussions</li>
-                <li>Progress tracking and certificates</li>
-            </ul>
-            <p>Ready to start learning?</p>
-        </div>
-        <div class="footer">
-            <p>Best regards,<br>The TechHub Team</p>
+
+            <div class="email-body">
+                <div class="greeting">
+                    Congratulations, <span class="highlight-name" th:text="${username ?: 'there'}">User</span>!
+                </div>
+
+                <div class="success-badge">✓ Account Successfully Activated</div>
+
+                <p class="message">
+                    Great news! Your TechHub account has been successfully activated and verified.
+                    You now have full access to all our premium features and learning resources.
+                </p>
+
+                <div class="benefits-section">
+                    <div class="benefits-title">Your Premium Benefits</div>
+                    <div class="benefits-grid">
+                        <div class="benefit-item">
+                            <div class="benefit-icon">📚</div>
+                            <div class="benefit-title">Unlimited Course Access</div>
+                            <div class="benefit-desc">Explore our entire library of courses across all technologies</div>
+                        </div>
+                        <div class="benefit-item">
+                            <div class="benefit-icon">🎯</div>
+                            <div class="benefit-title">Personalized Learning Paths</div>
+                            <div class="benefit-desc">Custom-tailored curricula designed to meet your goals</div>
+                        </div>
+                        <div class="benefit-item">
+                            <div class="benefit-icon">🏆</div>
+                            <div class="benefit-title">Certificates & Achievements</div>
+                            <div class="benefit-desc">Earn industry-recognized certificates upon completion</div>
+                        </div>
+                        <div class="benefit-item">
+                            <div class="benefit-icon">💬</div>
+                            <div class="benefit-title">Community Access</div>
+                            <div class="benefit-desc">Connect with learners and experts worldwide</div>
+                        </div>
+                        <div class="benefit-item">
+                            <div class="benefit-icon">📊</div>
+                            <div class="benefit-title">Progress Tracking</div>
+                            <div class="benefit-desc">Monitor your learning journey with detailed analytics</div>
+                        </div>
+                        <div class="benefit-item">
+                            <div class="benefit-icon">🎓</div>
+                            <div class="benefit-title">Expert Guidance</div>
+                            <div class="benefit-desc">Get help from industry professionals and mentors</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cta-section">
+                    <a href="#" class="cta-button">Explore Courses Now</a>
+                </div>
+
+                <div class="support-section">
+                    <p class="support-text">
+                        Have questions or need assistance getting started?<br>
+                        Our support team is here to help you every step of the way.<br>
+                        Contact us at <a href="mailto:support@techhub.com" class="support-link">support@techhub.com</a>
+                    </p>
+                </div>
+            </div>
+
+            <div class="email-footer">
+                <p class="footer-text">
+                    Welcome aboard!<br>
+                    <span class="company-name">The TechHub Team</span>
+                </p>
+                <p class="footer-copyright">
+                    © 2025 TechHub. All rights reserved.
+                </p>
+            </div>
         </div>
     </div>
 </body>
 </html>
-
