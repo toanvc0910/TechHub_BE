@@ -9,9 +9,8 @@ import com.techhub.app.userservice.dto.response.UserResponse;
 import com.techhub.app.userservice.entity.Role;
 import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.entity.UserRole;
-import com.techhub.app.userservice.entity.UserRoleId;
 import com.techhub.app.userservice.enums.UserStatus;
-import com.techhub.app.userservice.enums.UserRoleEnum;  // Import enum UserRole (LEARNER, INSTRUCTOR, ADMIN)
+import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.repository.RoleRepository;
 import com.techhub.app.userservice.repository.UserRepository;
 import com.techhub.app.userservice.repository.UserRoleRepository;
@@ -287,7 +286,7 @@ public class UserServiceImpl implements UserService {
         try {
             // Try to get roles from user.getUserRoles() first
             roles = user.getUserRoles().stream()
-                    .filter(userRole -> userRole.getIsActive())
+                    .filter(UserRole::getIsActive)
                     .map(userRole -> userRole.getRole().getName())
                     .collect(Collectors.toList());
 

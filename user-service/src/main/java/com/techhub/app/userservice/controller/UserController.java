@@ -8,7 +8,6 @@ import com.techhub.app.userservice.dto.request.ForgotPasswordRequest;
 import com.techhub.app.userservice.dto.request.ResetPasswordRequest;
 import com.techhub.app.userservice.dto.request.UpdateUserRequest;
 import com.techhub.app.userservice.dto.response.UserResponse;
-import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.enums.UserStatus;
 import com.techhub.app.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -23,9 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.Email;
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -257,18 +254,29 @@ public class UserController {
     public ResponseEntity<GlobalResponse<UserResponse>> getCurrentUserProfile(
             HttpServletRequest request,
             @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
-            @RequestHeader(value = "X-User-Email", required = false) String userEmail) {
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         try {
-            // Get user info from headers set by Proxy-Client (not from JWT)
-            if (userIdHeader == null || userIdHeader.isEmpty()) {
+            UUID userId = null;
+
+            // Ưu tiên lấy từ header X-User-Id (từ Proxy-Client)
+            if (userIdHeader != null && !userIdHeader.isEmpty()) {
+                userId = UUID.fromString(userIdHeader);
+            }
+            // Fallback: Lấy từ JWT token nếu không có header
+            else if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                // TODO: Extract user ID from JWT token if needed
                 return ResponseEntity.badRequest().body(
-                    GlobalResponse.<UserResponse>error("User ID header missing - ensure request goes through Proxy-Client", 400)
+                    GlobalResponse.<UserResponse>error("Profile access requires going through Proxy-Client or provide X-User-Id header", 400)
+                        .withPath(request.getRequestURI())
+                );
+            } else {
+                return ResponseEntity.badRequest().body(
+                    GlobalResponse.<UserResponse>error("Authentication required - missing X-User-Id header or Authorization token", 400)
                         .withPath(request.getRequestURI())
                 );
             }
 
-            UUID userId = UUID.fromString(userIdHeader);
             UserResponse userResponse = userService.getUserById(userId);
 
             return ResponseEntity.ok(
@@ -276,10 +284,16 @@ public class UserController {
                     .withPath(request.getRequestURI())
             );
 
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format in X-User-Id header: {}", userIdHeader, e);
+            return ResponseEntity.badRequest().body(
+                GlobalResponse.<UserResponse>error("Invalid user ID format", 400)
+                    .withPath(request.getRequestURI())
+            );
         } catch (Exception e) {
             log.error("Error retrieving current user profile", e);
             return ResponseEntity.badRequest().body(
-                GlobalResponse.<UserResponse>error("Failed to retrieve profile", 400)
+                GlobalResponse.<UserResponse>error("Failed to retrieve profile: " + e.getMessage(), 400)
                     .withPath(request.getRequestURI())
             );
         }
