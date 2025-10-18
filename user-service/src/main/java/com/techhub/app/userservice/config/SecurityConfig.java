@@ -6,6 +6,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.techhub.app.userservice.oauth2.CustomOAuth2UserService;
+import com.techhub.app.userservice.oauth2.OAuth2AuthenticationSuccessHandler;
+import com.techhub.app.userservice.oauth2.OAuth2AuthenticationFailureHandler;
 
 /**
  * Security configuration for User Service
@@ -23,15 +27,36 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Autowired
+    private CustomOAuth2UserService customOAuth2UserService;
+
+    @Autowired
+    private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+
+    @Autowired
+    private OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf().disable()
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        http
+            .csrf().disable()
+            // OAuth2 handshake needs session; allow if required
+            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             .and()
             .authorizeRequests()
-            // All endpoints are permitted because proxy-client handles JWT validation
-            // Controllers will check X-User-Id header for business authorization
-            .anyRequest().permitAll();
+                // Public endpoints for OAuth2 flow and health
+                .antMatchers("/oauth2/**", "/login/oauth2/**", "/api/oauth2/**", "/actuator/**").permitAll()
+                // Allow auth APIs (registration, login via proxy flow)
+                .antMatchers("/api/auth/**", "/api/users/forgot-password", "/api/users/reset-password/**").permitAll()
+                // Everything else can be accessed; JWT is validated by proxy-client
+                .anyRequest().permitAll()
+            .and()
+            .oauth2Login()
+                .authorizationEndpoint().baseUri("/oauth2/authorization").and()
+                .redirectionEndpoint().baseUri("/login/oauth2/code/*").and()
+                .userInfoEndpoint().userService(customOAuth2UserService).and()
+                .successHandler(oAuth2AuthenticationSuccessHandler)
+                .failureHandler(oAuth2AuthenticationFailureHandler);
 
         return http.build();
     }

@@ -37,8 +37,8 @@ spring:
       client:
         registration:
           google:
-            client-id: your-google-client-id
-            client-secret: your-google-client-secret
+            client-id: 277346786159-ldes3jasve2esa38ln4vro3dhkogvtrf.apps.googleusercontent.com
+            client-secret: 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
             scope:
               - email
               - profile
@@ -49,8 +49,8 @@ spring:
               - email
               - public_profile
           github:
-            client-id: your-github-client-id
-            client-secret: your-github-client-secret
+            client-id: Ov23li8nzLrd782hJFCl
+            client-secret: ea5864eebec0623ad13a2d1f61f61a6df9b8e7bc
             scope:
               - user:email
               - read:user
@@ -71,3 +71,9 @@ logging:
     org.springframework.security: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# App specific settings
+app:
+  oauth2:
+    # Frontend URL to redirect after successful OAuth2 login
+    authorized-redirect-uris: ${APP_OAUTH2_REDIRECT_URI:http://localhost:3000/oauth2/redirect}
