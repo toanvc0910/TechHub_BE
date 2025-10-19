@@ -1,25 +1,35 @@
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/techhub}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
+        format_sql: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:user-service}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
+      properties:
+        spring.json.trusted.packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
 
 logging:
-  file:
-    name: src/main/resources/script/dev_log.log
-    clean-history-on-start: false
   level:
-    org:
-      hibernate:
-        SQL: INFO
-      springframework:
-        web: INFO
-        data: INFO
-      boot:
-        autoconfigure:
-          data:
-            rest: INFO
-            jpa: INFO
-            orm: INFO
+    com.techhub.app.userservice: DEBUG
 
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  topics:
+    email: ${KAFKA_EMAIL_TOPIC:email-notifications}
+  consumer:
+    group-id: ${KAFKA_CONSUMER_GROUP:user-service}
+    concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
+    ack-mode: ${KAFKA_CONSUMER_ACK_MODE:MANUAL_IMMEDIATE}
+    trusted-packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}

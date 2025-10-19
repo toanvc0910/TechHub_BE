@@ -5,6 +5,7 @@ import com.techhub.app.userservice.dto.request.CreateUserRequest;
 import com.techhub.app.userservice.dto.request.ForgotPasswordRequest;
 import com.techhub.app.userservice.dto.request.ResetPasswordRequest;
 import com.techhub.app.userservice.dto.request.UpdateUserRequest;
+import com.techhub.app.userservice.dto.request.VerifyEmailRequest;
 import com.techhub.app.userservice.dto.response.UserResponse;
 import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.enums.UserStatus;
@@ -14,6 +15,10 @@ import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 
 public interface UserService {
+
+    UserResponse registerUser(CreateUserRequest request);
+
+    UserResponse verifyUserRegistration(VerifyEmailRequest request);
 
     UserResponse createUser(CreateUserRequest request);
 

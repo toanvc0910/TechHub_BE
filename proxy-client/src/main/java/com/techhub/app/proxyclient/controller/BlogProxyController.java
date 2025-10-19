@@ -14,9 +14,10 @@ public class BlogProxyController {
 
     @GetMapping
     public ResponseEntity<String> getAllBlogs(@RequestParam(defaultValue = "0") int page,
-                                            @RequestParam(defaultValue = "10") int size,
-                                            @RequestParam(required = false) String search) {
-        return blogServiceClient.getAllBlogs(page, size, search);
+                                              @RequestParam(defaultValue = "10") int size,
+                                              @RequestParam(required = false) String search,
+                                              @RequestParam(name = "includeDrafts", defaultValue = "false") boolean includeDrafts) {
+        return blogServiceClient.getAllBlogs(page, size, search, includeDrafts);
     }
 
     @PostMapping
@@ -41,5 +42,24 @@ public class BlogProxyController {
     public ResponseEntity<String> deleteBlog(@PathVariable String blogId,
                                            @RequestHeader("Authorization") String authHeader) {
         return blogServiceClient.deleteBlog(blogId, authHeader);
+    }
+
+    @GetMapping("/{blogId}/comments")
+    public ResponseEntity<String> getComments(@PathVariable String blogId) {
+        return blogServiceClient.getComments(blogId);
+    }
+
+    @PostMapping("/{blogId}/comments")
+    public ResponseEntity<String> addComment(@PathVariable String blogId,
+                                           @RequestBody Object request,
+                                           @RequestHeader("Authorization") String authHeader) {
+        return blogServiceClient.addComment(blogId, request, authHeader);
+    }
+
+    @DeleteMapping("/{blogId}/comments/{commentId}")
+    public ResponseEntity<String> deleteComment(@PathVariable String blogId,
+                                              @PathVariable String commentId,
+                                              @RequestHeader("Authorization") String authHeader) {
+        return blogServiceClient.deleteComment(blogId, commentId, authHeader);
     }
 }

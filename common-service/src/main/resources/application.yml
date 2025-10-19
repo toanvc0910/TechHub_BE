@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: COMMON-SERVICE
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:common-service}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
+      properties:
+        spring.json.trusted.packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
+
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  hostname: ${KAFKA_HOSTNAME:localhost}
+  port: ${KAFKA_PORT:9092}
+  topics:
+    email: ${KAFKA_EMAIL_TOPIC:email-notifications}
+  consumer:
+    group-id: ${KAFKA_CONSUMER_GROUP:common-service}
+    concurrency: ${KAFKA_CONSUMER_CONCURRENCY:2}
+    ack-mode: ${KAFKA_CONSUMER_ACK_MODE:MANUAL_IMMEDIATE}
+    trusted-packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
+    auto-startup: ${KAFKA_CONSUMER_AUTO_STARTUP:true}

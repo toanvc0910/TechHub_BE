@@ -1,6 +1,7 @@
 package com.techhub.app.commonservice.payload;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.techhub.app.commonservice.exception.ErrorCode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -65,8 +66,23 @@ public class GlobalResponse<T> {
                 .build();
     }
 
+    public static <T> GlobalResponse<T> error(ErrorCode errorCode, String message) {
+        return GlobalResponse.<T>builder()
+                .success(false)
+                .status(errorCode.getCode())
+                .message(message)
+                .timestamp(LocalDateTime.now())
+                .code(errorCode.getHttpStatus().value())
+                .build();
+    }
+
     public GlobalResponse<T> withPath(String path) {
         this.path = path;
+        return this;
+    }
+
+    public GlobalResponse<T> withStatus(String status) {
+        this.status = status;
         return this;
     }
 }

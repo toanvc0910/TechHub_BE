@@ -1,6 +1,5 @@
 package com.techhub.app.proxyclient.client;
 
-import com.techhub.app.proxyclient.constant.AppConstant;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,8 +9,9 @@ public interface BlogServiceClient {
 
     @GetMapping("/api/blogs")
     ResponseEntity<String> getAllBlogs(@RequestParam(defaultValue = "0") int page,
-                                     @RequestParam(defaultValue = "10") int size,
-                                     @RequestParam(required = false) String search);
+                                       @RequestParam(defaultValue = "10") int size,
+                                       @RequestParam(required = false) String search,
+                                       @RequestParam(name = "includeDrafts", defaultValue = "false") boolean includeDrafts);
 
     @PostMapping("/api/blogs")
     ResponseEntity<String> createBlog(@RequestBody Object createRequest,
@@ -28,4 +28,17 @@ public interface BlogServiceClient {
     @DeleteMapping("/api/blogs/{blogId}")
     ResponseEntity<String> deleteBlog(@PathVariable String blogId,
                                     @RequestHeader("Authorization") String authHeader);
+
+    @GetMapping("/api/blogs/{blogId}/comments")
+    ResponseEntity<String> getComments(@PathVariable String blogId);
+
+    @PostMapping("/api/blogs/{blogId}/comments")
+    ResponseEntity<String> addComment(@PathVariable String blogId,
+                                      @RequestBody Object request,
+                                      @RequestHeader("Authorization") String authHeader);
+
+    @DeleteMapping("/api/blogs/{blogId}/comments/{commentId}")
+    ResponseEntity<String> deleteComment(@PathVariable String blogId,
+                                         @PathVariable String commentId,
+                                         @RequestHeader("Authorization") String authHeader);
 }

@@ -1,21 +1,24 @@
-package com.techhub.app.userservice.config;
+package com.techhub.app.commonservice.jpa;
 
 import javax.persistence.AttributeConverter;
 import javax.persistence.Converter;
 
-@Converter(autoApply = false)
+@Converter
 public class BooleanToYNStringConverter implements AttributeConverter<Boolean, String> {
 
     @Override
     public String convertToDatabaseColumn(Boolean attribute) {
-        if (attribute == null) return "Y"; // default active
+        if (attribute == null) {
+            return "Y";
+        }
         return attribute ? "Y" : "N";
     }
 
     @Override
     public Boolean convertToEntityAttribute(String dbData) {
-        if (dbData == null) return Boolean.TRUE;
+        if (dbData == null) {
+            return Boolean.TRUE;
+        }
         return "Y".equalsIgnoreCase(dbData);
     }
 }
-

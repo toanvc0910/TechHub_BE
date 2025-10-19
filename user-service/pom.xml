@@ -13,7 +13,7 @@
 	<groupId>com.techhub.app.userservice</groupId>
 	<artifactId>user-service</artifactId>
 	<name>user-service</name>
-	<description>Spring Boot microservice!</description>
+	<description>User microservice</description>
 	<packaging>jar</packaging>
 
 	<properties>
@@ -52,22 +52,10 @@
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 
-		<!-- Spring Boot Starter Mail -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-mail</artifactId>
-		</dependency>
-
 		<!-- OAuth2 Client for social login -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-client</artifactId>
-		</dependency>
-
-		<!-- Thymeleaf for email templates -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-thymeleaf</artifactId>
 		</dependency>
 
 		<!-- PostgreSQL driver -->

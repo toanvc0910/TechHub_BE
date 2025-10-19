@@ -1,6 +1,6 @@
 package com.techhub.app.userservice.entity;
 
-import com.techhub.app.userservice.config.BooleanToYNStringConverter;
+import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

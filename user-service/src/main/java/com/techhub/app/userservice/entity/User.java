@@ -1,7 +1,7 @@
 package com.techhub.app.userservice.entity;
 
-import com.techhub.app.userservice.config.BooleanToYNStringConverter;
-import com.techhub.app.userservice.config.PostgreSQLEnumType;
+import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
+import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
 import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.enums.UserStatus;
 import lombok.AllArgsConstructor;

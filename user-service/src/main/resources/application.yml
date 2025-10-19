@@ -17,7 +17,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: com.techhub.app.userservice.config.PostgreSQLEnumDialect
+        dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
         format_sql: true
   mail:
     host: smtp.gmail.com
@@ -30,6 +30,13 @@ spring:
           auth: true
           starttls:
             enable: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:user-service}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
+      properties:
+        spring.json.trusted.packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
 
   # OAuth2 Configuration for Social Login
   security:
@@ -55,6 +62,16 @@ spring:
               - user:email
               - read:user
 
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  topics:
+    email: ${KAFKA_EMAIL_TOPIC:email-notifications}
+  consumer:
+    group-id: ${KAFKA_CONSUMER_GROUP:user-service}
+    concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
+    ack-mode: ${KAFKA_CONSUMER_ACK_MODE:MANUAL_IMMEDIATE}
+    trusted-packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
+
 eureka:
   client:
     service-url:
@@ -74,6 +91,8 @@ logging:
 
 # App specific settings
 app:
+  email:
+    enabled: ${APP_EMAIL_ENABLED:true}
   oauth2:
     # Frontend URL to redirect after successful OAuth2 login
     authorized-redirect-uris: ${APP_OAUTH2_REDIRECT_URI:http://localhost:3000/oauth2/redirect}

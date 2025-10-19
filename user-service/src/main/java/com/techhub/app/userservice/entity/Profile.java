@@ -1,6 +1,6 @@
 package com.techhub.app.userservice.entity;
 
-import com.techhub.app.userservice.config.BooleanToYNStringConverter;
+import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
 import com.techhub.app.userservice.enums.Language;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,7 +20,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @TypeDef(name = "jsonb", typeClass = com.techhub.app.userservice.config.JsonbType.class)
-@TypeDef(name = "pgsql_enum", typeClass = com.techhub.app.userservice.config.PostgreSQLEnumType.class)
+@TypeDef(name = "pgsql_enum", typeClass = com.techhub.app.commonservice.jpa.PostgreSQLEnumType.class)
 public class Profile {
 
     @Id
