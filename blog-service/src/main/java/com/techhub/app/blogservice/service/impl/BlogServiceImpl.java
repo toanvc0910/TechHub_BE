@@ -18,7 +18,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,18 +39,20 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<BlogResponse> getBlogs(String keyword, boolean includeDrafts, Pageable pageable) {
+    public Page<BlogResponse> getBlogs(String keyword, List<String> tags, boolean includeDrafts, Pageable pageable) {
         String normalizedKeyword = normalize(keyword);
+        List<String> normalizedTags = normalizeTags(tags);
         boolean privileged = UserContext.hasAnyRole(ROLE_ADMIN, ROLE_INSTRUCTOR);
+        boolean hasFilters = normalizedKeyword != null || !normalizedTags.isEmpty();
 
         Page<Blog> blogs;
         if (includeDrafts && privileged) {
-            blogs = normalizedKeyword != null
-                    ? blogRepository.searchAll(normalizedKeyword, pageable)
+            blogs = hasFilters
+                    ? blogRepository.searchAll(normalizedKeyword, normalizedTags, pageable)
                     : blogRepository.findByIsActiveTrueOrderByCreatedDesc(pageable);
         } else {
-            blogs = normalizedKeyword != null
-                    ? blogRepository.searchPublished(BlogStatus.PUBLISHED.name(), normalizedKeyword, pageable)
+            blogs = hasFilters
+                    ? blogRepository.searchPublished(BlogStatus.PUBLISHED.name(), normalizedKeyword, normalizedTags, pageable)
                     : blogRepository.findByStatusAndIsActiveTrueOrderByCreatedDesc(BlogStatus.PUBLISHED, pageable);
         }
 
@@ -104,6 +111,13 @@ public class BlogServiceImpl implements BlogService {
         log.info("Blog {} soft deleted", blogId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getTags() {
+        List<String> tags = blogRepository.findDistinctTags();
+        return tags == null ? Collections.emptyList() : tags;
+    }
+
     private Blog getActiveBlog(UUID blogId) {
         return blogRepository.findByIdAndIsActiveTrue(blogId)
                 .orElseThrow(() -> new NotFoundException("Blog not found"));
@@ -143,5 +157,21 @@ public class BlogServiceImpl implements BlogService {
         }
         String trimmed = keyword.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private List<String> normalizeTags(List<String> tags) {
+        if (tags == null) {
+            return Collections.emptyList();
+        }
+
+        return tags.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .flatMap(tag -> Arrays.stream(tag.split(",")))
+                .map(String::trim)
+                .filter(tag -> !tag.isEmpty())
+                .map(String::toLowerCase)
+                .distinct()
+                .collect(Collectors.toList());
     }
 }

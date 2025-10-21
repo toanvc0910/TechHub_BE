@@ -55,6 +55,7 @@ public class BlogMapper {
         return tags.stream()
                 .filter(Objects::nonNull)
                 .map(String::trim)
+                .map(String::toLowerCase)
                 .filter(tag -> !tag.isEmpty())
                 .distinct()
                 .collect(Collectors.toList());

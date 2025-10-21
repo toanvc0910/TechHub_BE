@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -40,10 +41,11 @@ public class BlogController {
     public ResponseEntity<PageGlobalResponse<BlogResponse>> getBlogs(@RequestParam(defaultValue = "0") int page,
                                                                      @RequestParam(defaultValue = "10") int size,
                                                                      @RequestParam(required = false) String keyword,
+                                                                     @RequestParam(required = false) List<String> tags,
                                                                      @RequestParam(defaultValue = "false") boolean includeDrafts,
                                                                      HttpServletRequest request) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<BlogResponse> blogPage = blogService.getBlogs(keyword, includeDrafts, pageable);
+        Page<BlogResponse> blogPage = blogService.getBlogs(keyword, tags, includeDrafts, pageable);
 
         PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
                 .page(blogPage.getNumber())
@@ -58,6 +60,15 @@ public class BlogController {
 
         return ResponseEntity.ok(
                 PageGlobalResponse.success("Blogs retrieved successfully", blogPage.getContent(), paginationInfo)
+                        .withPath(request.getRequestURI())
+        );
+    }
+
+    @GetMapping("/tags")
+    public ResponseEntity<GlobalResponse<List<String>>> getBlogTags(HttpServletRequest request) {
+        List<String> tags = blogService.getTags();
+        return ResponseEntity.ok(
+                GlobalResponse.success("Blog tags retrieved successfully", tags)
                         .withPath(request.getRequestURI())
         );
     }
