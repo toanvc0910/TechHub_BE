@@ -11,6 +11,11 @@ import com.techhub.app.commonservice.context.UserContext;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
+import com.techhub.app.commonservice.kafka.event.notification.NotificationCommand;
+import com.techhub.app.commonservice.kafka.event.notification.NotificationDeliveryMethod;
+import com.techhub.app.commonservice.kafka.event.notification.NotificationRecipient;
+import com.techhub.app.commonservice.kafka.event.notification.NotificationType;
+import com.techhub.app.commonservice.kafka.publisher.NotificationCommandPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -20,7 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -36,6 +43,7 @@ public class BlogServiceImpl implements BlogService {
 
     private final BlogRepository blogRepository;
     private final BlogMapper blogMapper;
+    private final NotificationCommandPublisher notificationCommandPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -84,6 +92,7 @@ public class BlogServiceImpl implements BlogService {
 
         Blog saved = blogRepository.save(blog);
         log.info("Blog {} created by {}", saved.getId(), currentUserId);
+        notifyPublicationIfNecessary(saved, null);
         return blogMapper.toResponse(saved);
     }
 
@@ -92,11 +101,13 @@ public class BlogServiceImpl implements BlogService {
         Blog blog = getActiveBlog(blogId);
         ensureCanModify(blog);
 
+        BlogStatus previousStatus = blog.getStatus();
         blogMapper.applyRequest(blog, request);
         blog.setUpdatedBy(UserContext.getCurrentUserId());
 
         Blog saved = blogRepository.save(blog);
         log.info("Blog {} updated", blogId);
+        notifyPublicationIfNecessary(saved, previousStatus);
         return blogMapper.toResponse(saved);
     }
 
@@ -173,5 +184,32 @@ public class BlogServiceImpl implements BlogService {
                 .map(String::toLowerCase)
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    private void notifyPublicationIfNecessary(Blog blog, BlogStatus previousStatus) {
+        if (blog == null || blog.getStatus() != BlogStatus.PUBLISHED) {
+            return;
+        }
+        if (previousStatus == BlogStatus.PUBLISHED) {
+            return;
+        }
+        NotificationRecipient recipient = NotificationRecipient.builder()
+                .userId(blog.getAuthorId())
+                .build();
+
+        NotificationCommand command = NotificationCommand.builder()
+                .type(NotificationType.BLOG)
+                .title("Blog published")
+                .message(String.format("Your blog \"%s\" is now published.", blog.getTitle()))
+                .deliveryMethods(EnumSet.of(NotificationDeliveryMethod.IN_APP))
+                .recipients(List.of(recipient))
+                .metadata(Map.of(
+                        "blogId", blog.getId(),
+                        "blogTitle", blog.getTitle(),
+                        "authorId", blog.getAuthorId()
+                ))
+                .build();
+
+        notificationCommandPublisher.publish(command);
     }
 }

@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:notificationdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  kafka:
+    bootstrap-servers: localhost:29092
+    consumer:
+      auto-startup: false
+
+eureka:
+  client:
+    enabled: false
+
+kafka:
+  consumer:
+    auto-startup: false

@@ -116,6 +116,7 @@
 		<module>common-service</module>
 		<module>blog-service</module>
 		<module>user-service</module>
+		<module>notification-service</module>
 	</modules>
 	<build>
 		<plugins>

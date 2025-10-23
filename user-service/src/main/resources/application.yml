@@ -7,7 +7,7 @@ spring:
   profiles:
     active: prod
   datasource:
-    url: jdbc:postgresql://localhost:5432/techhub
+    url: jdbc:postgresql://localhost:5432/techhub1
     username: postgres
     password: 123456
     driver-class-name: org.postgresql.Driver
@@ -31,7 +31,7 @@ spring:
           starttls:
             enable: true
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP:user-service}
       auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
@@ -63,7 +63,7 @@ spring:
               - read:user
 
 kafka:
-  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
   topics:
     email: ${KAFKA_EMAIL_TOPIC:email-notifications}
   consumer:

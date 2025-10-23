@@ -19,7 +19,7 @@ CREATE TYPE payment_method AS ENUM('MOMO', 'ZALOPAY', 'CREDIT_CARD', 'BANK_TRANS
 CREATE TYPE payment_status AS ENUM('SUCCESS', 'FAILED');
 CREATE TYPE blog_status AS ENUM('DRAFT', 'PUBLISHED');
 CREATE TYPE leaderboard_type AS ENUM('GLOBAL', 'COURSE', 'PATH');
-CREATE TYPE notification_type AS ENUM('PROGRESS', 'NEW_COURSE', 'COMMENT');
+CREATE TYPE notification_type AS ENUM('PROGRESS', 'NEW_COURSE', 'COMMENT', 'ACCOUNT', 'BLOG', 'SYSTEM');
 CREATE TYPE delivery_method AS ENUM('EMAIL', 'PUSH', 'IN_APP');
 CREATE TYPE event_type AS ENUM('VIEW', 'COMPLETE', 'EXERCISE');
 CREATE TYPE translation_target AS ENUM('COURSE', 'LESSON', 'BLOG', 'EXERCISE', 'CHAPTER');
@@ -657,9 +657,11 @@ CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type notification_type NOT NULL,
+    title VARCHAR(255),
     message TEXT NOT NULL,
     read BOOLEAN DEFAULT FALSE,
     delivery_method delivery_method NOT NULL DEFAULT 'IN_APP',
+    metadata JSONB,
     sent_at TIMESTAMP WITH TIME ZONE,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -1,65 +1,57 @@
-2025-10-21 09:34:45.979  INFO 8900 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 11.0.27 on TonyNyan with PID 8900 (E:\University\HK1_FourYear\POSE\codex\TechHub_BE\api-gateway\target\classes started by ADMIN in E:\University\HK1_FourYear\POSE\codex\TechHub_BE\api-gateway)
-2025-10-21 09:34:45.993  INFO 8900 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
-2025-10-21 09:34:48.330  INFO 8900 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=41efe3bf-afe4-3053-a1a2-686aecf357e0
-2025-10-21 09:34:48.470  INFO 8900 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
-2025-10-21 09:34:48.474  INFO 8900 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
-2025-10-21 09:34:48.476  INFO 8900 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
-2025-10-21 09:34:51.395  INFO 8900 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
-2025-10-21 09:34:52.632  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
-2025-10-21 09:34:52.633  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
-2025-10-21 09:34:52.633  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
-2025-10-21 09:34:52.635  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
-2025-10-21 09:34:52.635  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
-2025-10-21 09:34:52.635  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
-2025-10-21 09:34:52.636  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
-2025-10-21 09:34:52.636  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
-2025-10-21 09:34:52.637  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
-2025-10-21 09:34:52.638  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
-2025-10-21 09:34:52.639  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
-2025-10-21 09:34:52.639  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
-2025-10-21 09:34:52.639  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
-2025-10-21 09:34:52.639  INFO 8900 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
-2025-10-21 09:34:54.998  INFO 8900 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
-2025-10-21 09:34:58.049  INFO 8900 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
-2025-10-21 09:34:58.371  INFO 8900 --- [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 18 endpoint(s) beneath base path '/actuator'
-2025-10-21 09:34:58.942  INFO 8900 --- [main] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestTemplate.
-2025-10-21 09:34:59.074  WARN 8900 --- [main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
-2025-10-21 09:34:59.215  INFO 8900 --- [main] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
-2025-10-21 09:34:59.293  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
-2025-10-21 09:34:59.307  INFO 8900 --- [main] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
-2025-10-21 09:34:59.354  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
-2025-10-21 09:34:59.357  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
-2025-10-21 09:34:59.358  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
-2025-10-21 09:34:59.359  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Application is null : false
-2025-10-21 09:34:59.360  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
-2025-10-21 09:34:59.360  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
-2025-10-21 09:34:59.361  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
-2025-10-21 09:35:00.226  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : The response status is 200
-2025-10-21 09:35:00.231  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
-2025-10-21 09:35:00.233  INFO 8900 --- [main] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
-2025-10-21 09:35:00.239  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1761014100238 with initial instances count: 0
-2025-10-21 09:35:00.240  INFO 8900 --- [main] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application API-GATEWAY with eureka with status UP
-2025-10-21 09:35:00.242  INFO 8900 --- [main] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1761014100242, current=UP, previous=STARTING]
-2025-10-21 09:35:00.245  INFO 8900 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/localhost:API-GATEWAY:8443: registering service...
-2025-10-21 09:35:00.384  INFO 8900 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/localhost:API-GATEWAY:8443 - registration status: 204
-2025-10-21 09:35:01.125  INFO 8900 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8443
-2025-10-21 09:35:01.127  INFO 8900 --- [main] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8443
-2025-10-21 09:35:03.691  INFO 8900 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
-2025-10-21 09:35:05.385  INFO 8900 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
-2025-10-21 09:35:05.401  INFO 8900 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 21.708 seconds (JVM running for 22.677)
-2025-10-21 09:35:30.241  INFO 8900 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
-2025-10-21 09:35:30.242  INFO 8900 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
-2025-10-21 09:35:30.242  INFO 8900 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
-2025-10-21 09:35:30.242  INFO 8900 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application is null : false
-2025-10-21 09:35:30.243  INFO 8900 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
-2025-10-21 09:35:30.243  INFO 8900 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application version is -1: false
-2025-10-21 09:35:30.243  INFO 8900 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
-2025-10-21 09:35:30.265  INFO 8900 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : The response status is 200
-2025-10-21 09:39:59.377  INFO 8900 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
-2025-10-21 09:44:59.382  INFO 8900 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
-2025-10-21 09:49:59.394  INFO 8900 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
-2025-10-21 09:54:59.395  INFO 8900 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
-2025-10-21 09:59:59.410  INFO 8900 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
-2025-10-21 10:04:59.412  INFO 8900 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
-2025-10-21 10:09:59.422  INFO 8900 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
-2025-10-21 10:14:59.428  INFO 8900 --- [AsyncResolver-bootstrap-executor-0] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-10-23 12:55:04.670  INFO 12912 --- [main] c.t.a.apigateway.ApigatewayApplication   : Starting ApigatewayApplication using Java 11.0.27 on TonyNyan with PID 12912 (E:\University\HK1_FourYear\POSE\codex\TechHub_BE\api-gateway\target\classes started by ADMIN in E:\University\HK1_FourYear\POSE\codex\TechHub_BE\api-gateway)
+2025-10-23 12:55:04.718  INFO 12912 --- [main] c.t.a.apigateway.ApigatewayApplication   : The following 1 profile is active: "dev"
+2025-10-23 12:55:08.091  INFO 12912 --- [main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=41efe3bf-afe4-3053-a1a2-686aecf357e0
+2025-10-23 12:55:08.295  INFO 12912 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-23 12:55:08.336  INFO 12912 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig' of type [org.springframework.cloud.client.loadbalancer.reactive.LoadBalancerBeanPostProcessorAutoConfiguration$ReactorDeferringLoadBalancerFilterConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-23 12:55:08.339  INFO 12912 --- [main] trationDelegate$BeanPostProcessorChecker : Bean 'reactorDeferringLoadBalancerExchangeFilterFunction' of type [org.springframework.cloud.client.loadbalancer.reactive.DeferringLoadBalancerExchangeFilterFunction] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-23 12:55:11.295  INFO 12912 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2025-10-23 12:55:12.817  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2025-10-23 12:55:12.819  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2025-10-23 12:55:12.821  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2025-10-23 12:55:12.821  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2025-10-23 12:55:12.822  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2025-10-23 12:55:12.822  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2025-10-23 12:55:12.822  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2025-10-23 12:55:12.823  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2025-10-23 12:55:12.823  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2025-10-23 12:55:12.823  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2025-10-23 12:55:12.824  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2025-10-23 12:55:12.824  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2025-10-23 12:55:12.824  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2025-10-23 12:55:12.824  INFO 12912 --- [main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2025-10-23 12:55:15.199  INFO 12912 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2025-10-23 12:55:17.810  INFO 12912 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2025-10-23 12:55:18.093  INFO 12912 --- [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 18 endpoint(s) beneath base path '/actuator'
+2025-10-23 12:55:19.129  INFO 12912 --- [main] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestTemplate.
+2025-10-23 12:55:19.419  WARN 12912 --- [main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2025-10-23 12:55:19.643  INFO 12912 --- [main] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2025-10-23 12:55:19.887  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2025-10-23 12:55:19.941  INFO 12912 --- [main] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2025-10-23 12:55:20.083  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-10-23 12:55:20.097  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-10-23 12:55:20.106  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-10-23 12:55:20.106  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-10-23 12:55:20.107  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-10-23 12:55:20.107  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2025-10-23 12:55:20.107  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-10-23 12:55:21.500  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2025-10-23 12:55:21.517  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2025-10-23 12:55:21.549  INFO 12912 --- [main] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2025-10-23 12:55:21.616  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1761198921604 with initial instances count: 0
+2025-10-23 12:55:21.622  INFO 12912 --- [main] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application API-GATEWAY with eureka with status UP
+2025-10-23 12:55:21.635  INFO 12912 --- [main] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1761198921634, current=UP, previous=STARTING]
+2025-10-23 12:55:21.665  INFO 12912 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/localhost:API-GATEWAY:8443: registering service...
+2025-10-23 12:55:22.017  INFO 12912 --- [DiscoveryClient-InstanceInfoReplicator-0] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/localhost:API-GATEWAY:8443 - registration status: 204
+2025-10-23 12:55:23.838  INFO 12912 --- [main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8443
+2025-10-23 12:55:23.841  INFO 12912 --- [main] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8443
+2025-10-23 12:55:25.864  INFO 12912 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2025-10-23 12:55:29.356  INFO 12912 --- [main] o.s.cloud.commons.util.InetUtils         : Cannot determine local hostname
+2025-10-23 12:55:29.396  INFO 12912 --- [main] c.t.a.apigateway.ApigatewayApplication   : Started ApigatewayApplication in 28.048 seconds (JVM running for 30.137)
+2025-10-23 12:55:51.521  INFO 12912 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2025-10-23 12:55:51.521  INFO 12912 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2025-10-23 12:55:51.522  INFO 12912 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2025-10-23 12:55:51.522  INFO 12912 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2025-10-23 12:55:51.522  INFO 12912 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2025-10-23 12:55:51.522  INFO 12912 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Application version is -1: false
+2025-10-23 12:55:51.522  INFO 12912 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2025-10-23 12:55:51.547  INFO 12912 --- [DiscoveryClient-CacheRefreshExecutor-0] com.netflix.discovery.DiscoveryClient    : The response status is 200
