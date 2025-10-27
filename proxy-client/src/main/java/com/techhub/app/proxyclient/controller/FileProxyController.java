@@ -52,8 +52,8 @@ public class FileProxyController {
         }
     }
 
-    @DeleteMapping("/{publicId}")
-    public ResponseEntity<Map<String, Object>> deleteFile(@PathVariable String publicId) {
+    @DeleteMapping("/delete")
+    public ResponseEntity<Map<String, Object>> deleteFile(@RequestParam("publicId") String publicId) {
         log.info("[PROXY] Deleting file with publicId: {}", publicId);
 
         try {

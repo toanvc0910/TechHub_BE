@@ -81,8 +81,8 @@ public class FileController {
         }
     }
 
-    @DeleteMapping("/{publicId}")
-    public ResponseEntity<Map<String, Object>> deleteFile(@PathVariable String publicId) {
+    @DeleteMapping("/delete")
+    public ResponseEntity<Map<String, Object>> deleteFile(@RequestParam("publicId") String publicId) {
         log.info("Deleting file with publicId: {}", publicId);
         
         try {
@@ -93,6 +93,13 @@ public class FileController {
             result.put("message", "File deleted successfully");
             
             return ResponseEntity.ok(result);
+            
+        } catch (RuntimeException e) {
+            log.error("Error deleting file: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("status", "error");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
             
         } catch (Exception e) {
             log.error("Error deleting file", e);
