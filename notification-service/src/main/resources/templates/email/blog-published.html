@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        .blog-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+        .blog-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .button {
+            display: inline-block;
+            padding: 15px 40px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .author-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📝 TechHub</div>
+            <p style="color: #666; margin: 0;">New Blog Post Published</p>
+        </div>
+
+        <div class="blog-banner">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">NEW ARTICLE</div>
+            <div class="blog-title" th:text="${blogTitle}">Blog Title</div>
+            <div style="font-size: 14px; opacity: 0.9;">
+                by <span th:text="${authorName}">Author Name</span>
+            </div>
+        </div>
+
+        <div class="content">
+            <p>Hello,</p>
+
+            <p>A new blog post has been published that you might be interested in!</p>
+
+            <div class="author-info">
+                <strong>About this post:</strong>
+                <p style="margin: 10px 0;" th:text="${blogExcerpt}">Blog excerpt will appear here...</p>
+            </div>
+
+            <p>Don't miss out on this insightful content from our community!</p>
+
+            <div style="text-align: center; margin: 40px 0;">
+                <a th:href="${blogUrl}" class="button">Read Full Article</a>
+            </div>
+
+            <p style="color: #666; font-size: 14px;">
+                💡 <em>This notification was sent because you're following <span th:text="${authorName}">this author</span> or this topic.</em>
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>© <span th:text="${currentYear}">2025</span> TechHub. All rights reserved.</p>
+            <p style="margin-top: 10px;">
+                <a href="#" style="color: #888;">Unsubscribe</a> |
+                <a href="#" style="color: #888;">Manage Preferences</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+

@@ -3,6 +3,7 @@ package com.techhub.app.notificationservice.processor;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationCommand;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationRecipient;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationType;
+import com.techhub.app.notificationservice.entity.Notification;
 import com.techhub.app.notificationservice.service.NotificationDeliveryService;
 import com.techhub.app.notificationservice.service.NotificationService;
 import org.springframework.core.Ordered;
@@ -43,8 +44,8 @@ public class BlogNotificationProcessor extends AbstractNotificationProcessor {
     }
 
     @Override
-    protected com.techhub.app.notificationservice.entity.Notification buildNotification(NotificationCommand command, NotificationRecipient recipient) {
-        com.techhub.app.notificationservice.entity.Notification notification = super.buildNotification(command, recipient);
+    protected Notification buildNotification(NotificationCommand command, NotificationRecipient recipient) {
+        Notification notification = super.buildNotification(command, recipient);
         if (!StringUtils.hasText(notification.getTitle())) {
             notification.setTitle(DEFAULT_TITLE);
         }

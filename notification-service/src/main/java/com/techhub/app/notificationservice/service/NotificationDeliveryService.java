@@ -4,7 +4,6 @@ import com.techhub.app.commonservice.kafka.event.EmailEvent;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationCommand;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationRecipient;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationType;
-import com.techhub.app.commonservice.kafka.publisher.EmailEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,7 +20,7 @@ public class NotificationDeliveryService {
 
     private static final String DEFAULT_SUBJECT_PREFIX = "TechHub - Notification";
 
-    private final EmailEventPublisher emailEventPublisher;
+    private final EmailSenderService emailSenderService;
 
     public void deliverEmail(NotificationCommand command, NotificationRecipient recipient) {
         String email = recipient != null ? recipient.getEmail() : null;
@@ -38,7 +37,13 @@ public class NotificationDeliveryService {
                 .metadata(resolveMetadata(command, recipient))
                 .build();
 
-        emailEventPublisher.publish(emailEvent);
+        try {
+            emailSenderService.sendHtmlEmail(emailEvent);
+            log.info("Email delivered successfully to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send email to: {}", email, e);
+            throw new RuntimeException("Failed to send email", e);
+        }
     }
 
     private String resolveSubject(NotificationCommand command) {

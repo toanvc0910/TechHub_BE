@@ -18,6 +18,7 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.util.CollectionUtils;
@@ -59,21 +60,23 @@ public class KafkaConfig {
     public ConsumerFactory<String, Object> consumerFactory() {
         Map<String, Object> props = new HashMap<>(kafkaProperties.buildConsumerProperties());
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, determineBootstrapServers());
-        props.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        props.putIfAbsent(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
                 environment.getProperty("kafka.consumer.auto-offset-reset", "latest"));
-        props.putIfAbsent(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
-        JsonDeserializer<Object> jsonDeserializer = new JsonDeserializer<>();
-        jsonDeserializer.addTrustedPackages(resolveTrustedPackages());
-        jsonDeserializer.setUseTypeHeaders(false);
-        jsonDeserializer.setRemoveTypeHeaders(false);
+        // Use ErrorHandlingDeserializer to handle deserialization errors gracefully
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
 
-        return new DefaultKafkaConsumerFactory<>(
-                props,
-                new StringDeserializer(),
-                jsonDeserializer);
+        // JsonDeserializer configuration - CRITICAL: Set default type
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, String.join(",", resolveTrustedPackages()));
+        props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+        props.put(JsonDeserializer.REMOVE_TYPE_INFO_HEADERS, false);
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.techhub.app.commonservice.kafka.event.notification.NotificationCommand");
+
+        return new DefaultKafkaConsumerFactory<>(props);
     }
 
     @Bean
