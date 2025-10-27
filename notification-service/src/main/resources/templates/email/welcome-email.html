@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to TechHub</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f7f8fb;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 560px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 12px 24px rgba(15, 31, 67, 0.08);
+            padding: 32px;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2563eb;
+            letter-spacing: 1px;
+            margin-bottom: 24px;
+        }
+        .title {
+            font-size: 24px;
+            color: #0f172a;
+            margin-bottom: 16px;
+        }
+        .body-text {
+            font-size: 15px;
+            color: #475569;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+        .cta {
+            margin: 28px 0;
+        }
+        .cta a {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-weight: 600;
+        }
+        .footer {
+            font-size: 13px;
+            color: #7c8db5;
+            margin-top: 32px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="logo">TechHub</div>
+    <div class="title">Welcome aboard, <span th:text="${username} != null ? username : 'Friend'">Friend</span>!</div>
+    <p class="body-text">
+        We're thrilled to have you join the TechHub community. Your account is all set up and ready to go.
+        Explore curated blog posts, track your learning progress, and engage with instructors and fellow learners.
+    </p>
+    <p class="body-text">
+        Get started by logging in to your dashboard, customizing your profile, and discovering courses that match your goals.
+        We built TechHub to help you grow faster, smarter, together.
+    </p>
+    <div class="cta">
+        <a href="https://techhub.app">Open TechHub</a>
+    </div>
+    <p class="footer">
+        Happy learning!<br/>
+        The TechHub Team
+    </p>
+</div>
+</body>
+</html>

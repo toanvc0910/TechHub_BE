@@ -19,13 +19,11 @@ CREATE TYPE payment_method AS ENUM('MOMO', 'ZALOPAY', 'CREDIT_CARD', 'BANK_TRANS
 CREATE TYPE payment_status AS ENUM('SUCCESS', 'FAILED');
 CREATE TYPE blog_status AS ENUM('DRAFT', 'PUBLISHED');
 CREATE TYPE leaderboard_type AS ENUM('GLOBAL', 'COURSE', 'PATH');
-CREATE TYPE notification_type AS ENUM('PROGRESS', 'NEW_COURSE', 'COMMENT', 'ACCOUNT', 'BLOG', 'SYSTEM');
+CREATE TYPE notification_type AS ENUM('PROGRESS', 'NEW_COURSE', 'COMMENT');
 CREATE TYPE delivery_method AS ENUM('EMAIL', 'PUSH', 'IN_APP');
 CREATE TYPE event_type AS ENUM('VIEW', 'COMPLETE', 'EXERCISE');
 CREATE TYPE translation_target AS ENUM('COURSE', 'LESSON', 'BLOG', 'EXERCISE', 'CHAPTER');
 CREATE TYPE chat_sender AS ENUM('USER', 'BOT');
--- Add missing permission_method ENUM type
-CREATE TYPE permission_method AS ENUM('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS');
 
 -- Users Table
 CREATE TABLE users (
@@ -133,70 +131,6 @@ CREATE TABLE user_twofa (
 );
 CREATE INDEX idx_user_twofa_enabled ON user_twofa(enabled);
 CREATE INDEX idx_user_twofa_is_active ON user_twofa(is_active);
-
--- Permissions Table (Corrected)
-CREATE TABLE permissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- Changed from user_status to UUID
-    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES users(id), -- Changed from user_status to UUID
-    description VARCHAR(500),
-    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
-    method permission_method NOT NULL, -- Using the newly defined ENUM
-    name VARCHAR(255) NOT NULL,
-    resource VARCHAR(100) NOT NULL,
-    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_by UUID REFERENCES users(id), -- Changed from user_status to UUID
-    url VARCHAR(500) NOT NULL
-);
-CREATE INDEX idx_permissions_method ON permissions(method);
-CREATE INDEX idx_permissions_name ON permissions(name);
-CREATE INDEX idx_permissions_is_active ON permissions(is_active);
-
--- Roles Table (Added)
-CREATE TABLE roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL UNIQUE,
-    description VARCHAR(500),
-    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES users(id),
-    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_by UUID REFERENCES users(id),
-    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
-);
-CREATE INDEX idx_roles_name ON roles(name);
-CREATE INDEX idx_roles_is_active ON roles(is_active);
-
--- Role Permissions Join Table (Added)
-CREATE TABLE role_permissions (
-    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    permission_id UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
-    granted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
-    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
-    PRIMARY KEY (role_id, permission_id)
-);
-CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
-CREATE INDEX idx_role_permissions_permission_id ON role_permissions(permission_id);
-CREATE INDEX idx_role_permissions_is_active ON role_permissions(is_active);
-
--- User Roles Join Table (Added and Corrected)
-CREATE TABLE user_roles (
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Changed from user_status to UUID
-    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    assigned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
-    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
-    PRIMARY KEY (user_id, role_id)
-);
-CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
-CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
-CREATE INDEX idx_user_roles_is_active ON user_roles(is_active);
 
 -- Courses Table
 CREATE TABLE courses (
@@ -671,11 +605,9 @@ CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type notification_type NOT NULL,
-    title VARCHAR(255),
     message TEXT NOT NULL,
     read BOOLEAN DEFAULT FALSE,
     delivery_method delivery_method NOT NULL DEFAULT 'IN_APP',
-    metadata JSONB,
     sent_at TIMESTAMP WITH TIME ZONE,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -818,16 +750,7 @@ DO $$
 DECLARE
     t text;
 BEGIN
-    FOREACH t IN ARRAY ARRAY[
-        'users', 'profiles', 'authentication_logs', 'auth_providers', 'otps', 'user_twofa',
-        'permissions', 'roles', 'role_permissions', 'user_roles', 'courses', 'chapters',
-        'lessons', 'exercises', 'progress', 'comments', 'enrollments', 'ratings',
-        'submissions', 'user_codes', 'promotions', 'transactions', 'transaction_items',
-        'payments', 'carts', 'blogs', 'forums', 'forum_posts', 'group_chats',
-        'learning_paths', 'path_progress', 'badges', 'user_points', 'leaderboards',
-        'rewards', 'notifications', 'analytics', 'recommendations', 'translations',
-        'chat_sessions', 'chat_messages', 'audit_logs'
-    ]
+    FOREACH t IN ARRAY ARRAY['users', 'profiles', 'authentication_logs', 'auth_providers', 'otps', 'user_twofa', 'courses', 'chapters', 'lessons', 'exercises', 'progress', 'comments', 'enrollments', 'ratings', 'submissions', 'user_codes', 'promotions', 'transactions', 'transaction_items', 'payments', 'carts', 'blogs', 'forums', 'forum_posts', 'group_chats', 'learning_paths', 'path_progress', 'badges', 'user_points', 'leaderboards', 'rewards', 'notifications', 'analytics', 'recommendations', 'translations', 'chat_sessions', 'chat_messages', 'audit_logs']
     LOOP
         EXECUTE 'CREATE TRIGGER trg_update_' || t || ' BEFORE UPDATE ON ' || t || ' FOR EACH ROW EXECUTE PROCEDURE update_updated();';
     END LOOP;

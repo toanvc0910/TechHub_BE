@@ -1,10 +1,8 @@
 package com.techhub.app.notificationservice.service;
 
-import com.techhub.app.commonservice.kafka.event.EmailEvent;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationCommand;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationRecipient;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationType;
-import com.techhub.app.commonservice.kafka.publisher.EmailEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,7 +10,6 @@ import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +18,7 @@ public class NotificationDeliveryService {
 
     private static final String DEFAULT_SUBJECT_PREFIX = "TechHub - Notification";
 
-    private final EmailEventPublisher emailEventPublisher;
+    private final EmailSender emailSender;
 
     public void deliverEmail(NotificationCommand command, NotificationRecipient recipient) {
         String email = recipient != null ? recipient.getEmail() : null;
@@ -30,15 +27,11 @@ public class NotificationDeliveryService {
             return;
         }
 
-        EmailEvent emailEvent = EmailEvent.builder()
-                .recipient(email)
-                .subject(resolveSubject(command))
-                .templateCode(command.getTemplateCode())
-                .variables(resolveVariables(command, recipient))
-                .metadata(resolveMetadata(command, recipient))
-                .build();
+        String subject = resolveSubject(command);
+        Map<String, Object> variables = resolveVariables(command, recipient);
+        String fallbackBody = resolvePlainMessage(command, variables);
 
-        emailEventPublisher.publish(emailEvent);
+        emailSender.send(email, subject, command.getTemplateCode(), variables, fallbackBody);
     }
 
     private String resolveSubject(NotificationCommand command) {
@@ -56,25 +49,23 @@ public class NotificationDeliveryService {
         if (command.getTemplateVariables() != null) {
             variables.putAll(command.getTemplateVariables());
         }
-        Optional.ofNullable(recipient)
-                .map(NotificationRecipient::getUsername)
-                .ifPresent(username -> variables.putIfAbsent("username", username));
+        if (recipient != null && StringUtils.hasText(recipient.getUsername())) {
+            variables.putIfAbsent("username", recipient.getUsername());
+        }
+        if (recipient != null && StringUtils.hasText(recipient.getEmail())) {
+            variables.putIfAbsent("email", recipient.getEmail());
+        }
         variables.putIfAbsent("message", command.getMessage());
         return variables;
     }
 
-    private Map<String, Object> resolveMetadata(NotificationCommand command, NotificationRecipient recipient) {
-        Map<String, Object> metadata = new HashMap<>();
-        if (command.getMetadata() != null) {
-            metadata.putAll(command.getMetadata());
+    private String resolvePlainMessage(NotificationCommand command, Map<String, Object> variables) {
+        if (StringUtils.hasText(command.getMessage())) {
+            return command.getMessage();
         }
-        metadata.put("commandId", command.getCommandId());
-        if (recipient != null && recipient.getUserId() != null) {
-            metadata.put("userId", recipient.getUserId());
+        if (variables.containsKey("otpCode")) {
+            return "Your verification code is: " + variables.get("otpCode");
         }
-        if (recipient != null && StringUtils.hasText(recipient.getEmail())) {
-            metadata.put("email", recipient.getEmail());
-        }
-        return metadata;
+        return resolveSubject(command);
     }
 }

@@ -63,7 +63,7 @@ public class UserServiceImpl implements UserService {
 
         String otp = otpService.generateOTP();
         otpService.saveOTP(user.getId(), otp, OTPTypeEnum.REGISTER);
-        emailService.sendOTPEmail(user.getEmail(), otp, OTPTypeEnum.REGISTER.name());
+        emailService.sendOTPEmail(user.getId(), user.getEmail(), user.getUsername(), otp, OTPTypeEnum.REGISTER.name());
 
         log.info("User {} {} for registration", user.getEmail(), reactivated ? "reactivated" : "created");
         return convertToUserResponse(user);
@@ -95,8 +95,8 @@ public class UserServiceImpl implements UserService {
         User saved = userRepository.save(user);
         otpService.deleteOTP(user.getId(), OTPTypeEnum.REGISTER);
 
-        emailService.sendAccountActivationEmail(saved.getEmail(), saved.getUsername());
-        emailService.sendWelcomeEmail(saved.getEmail(), saved.getUsername());
+        emailService.sendAccountActivationEmail(saved.getId(), saved.getEmail(), saved.getUsername());
+        emailService.sendWelcomeEmail(saved.getId(), saved.getEmail(), saved.getUsername());
 
         log.info("User {} successfully verified email", saved.getEmail());
         return convertToUserResponse(saved);
@@ -111,7 +111,7 @@ public class UserServiceImpl implements UserService {
         user = userRepository.save(user);
         assignDefaultRole(user);
 
-        emailService.sendWelcomeEmail(user.getEmail(), user.getUsername());
+        emailService.sendWelcomeEmail(user.getId(), user.getEmail(), user.getUsername());
         log.info("User {} {} by administrator", user.getEmail(), reactivated ? "reactivated" : "created");
         return convertToUserResponse(user);
     }
@@ -200,7 +200,7 @@ public class UserServiceImpl implements UserService {
 
         String otp = otpService.generateOTP();
         otpService.saveOTP(user.getId(), otp, OTPTypeEnum.RESET);
-        emailService.sendPasswordResetEmail(user.getEmail(), otp);
+        emailService.sendPasswordResetEmail(user.getId(), user.getEmail(), user.getUsername(), otp);
         log.info("Password reset OTP generated for {}", user.getEmail());
     }
 

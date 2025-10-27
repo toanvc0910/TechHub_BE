@@ -12,9 +12,9 @@ import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationCommand;
-import com.techhub.app.commonservice.kafka.event.notification.NotificationDeliveryMethod;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationRecipient;
 import com.techhub.app.commonservice.kafka.event.notification.NotificationType;
+import com.techhub.app.commonservice.notification.NotificationCommandFactory;
 import com.techhub.app.commonservice.kafka.publisher.NotificationCommandPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -193,23 +192,31 @@ public class BlogServiceImpl implements BlogService {
         if (previousStatus == BlogStatus.PUBLISHED) {
             return;
         }
-        NotificationRecipient recipient = NotificationRecipient.builder()
-                .userId(blog.getAuthorId())
-                .build();
 
-        NotificationCommand command = NotificationCommand.builder()
-                .type(NotificationType.BLOG)
-                .title("Blog published")
-                .message(String.format("Your blog \"%s\" is now published.", blog.getTitle()))
-                .deliveryMethods(EnumSet.of(NotificationDeliveryMethod.IN_APP))
-                .recipients(List.of(recipient))
-                .metadata(Map.of(
-                        "blogId", blog.getId(),
-                        "blogTitle", blog.getTitle(),
-                        "authorId", blog.getAuthorId()
-                ))
-                .build();
+        Map<String, Object> metadata = Map.of(
+                "blogId", blog.getId(),
+                "blogTitle", blog.getTitle(),
+                "authorId", blog.getAuthorId()
+        );
+
+        String message = String.format("Your blog \"%s\" is now published.", blog.getTitle());
+        List<NotificationRecipient> recipients = resolveBlogPublicationRecipients(blog);
+
+        NotificationCommand command = NotificationCommandFactory.inApp(
+                NotificationType.BLOG,
+                "Blog published",
+                message,
+                recipients,
+                metadata
+        );
 
         notificationCommandPublisher.publish(command);
+    }
+
+    private List<NotificationRecipient> resolveBlogPublicationRecipients(Blog blog) {
+        NotificationRecipient authorRecipient = NotificationRecipient.builder()
+                .userId(blog.getAuthorId())
+                .build();
+        return List.of(authorRecipient);
     }
 }
