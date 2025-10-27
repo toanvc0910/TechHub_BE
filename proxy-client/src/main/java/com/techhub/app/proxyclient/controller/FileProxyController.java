@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/app/files")
+@RequestMapping("/api/proxy/files")
 @RequiredArgsConstructor
 @Slf4j
 public class FileProxyController {
