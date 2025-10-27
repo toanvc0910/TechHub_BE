@@ -5,7 +5,7 @@ spring:
   application:
     name: file-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/techhub_file
+    url: jdbc:postgresql://localhost:5432/techhub
     username: postgres
     password: 123456
     driver-class-name: org.postgresql.Driver

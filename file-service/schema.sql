@@ -1,11 +1,7 @@
--- Create database
-CREATE DATABASE techhub_file;
+-- Run this script in techhub_blog database
+-- CREATE TABLE for file metadata (used by file-service)
 
--- Connect to database
-\c techhub_file;
-
--- Create file_metadata table
-CREATE TABLE file_metadata (
+CREATE TABLE IF NOT EXISTS file_metadata (
     id BIGSERIAL PRIMARY KEY,
     original_filename VARCHAR(255) NOT NULL,
     url VARCHAR(1000) NOT NULL,
@@ -18,11 +14,6 @@ CREATE TABLE file_metadata (
 );
 
 -- Create indexes
-CREATE INDEX idx_file_metadata_public_id ON file_metadata(public_id);
-CREATE INDEX idx_file_metadata_folder ON file_metadata(folder);
-CREATE INDEX idx_file_metadata_created_at ON file_metadata(created_at);
-
--- Grant permissions (optional, adjust username as needed)
--- GRANT ALL PRIVILEGES ON DATABASE techhub_file TO your_username;
--- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO your_username;
--- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO your_username;
+CREATE INDEX IF NOT EXISTS idx_file_metadata_public_id ON file_metadata(public_id);
+CREATE INDEX IF NOT EXISTS idx_file_metadata_folder ON file_metadata(folder);
+CREATE INDEX IF NOT EXISTS idx_file_metadata_created_at ON file_metadata(created_at);

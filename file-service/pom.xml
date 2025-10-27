@@ -60,14 +60,8 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
             <optional>true</optional>
-        </dependency>
-
-        <!-- Common Service -->
-        <dependency>
-            <groupId>com.techhub.app</groupId>
-            <artifactId>common-service</artifactId>
-            <version>1.0.0</version>
         </dependency>
 
         <!-- Spring Boot Starter Test -->
@@ -75,6 +69,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        
+        <!-- Spring Boot Starter Actuator (for health checks) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
     </dependencies>
 

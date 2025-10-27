@@ -14,14 +14,14 @@ public class CourseProxyController {
 
     @GetMapping
     public ResponseEntity<String> getAllCourses(@RequestParam(defaultValue = "0") int page,
-                                              @RequestParam(defaultValue = "10") int size,
-                                              @RequestParam(required = false) String search) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search) {
         return courseServiceClient.getAllCourses(page, size, search);
     }
 
     @PostMapping
     public ResponseEntity<String> createCourse(@RequestBody Object createRequest,
-                                             @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         return courseServiceClient.createCourse(createRequest, authHeader);
     }
 
@@ -32,21 +32,21 @@ public class CourseProxyController {
 
     @PutMapping("/{courseId}")
     public ResponseEntity<String> updateCourse(@PathVariable String courseId,
-                                             @RequestBody Object updateRequest,
-                                             @RequestHeader("Authorization") String authHeader) {
+            @RequestBody Object updateRequest,
+            @RequestHeader("Authorization") String authHeader) {
         return courseServiceClient.updateCourse(courseId, updateRequest, authHeader);
     }
 
     @DeleteMapping("/{courseId}")
     public ResponseEntity<String> deleteCourse(@PathVariable String courseId,
-                                             @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         return courseServiceClient.deleteCourse(courseId, authHeader);
     }
 
     // Enrollment endpoints
     @PostMapping("/{courseId}/enroll")
     public ResponseEntity<String> enrollCourse(@PathVariable String courseId,
-                                             @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         return courseServiceClient.enrollCourse(courseId, authHeader);
     }
 
