@@ -10,21 +10,23 @@ import java.util.List;
 import java.util.Map;
 
 @FeignClient(name = "FILE-SERVICE")
+// @FeignClient(name = "FILE-SERVICE", path = "/api/files") // Can also set a
+// common path here
 public interface FileServiceClient {
 
-        @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @PostMapping(value = "/api/files/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         ResponseEntity<Map<String, Object>> uploadFile(
                         @RequestPart("file") MultipartFile file,
                         @RequestParam(value = "folder", defaultValue = "uploads") String folder);
 
-        @PostMapping(value = "/upload/multiple", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @PostMapping(value = "/api/files/upload/multiple", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         ResponseEntity<Map<String, Object>> uploadMultipleFiles(
                         @RequestPart("files") List<MultipartFile> files,
                         @RequestParam(value = "folder", defaultValue = "uploads") String folder);
 
-        @DeleteMapping("/delete")
+        @DeleteMapping("/api/files/delete")
         ResponseEntity<Map<String, Object>> deleteFile(@RequestParam("publicId") String publicId);
 
-        @GetMapping("/{id}")
+        @GetMapping("/api/files/{id}")
         ResponseEntity<Map<String, Object>> getFileMetadata(@PathVariable("id") Long id);
 }
