@@ -26,6 +26,7 @@ public class BlogMapper {
     public void applyRequest(Blog blog, BlogRequest request) {
         blog.setTitle(request.getTitle().trim());
         blog.setContent(request.getContent().trim());
+        blog.setThumbnail(request.getThumbnail() != null ? request.getThumbnail().trim() : null);
         blog.setTags(normalizeTags(request.getTags()));
         blog.setAttachments(toAttachmentEntities(request.getAttachments()));
         if (request.getStatus() != null) {
@@ -38,6 +39,7 @@ public class BlogMapper {
                 .id(blog.getId())
                 .title(blog.getTitle())
                 .content(blog.getContent())
+                .thumbnail(blog.getThumbnail())
                 .status(blog.getStatus())
                 .tags(blog.getTags())
                 .attachments(toAttachmentDtos(blog.getAttachments()))

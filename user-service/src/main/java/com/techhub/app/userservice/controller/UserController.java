@@ -33,40 +33,41 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping
-    public ResponseEntity<GlobalResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request, HttpServletRequest httpServletRequest) {
+    public ResponseEntity<GlobalResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request,
+            HttpServletRequest httpServletRequest) {
         try {
             UserResponse user = userService.createUser(request);
             return ResponseEntity.status(201)
-                .body(GlobalResponse.success("User created successfully", user)
-                    .withPath(httpServletRequest.getRequestURI()));
+                    .body(GlobalResponse.success("User created successfully", user)
+                            .withPath(httpServletRequest.getRequestURI()));
         } catch (Exception e) {
             log.error("Error creating user", e);
             return ResponseEntity.badRequest()
-                .body(GlobalResponse.error(e.getMessage()));
+                    .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<GlobalResponse<UserResponse>> getUserById(@PathVariable UUID userId, HttpServletRequest request) {
+    public ResponseEntity<GlobalResponse<UserResponse>> getUserById(@PathVariable UUID userId,
+            HttpServletRequest request) {
         try {
             UserResponse userResponse = userService.getUserById(userId);
 
             return ResponseEntity.ok(
-                GlobalResponse.success("User retrieved successfully", userResponse)
-                    .withPath(request.getRequestURI())
-            );
+                    GlobalResponse.success("User retrieved successfully", userResponse)
+                            .withPath(request.getRequestURI()));
 
         } catch (Exception e) {
             log.error("Error retrieving user with id: {}", userId, e);
             return ResponseEntity.badRequest().body(
-                GlobalResponse.<UserResponse>error("User not found", 404)
-                    .withPath(request.getRequestURI())
-            );
+                    GlobalResponse.<UserResponse>error("User not found", 404)
+                            .withPath(request.getRequestURI()));
         }
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<GlobalResponse<UserResponse>> getUserByEmail(@PathVariable @Email String email, HttpServletRequest request) {
+    public ResponseEntity<GlobalResponse<UserResponse>> getUserByEmail(@PathVariable @Email String email,
+            HttpServletRequest request) {
         try {
             UserResponse userResponse = userService.getUserByEmail(email);
             return ResponseEntity.ok(GlobalResponse.success(userResponse)
@@ -78,7 +79,8 @@ public class UserController {
     }
 
     @GetMapping("/username/{username}")
-    public ResponseEntity<GlobalResponse<UserResponse>> getUserByUsername(@PathVariable String username, HttpServletRequest request) {
+    public ResponseEntity<GlobalResponse<UserResponse>> getUserByUsername(@PathVariable String username,
+            HttpServletRequest request) {
         try {
             UserResponse user = userService.getUserByUsername(username);
             return ResponseEntity.ok(GlobalResponse.success(user)
@@ -97,35 +99,32 @@ public class UserController {
             UserResponse userResponse = userService.updateUser(userId, request);
 
             return ResponseEntity.ok(
-                GlobalResponse.success("User updated successfully", userResponse)
-                    .withPath(httpServletRequest.getRequestURI())
-            );
+                    GlobalResponse.success("User updated successfully", userResponse)
+                            .withPath(httpServletRequest.getRequestURI()));
 
         } catch (Exception e) {
             log.error("Error updating user with id: {}", userId, e);
             return ResponseEntity.badRequest().body(
-                GlobalResponse.<UserResponse>error(e.getMessage(), 400)
-                    .withPath(httpServletRequest.getRequestURI())
-            );
+                    GlobalResponse.<UserResponse>error(e.getMessage(), 400)
+                            .withPath(httpServletRequest.getRequestURI()));
         }
     }
 
     @DeleteMapping("/{userId}")
-    public ResponseEntity<GlobalResponse<String>> deleteUser(@PathVariable UUID userId, HttpServletRequest httpServletRequest) {
+    public ResponseEntity<GlobalResponse<String>> deleteUser(@PathVariable UUID userId,
+            HttpServletRequest httpServletRequest) {
         try {
             userService.deleteUser(userId);
 
             return ResponseEntity.ok(
-                GlobalResponse.success("User deleted successfully", "User with id " + userId + " has been deleted")
-                    .withPath(httpServletRequest.getRequestURI())
-            );
+                    GlobalResponse.success("User deleted successfully", "User with id " + userId + " has been deleted")
+                            .withPath(httpServletRequest.getRequestURI()));
 
         } catch (Exception e) {
             log.error("Error deleting user with id: {}", userId, e);
             return ResponseEntity.badRequest().body(
-                GlobalResponse.<String>error(e.getMessage(), 400)
-                    .withPath(httpServletRequest.getRequestURI())
-            );
+                    GlobalResponse.<String>error(e.getMessage(), 400)
+                            .withPath(httpServletRequest.getRequestURI()));
         }
     }
 
@@ -139,7 +138,7 @@ public class UserController {
         } catch (Exception e) {
             log.error("Error changing password for user: {}", userId, e);
             return ResponseEntity.badRequest()
-                .body(GlobalResponse.error(e.getMessage()));
+                    .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
@@ -151,7 +150,7 @@ public class UserController {
         } catch (Exception e) {
             log.error("Error processing forgot password request", e);
             return ResponseEntity.badRequest()
-                .body(GlobalResponse.error(e.getMessage()));
+                    .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
@@ -165,7 +164,7 @@ public class UserController {
         } catch (Exception e) {
             log.error("Error resetting password for email: {}", email, e);
             return ResponseEntity.badRequest()
-                .body(GlobalResponse.error(e.getMessage()));
+                    .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
@@ -177,7 +176,7 @@ public class UserController {
         } catch (Exception e) {
             log.error("Error activating user: {}", userId, e);
             return ResponseEntity.badRequest()
-                .body(GlobalResponse.error(e.getMessage()));
+                    .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
@@ -189,7 +188,7 @@ public class UserController {
         } catch (Exception e) {
             log.error("Error deactivating user: {}", userId, e);
             return ResponseEntity.badRequest()
-                .body(GlobalResponse.error(e.getMessage()));
+                    .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
@@ -203,7 +202,7 @@ public class UserController {
         } catch (Exception e) {
             log.error("Error changing user status: {}", userId, e);
             return ResponseEntity.badRequest()
-                .body(GlobalResponse.error(e.getMessage()));
+                    .body(GlobalResponse.error(e.getMessage()));
         }
     }
 
@@ -237,16 +236,14 @@ public class UserController {
                     .build();
 
             return ResponseEntity.ok(
-                PageGlobalResponse.success("Users retrieved successfully", userPage.getContent(), paginationInfo)
-                    .withPath(request.getRequestURI())
-            );
+                    PageGlobalResponse.success("Users retrieved successfully", userPage.getContent(), paginationInfo)
+                            .withPath(request.getRequestURI()));
 
         } catch (Exception e) {
             log.error("Error retrieving users", e);
             return ResponseEntity.badRequest().body(
-                PageGlobalResponse.<UserResponse>error("Failed to retrieve users")
-                    .withPath(request.getRequestURI())
-            );
+                    PageGlobalResponse.<UserResponse>error("Failed to retrieve users")
+                            .withPath(request.getRequestURI()));
         }
     }
 
@@ -267,35 +264,69 @@ public class UserController {
             else if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 // TODO: Extract user ID from JWT token if needed
                 return ResponseEntity.badRequest().body(
-                    GlobalResponse.<UserResponse>error("Profile access requires going through Proxy-Client or provide X-User-Id header", 400)
-                        .withPath(request.getRequestURI())
-                );
+                        GlobalResponse.<UserResponse>error(
+                                "Profile access requires going through Proxy-Client or provide X-User-Id header", 400)
+                                .withPath(request.getRequestURI()));
             } else {
                 return ResponseEntity.badRequest().body(
-                    GlobalResponse.<UserResponse>error("Authentication required - missing X-User-Id header or Authorization token", 400)
-                        .withPath(request.getRequestURI())
-                );
+                        GlobalResponse.<UserResponse>error(
+                                "Authentication required - missing X-User-Id header or Authorization token", 400)
+                                .withPath(request.getRequestURI()));
             }
 
             UserResponse userResponse = userService.getUserById(userId);
 
             return ResponseEntity.ok(
-                GlobalResponse.success("Profile retrieved successfully", userResponse)
-                    .withPath(request.getRequestURI())
-            );
+                    GlobalResponse.success("Profile retrieved successfully", userResponse)
+                            .withPath(request.getRequestURI()));
 
         } catch (IllegalArgumentException e) {
             log.error("Invalid UUID format in X-User-Id header: {}", userIdHeader, e);
             return ResponseEntity.badRequest().body(
-                GlobalResponse.<UserResponse>error("Invalid user ID format", 400)
-                    .withPath(request.getRequestURI())
-            );
+                    GlobalResponse.<UserResponse>error("Invalid user ID format", 400)
+                            .withPath(request.getRequestURI()));
         } catch (Exception e) {
             log.error("Error retrieving current user profile", e);
             return ResponseEntity.badRequest().body(
-                GlobalResponse.<UserResponse>error("Failed to retrieve profile: " + e.getMessage(), 400)
-                    .withPath(request.getRequestURI())
-            );
+                    GlobalResponse.<UserResponse>error("Failed to retrieve profile: " + e.getMessage(), 400)
+                            .withPath(request.getRequestURI()));
+        }
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<GlobalResponse<UserResponse>> updateCurrentUserProfile(
+            @Valid @RequestBody UpdateUserRequest request,
+            HttpServletRequest httpServletRequest,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
+
+        try {
+            UUID userId = null;
+
+            // Get user ID from X-User-Id header
+            if (userIdHeader != null && !userIdHeader.isEmpty()) {
+                userId = UUID.fromString(userIdHeader);
+            } else {
+                return ResponseEntity.badRequest().body(
+                        GlobalResponse.<UserResponse>error("Authentication required - missing X-User-Id header", 400)
+                                .withPath(httpServletRequest.getRequestURI()));
+            }
+
+            UserResponse userResponse = userService.updateUser(userId, request);
+
+            return ResponseEntity.ok(
+                    GlobalResponse.success("Profile updated successfully", userResponse)
+                            .withPath(httpServletRequest.getRequestURI()));
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format in X-User-Id header: {}", userIdHeader, e);
+            return ResponseEntity.badRequest().body(
+                    GlobalResponse.<UserResponse>error("Invalid user ID format", 400)
+                            .withPath(httpServletRequest.getRequestURI()));
+        } catch (Exception e) {
+            log.error("Error updating current user profile", e);
+            return ResponseEntity.badRequest().body(
+                    GlobalResponse.<UserResponse>error("Failed to update profile: " + e.getMessage(), 400)
+                            .withPath(httpServletRequest.getRequestURI()));
         }
     }
 }

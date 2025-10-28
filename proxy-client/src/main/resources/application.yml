@@ -8,6 +8,12 @@ spring:
     name: PROXY-CLIENT
   profiles:
     active: local
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 200MB
+      max-request-size: 250MB
+      file-size-threshold: 2MB
   cloud:
     loadbalancer:
       retry:

@@ -19,6 +19,7 @@ public class BlogResponse {
     private UUID id;
     private String title;
     private String content;
+    private String thumbnail;
     private BlogStatus status;
     private List<String> tags;
     private List<BlogAttachmentDto> attachments;

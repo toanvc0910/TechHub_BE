@@ -25,7 +25,7 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"userRoles"})
+@ToString(exclude = { "userRoles" })
 public class User {
 
     @Id
@@ -42,6 +42,9 @@ public class User {
 
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
+
+    @Column(name = "avatar", length = 500)
+    private String avatar;
 
     @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.UserRoleEnum"))
     @Column(name = "role", nullable = false, columnDefinition = "user_role")
@@ -66,7 +69,6 @@ public class User {
     @Convert(converter = BooleanToYNStringConverter.class)
     @Column(name = "is_active", nullable = false, length = 1)
     private Boolean isActive = true;
-
 
     // Fix: Use the correct UserRole entity for the relationship
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)

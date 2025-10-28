@@ -19,20 +19,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf().disable()
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and()
-            .authorizeRequests()
-            // Public endpoints - no JWT required
-            .antMatchers("/api/auth/**", "/api/proxy/auth/**").permitAll()
-            .antMatchers("POST", "/api/users", "/api/proxy/users").permitAll()
-            .antMatchers("/api/users/forgot-password", "/api/proxy/users/forgot-password").permitAll()
-            .antMatchers("/api/users/reset-password/**", "/api/proxy/users/reset-password/**").permitAll()
-            .antMatchers("/actuator/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-            .antMatchers("/oauth2/**").permitAll()
-            // All other endpoints require JWT authentication
-            .anyRequest().authenticated()
-            .and()
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                .authorizeRequests()
+                // Public endpoints - no JWT required
+                .antMatchers("/api/auth/**", "/api/proxy/auth/**").permitAll()
+                .antMatchers(org.springframework.http.HttpMethod.POST, "/api/users", "/api/proxy/users").permitAll()
+                .antMatchers("/api/users/forgot-password", "/api/proxy/users/forgot-password").permitAll()
+                .antMatchers("/api/users/reset-password/**", "/api/proxy/users/reset-password/**").permitAll()
+                .antMatchers("/actuator/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .antMatchers("/oauth2/**").permitAll()
+                // File endpoints - permitAll for now (can add authentication later)
+                .antMatchers("/api/proxy/files/**").permitAll()
+                .antMatchers("/api/proxy/folders/**").permitAll()
+                .antMatchers("/api/proxy/file-usage/**").permitAll()
+                // All other endpoints require JWT authentication
+                .anyRequest().authenticated()
+                .and()
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

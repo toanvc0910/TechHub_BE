@@ -25,6 +25,9 @@ public class BlogRequest {
     @NotBlank(message = "Content is required")
     private String content;
 
+    @Size(max = 500, message = "Thumbnail URL cannot exceed 500 characters")
+    private String thumbnail;
+
     private BlogStatus status;
 
     private List<String> tags;
