@@ -149,6 +149,11 @@ public class UserServiceImpl implements UserService {
                     user.setUsername(username);
                 });
 
+        // Update avatar if provided
+        Optional.ofNullable(request.getAvatar())
+                .map(String::trim)
+                .ifPresent(user::setAvatar);
+
         user.setUpdated(LocalDateTime.now());
         User saved = userRepository.save(user);
         log.info("User {} updated", saved.getId());
@@ -391,6 +396,7 @@ public class UserServiceImpl implements UserService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
+                .avatar(user.getAvatar())
                 .roles(roles)
                 .status(user.getStatus().name())
                 .created(user.getCreated())
