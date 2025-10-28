@@ -51,6 +51,9 @@ public class Blog {
     @Column(name = "author_id", nullable = false)
     private UUID authorId;
 
+    @Column(name = "thumbnail", length = 500)
+    private String thumbnail;
+
     @Type(type = "list-array")
     @Column(name = "tags", columnDefinition = "text[]")
     private List<String> tags;

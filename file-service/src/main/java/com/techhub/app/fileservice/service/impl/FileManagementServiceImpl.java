@@ -45,8 +45,25 @@ public class FileManagementServiceImpl implements FileManagementService {
                         .orElseThrow(() -> new RuntimeException("Folder not found"));
             }
 
-            // Upload to Cloudinary
-            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
+            // Determine file type and resource type for Cloudinary
+            FileTypeEnum fileType = determineFileType(file.getContentType());
+            String resourceType = "auto"; // auto, image, video, raw
+
+            // Set resource type based on file type
+            if (fileType == FileTypeEnum.VIDEO) {
+                resourceType = "video";
+            } else if (fileType == FileTypeEnum.IMAGE) {
+                resourceType = "image";
+            } else if (fileType == FileTypeEnum.AUDIO) {
+                resourceType = "video"; // Cloudinary uses 'video' for audio files
+            } else {
+                resourceType = "raw"; // For documents and other files
+            }
+
+            // Upload to Cloudinary with proper resource type
+            Map<String, Object> uploadParams = ObjectUtils.asMap(
+                    "resource_type", resourceType);
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), uploadParams);
 
             // Create file entity
             FileEntity fileEntity = new FileEntity();
@@ -54,7 +71,7 @@ public class FileManagementServiceImpl implements FileManagementService {
             fileEntity.setFolderId(folderId);
             fileEntity.setName(file.getOriginalFilename());
             fileEntity.setOriginalName(file.getOriginalFilename());
-            fileEntity.setFileType(determineFileType(file.getContentType()));
+            fileEntity.setFileType(fileType); // Use pre-determined file type
             fileEntity.setMimeType(file.getContentType());
             fileEntity.setFileSize(file.getSize());
             fileEntity.setCloudinaryPublicId(uploadResult.get("public_id").toString());
