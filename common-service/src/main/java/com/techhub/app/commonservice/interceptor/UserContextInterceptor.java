@@ -28,8 +28,9 @@ public class UserContextInterceptor implements HandlerInterceptor {
         String requestURI = request.getRequestURI();
         String method = request.getMethod();
 
-        // Skip for health check and public endpoints
+        // Skip for health check and public endpoints (including Swagger)
         if (isPublicEndpoint(requestURI)) {
+            log.debug("Allowing public endpoint: {} {}", method, requestURI);
             return true;
         }
 
@@ -50,8 +51,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
         if (userIdStr != null && userEmail != null) {
             try {
                 UUID userId = UUID.fromString(userIdStr);
-                List<String> roles = userRoles != null ?
-                    Arrays.asList(userRoles.split(",")) : Arrays.asList();
+                List<String> roles = userRoles != null ? Arrays.asList(userRoles.split(",")) : Arrays.asList();
 
                 // Set user context in request attributes
                 request.setAttribute("currentUserId", userId);
@@ -59,7 +59,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 request.setAttribute("currentUserRoles", roles);
 
                 log.debug("User context set - ID: {}, Email: {}, Roles: {} for {} {}",
-                    userId, userEmail, roles, method, requestURI);
+                        userId, userEmail, roles, method, requestURI);
 
                 return true;
             } catch (Exception e) {
@@ -77,18 +77,25 @@ public class UserContextInterceptor implements HandlerInterceptor {
 
     private boolean isPublicEndpoint(String uri) {
         return uri.startsWith("/actuator/") ||
-               uri.startsWith("/swagger-ui/") ||
-               uri.startsWith("/v3/api-docs/") ||
-               uri.equals("/health") ||
-               uri.equals("/api/health") ||
-               // Auth endpoints should be public (handled by proxy-client)
-               uri.startsWith("/api/auth/") ||
-               // User registration endpoint
-               (uri.equals("/api/users") && "POST".equals("POST")) ||
-               // Password reset endpoints
-               uri.startsWith("/api/users/forgot-password") ||
-               uri.startsWith("/api/users/reset-password/") ||
-               // OAuth2 endpoints
-               uri.startsWith("/oauth2/");
+                uri.startsWith("/swagger-ui/") ||
+                uri.startsWith("/swagger-ui.") ||
+                uri.contains("/swagger-ui/") ||
+                uri.startsWith("/v3/api-docs") ||
+                uri.startsWith("/v3/api-docs/") ||
+                uri.contains("/v3/api-docs") ||
+                uri.startsWith("/swagger-resources/") ||
+                uri.startsWith("/webjars/") ||
+                uri.equals("/health") ||
+                uri.equals("/api/health") ||
+                uri.equals("/error") || // Allow error endpoint for Swagger UI
+                // Auth endpoints should be public (handled by proxy-client)
+                uri.startsWith("/api/auth/") ||
+                // User registration endpoint
+                (uri.equals("/api/users") && "POST".equals("POST")) ||
+                // Password reset endpoints
+                uri.startsWith("/api/users/forgot-password") ||
+                uri.startsWith("/api/users/reset-password/") ||
+                // OAuth2 endpoints
+                uri.startsWith("/oauth2/");
     }
 }

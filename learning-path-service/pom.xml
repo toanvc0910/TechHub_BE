@@ -57,6 +57,12 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Springdoc OpenAPI (Swagger) -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-ui</artifactId>
+			<version>1.6.15</version>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
@@ -68,6 +74,12 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
+<!-- Springdoc OpenAPI (Swagger) -->
+<dependency>
+<groupId>org.springdoc</groupId>
+<artifactId>springdoc-openapi-ui</artifactId>
+<version>1.6.15</version>
+</dependency>
 		</dependencies>
 	</dependencyManagement>
 

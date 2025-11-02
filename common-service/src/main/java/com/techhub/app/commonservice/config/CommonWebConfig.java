@@ -21,11 +21,13 @@ public class CommonWebConfig implements WebMvcConfigurer {
         registry.addInterceptor(userContextInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                    "/actuator/**",
-                    "/swagger-ui/**",
-                    "/v3/api-docs/**",
-                    "/health",
-                    "/api/health"
-                );
+                        "/actuator/**",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/health",
+                        "/api/health",
+                        "/*/swagger-ui/**",
+                        "/*/v3/api-docs/**",
+                        "/*/swagger-ui.html");
     }
 }

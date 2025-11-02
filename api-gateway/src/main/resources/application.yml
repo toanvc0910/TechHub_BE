@@ -40,6 +40,51 @@ spring:
               - PATCH
               - OPTIONS
       routes:
+        # Swagger UI and API Docs routes for each service
+        - id: BLOG-SERVICE-SWAGGER
+          uri: lb://BLOG-SERVICE
+          predicates:
+            - Path=/blog-service/v3/api-docs, /blog-service/swagger-ui.html, /blog-service/swagger-ui/**
+          filters:
+            - RewritePath=/blog-service/(?<segment>.*), /$\{segment}
+        - id: COURSE-SERVICE-SWAGGER
+          uri: lb://COURSE-SERVICE
+          predicates:
+            - Path=/course-service/v3/api-docs, /course-service/swagger-ui.html, /course-service/swagger-ui/**
+          filters:
+            - RewritePath=/course-service/(?<segment>.*), /$\{segment}
+        - id: LEARNING-PATH-SERVICE-SWAGGER
+          uri: lb://LEARNING-PATH-SERVICE
+          predicates:
+            - Path=/learning-path-service/v3/api-docs, /learning-path-service/swagger-ui.html, /learning-path-service/swagger-ui/**
+          filters:
+            - RewritePath=/learning-path-service/(?<segment>.*), /$\{segment}
+        - id: PAYMENT-SERVICE-SWAGGER
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/payment-service/v3/api-docs, /payment-service/swagger-ui.html, /payment-service/swagger-ui/**
+          filters:
+            - RewritePath=/payment-service/(?<segment>.*), /$\{segment}
+        - id: USER-SERVICE-SWAGGER
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/user-service/v3/api-docs, /user-service/swagger-ui.html, /user-service/swagger-ui/**
+          filters:
+            - RewritePath=/user-service/(?<segment>.*), /$\{segment}
+        - id: FILE-SERVICE-SWAGGER
+          uri: lb://FILE-SERVICE
+          predicates:
+            - Path=/file-service/v3/api-docs, /file-service/swagger-ui.html, /file-service/swagger-ui/**
+          filters:
+            - RewritePath=/file-service/(?<segment>.*), /$\{segment}
+        - id: NOTIFICATION-SERVICE-SWAGGER
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/notification-service/v3/api-docs, /notification-service/swagger-ui.html, /notification-service/swagger-ui/**
+          filters:
+            - RewritePath=/notification-service/(?<segment>.*), /$\{segment}
+
+        # API routes for each service
         - id: BLOG-SERVICE
           uri: lb://BLOG-SERVICE
           predicates:
@@ -107,3 +152,28 @@ eureka:
   instance:
     prefer-ip-address: true
     ip-address: ${HOST_IP_ADDRESS:localhost}
+
+# Swagger/OpenAPI Configuration for API Gateway
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    urls:
+      - name: Blog Service
+        url: /blog-service/v3/api-docs
+      - name: User Service
+        url: /user-service/v3/api-docs
+      - name: Course Service
+        url: /course-service/v3/api-docs
+      - name: Learning Path Service
+        url: /learning-path-service/v3/api-docs
+      - name: Payment Service
+        url: /payment-service/v3/api-docs
+      - name: File Service
+        url: /file-service/v3/api-docs
+      - name: Notification Service
+        url: /notification-service/v3/api-docs
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    enabled: true
