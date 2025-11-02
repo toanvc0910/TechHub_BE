@@ -9,11 +9,12 @@ CREATE TYPE lang AS ENUM('VI', 'EN', 'JA');
 CREATE TYPE auth_provider AS ENUM('GOOGLE', 'FACEBOOK', 'GITHUB');
 CREATE TYPE otp_type AS ENUM('REGISTER', 'LOGIN', 'RESET');
 CREATE TYPE course_status AS ENUM('DRAFT', 'PUBLISHED', 'ARCHIVED');
+CREATE TYPE course_level AS ENUM('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'ALL_LEVELS');
 CREATE TYPE content_type AS ENUM('VIDEO', 'TEXT', 'EXERCISE');
 CREATE TYPE exercise_type AS ENUM('MULTIPLE_CHOICE', 'CODING', 'OPEN_ENDED');
 CREATE TYPE enrollment_status AS ENUM('ENROLLED', 'IN_PROGRESS', 'COMPLETED', 'DROPPED');
 CREATE TYPE rating_target AS ENUM('COURSE', 'LESSON');
-CREATE TYPE comment_target AS ENUM('COURSE', 'LESSON', 'BLOG', 'VIDEO');
+CREATE TYPE comment_target AS ENUM('COURSE', 'LESSON', 'BLOG', 'VIDEO', 'CODE');
 CREATE TYPE transaction_status AS ENUM('PENDING', 'COMPLETED', 'REFUNDED');
 CREATE TYPE payment_method AS ENUM('MOMO', 'ZALOPAY', 'CREDIT_CARD', 'BANK_TRANSFER');
 CREATE TYPE payment_status AS ENUM('SUCCESS', 'FAILED');
@@ -24,6 +25,9 @@ CREATE TYPE delivery_method AS ENUM('EMAIL', 'PUSH', 'IN_APP');
 CREATE TYPE event_type AS ENUM('VIEW', 'COMPLETE', 'EXERCISE');
 CREATE TYPE translation_target AS ENUM('COURSE', 'LESSON', 'BLOG', 'EXERCISE', 'CHAPTER');
 CREATE TYPE chat_sender AS ENUM('USER', 'BOT');
+CREATE TYPE lesson_asset_type AS ENUM('VIDEO', 'DOCUMENT', 'EXTERNAL_LINK', 'CODE_TEMPLATE', 'SUPPLEMENT');
+CREATE TYPE test_case_visibility AS ENUM('PUBLIC', 'PRIVATE');
+CREATE TYPE submission_status AS ENUM('PENDING', 'RUNNING', 'PASSED', 'FAILED', 'PARTIAL', 'ERROR');
 -- Add missing permission_method ENUM type
 CREATE TYPE permission_method AS ENUM('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS');
 
@@ -207,10 +211,16 @@ CREATE TABLE courses (
     price DECIMAL(10,2) NOT NULL,
     instructor_id UUID NOT NULL REFERENCES users(id),
     status course_status DEFAULT 'DRAFT',
+    level course_level DEFAULT 'ALL_LEVELS',
+    language lang DEFAULT 'VI',
     categories TEXT[] DEFAULT '{}',
     tags TEXT[] DEFAULT '{}',
     discount_price DECIMAL(10,2),
     promo_end_date TIMESTAMP WITH TIME ZONE,
+    thumbnail_file_id UUID,
+    intro_video_file_id UUID,
+    objectives JSONB DEFAULT '[]'::JSONB,
+    requirements JSONB DEFAULT '[]'::JSONB,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by UUID REFERENCES users(id),
@@ -219,11 +229,15 @@ CREATE TABLE courses (
 );
 CREATE INDEX idx_courses_instructor_id ON courses(instructor_id);
 CREATE INDEX idx_courses_status ON courses(status);
+CREATE INDEX idx_courses_level ON courses(level);
+CREATE INDEX idx_courses_language ON courses(language);
 CREATE INDEX idx_courses_title_trgm ON courses USING GIN (title gin_trgm_ops);
 CREATE INDEX idx_courses_is_active ON courses(is_active);
 CREATE INDEX idx_courses_created ON courses(created);
 CREATE INDEX idx_courses_categories_gin ON courses USING GIN (categories);
 CREATE INDEX idx_courses_tags_gin ON courses USING GIN (tags);
+CREATE INDEX idx_courses_objectives_gin ON courses USING GIN (objectives);
+CREATE INDEX idx_courses_requirements_gin ON courses USING GIN (requirements);
 
 -- Chapters Table
 CREATE TABLE chapters (
@@ -231,6 +245,8 @@ CREATE TABLE chapters (
     title VARCHAR(255) NOT NULL,
     "order" INTEGER NOT NULL,
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    min_completion_threshold FLOAT DEFAULT 0.7 CHECK (min_completion_threshold BETWEEN 0 AND 1),
+    auto_unlock BOOLEAN DEFAULT TRUE,
     locked BOOLEAN DEFAULT TRUE,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -249,6 +265,12 @@ CREATE TABLE lessons (
     "order" INTEGER NOT NULL,
     chapter_id UUID NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
     content_type content_type NOT NULL,
+    mandatory BOOLEAN DEFAULT TRUE,
+    completion_weight FLOAT DEFAULT 1 CHECK (completion_weight >= 0),
+    estimated_duration INTEGER,
+    workspace_enabled BOOLEAN DEFAULT FALSE,
+    workspace_languages TEXT[] DEFAULT '{}'::TEXT[],
+    workspace_template JSONB DEFAULT '{}'::JSONB,
     video_url TEXT,
     document_urls JSONB DEFAULT '[]'::JSONB,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -260,6 +282,29 @@ CREATE TABLE lessons (
 CREATE INDEX idx_lessons_chapter_id ON lessons(chapter_id);
 CREATE UNIQUE INDEX uniq_lessons_order_per_chapter ON lessons(chapter_id, "order");
 CREATE INDEX idx_lessons_is_active ON lessons(is_active);
+
+-- Lesson Assets Table
+CREATE TABLE lesson_assets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    asset_type lesson_asset_type NOT NULL,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    title VARCHAR(255),
+    description TEXT,
+    file_id UUID REFERENCES files(id) ON DELETE SET NULL,
+    external_url TEXT,
+    metadata JSONB DEFAULT '{}'::JSONB,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
+    CHECK (file_id IS NOT NULL OR external_url IS NOT NULL OR asset_type = 'CODE_TEMPLATE')
+);
+CREATE INDEX idx_lesson_assets_lesson_id ON lesson_assets(lesson_id);
+CREATE INDEX idx_lesson_assets_order ON lesson_assets(lesson_id, "order");
+CREATE INDEX idx_lesson_assets_file_id ON lesson_assets(file_id);
+CREATE INDEX idx_lesson_assets_is_active ON lesson_assets(is_active);
 
 -- Exercises Table
 CREATE TABLE exercises (
@@ -279,6 +324,29 @@ CREATE INDEX idx_exercises_lesson_id ON exercises(lesson_id);
 CREATE INDEX idx_exercises_type ON exercises(type);
 CREATE INDEX idx_exercises_test_cases_gin ON exercises USING GIN (test_cases);
 CREATE INDEX idx_exercises_is_active ON exercises(is_active);
+
+-- Exercise Test Cases Table
+CREATE TABLE exercise_test_cases (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    exercise_id UUID NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    visibility test_case_visibility DEFAULT 'PUBLIC',
+    input TEXT,
+    expected_output TEXT,
+    weight FLOAT DEFAULT 1 CHECK (weight >= 0),
+    timeout_seconds INTEGER,
+    sample BOOLEAN DEFAULT FALSE,
+    metadata JSONB DEFAULT '{}'::JSONB,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
+);
+CREATE INDEX idx_exercise_test_cases_exercise_id ON exercise_test_cases(exercise_id);
+CREATE INDEX idx_exercise_test_cases_order ON exercise_test_cases(exercise_id, "order");
+CREATE INDEX idx_exercise_test_cases_visibility ON exercise_test_cases(visibility);
+CREATE INDEX idx_exercise_test_cases_is_active ON exercise_test_cases(is_active);
 
 -- Progress Table
 CREATE TABLE progress (
