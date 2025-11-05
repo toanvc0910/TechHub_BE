@@ -37,6 +37,8 @@ public interface CourseService {
 
     void deleteChapter(UUID courseId, UUID chapterId);
 
+    LessonResponse getLesson(UUID courseId, UUID chapterId, UUID lessonId);
+
     LessonResponse createLesson(UUID courseId, UUID chapterId, LessonRequest request);
 
     LessonResponse updateLesson(UUID courseId, UUID chapterId, UUID lessonId, LessonRequest request);
@@ -45,7 +47,8 @@ public interface CourseService {
 
     LessonAssetResponse addLessonAsset(UUID courseId, UUID chapterId, UUID lessonId, LessonAssetRequest request);
 
-    LessonAssetResponse updateLessonAsset(UUID courseId, UUID chapterId, UUID lessonId, UUID assetId, LessonAssetRequest request);
+    LessonAssetResponse updateLessonAsset(UUID courseId, UUID chapterId, UUID lessonId, UUID assetId,
+            LessonAssetRequest request);
 
     void deleteLessonAsset(UUID courseId, UUID chapterId, UUID lessonId, UUID assetId);
 }

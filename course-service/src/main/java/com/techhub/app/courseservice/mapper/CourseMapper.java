@@ -12,6 +12,7 @@ import com.techhub.app.courseservice.enums.CourseLevel;
 import com.techhub.app.courseservice.enums.CourseStatus;
 import com.techhub.app.courseservice.enums.Language;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class CourseMapper {
@@ -129,11 +131,29 @@ public class CourseMapper {
     }
 
     public Lesson toLessonEntity(LessonRequest request, Chapter chapter, UUID actorId, Integer orderIndex) {
+        log.info("🔵 CREATE LESSON - Request received:");
+        log.info("  - title: {}", request.getTitle());
+        log.info("  - description: {}", request.getDescription());
+        log.info("  - content: {}", request.getContent());
+        log.info("  - isFree: {}", request.getIsFree());
+        log.info("  - contentType: {}", request.getContentType());
+        log.info("  - videoUrl: {}", request.getVideoUrl());
+        log.info("  - estimatedDuration: {}", request.getEstimatedDuration());
+        log.info("  - orderIndex: {}", request.getOrderIndex());
+
         Lesson lesson = new Lesson();
         lesson.setTitle(normalizeTitle(request.getTitle()));
+        lesson.setDescription(normalizeText(request.getDescription()));
         lesson.setOrderIndex(orderIndex != null ? orderIndex : 1);
         lesson.setChapter(chapter);
         lesson.setContentType(request.getContentType());
+        lesson.setContent(normalizeText(request.getContent()));
+        lesson.setIsFree(request.getIsFree() != null ? request.getIsFree() : false);
+
+        log.info("🟢 CREATE LESSON - Entity created with:");
+        log.info("  - description set to: {}", lesson.getDescription());
+        log.info("  - content set to: {}", lesson.getContent());
+        log.info("  - isFree set to: {}", lesson.getIsFree());
         if (request.getMandatory() != null) {
             lesson.setMandatory(request.getMandatory());
         }
@@ -154,14 +174,36 @@ public class CourseMapper {
     }
 
     public void updateLesson(Lesson lesson, LessonRequest request, UUID actorId) {
+        log.info("🔵 UPDATE LESSON - Request received:");
+        log.info("  - title: {}", request.getTitle());
+        log.info("  - description: {}", request.getDescription());
+        log.info("  - content: {}", request.getContent());
+        log.info("  - isFree: {}", request.getIsFree());
+        log.info("  - contentType: {}", request.getContentType());
+        log.info("  - videoUrl: {}", request.getVideoUrl());
+        log.info("  - estimatedDuration: {}", request.getEstimatedDuration());
+        log.info("  - orderIndex: {}", request.getOrderIndex());
+
         if (request.getTitle() != null) {
             lesson.setTitle(normalizeTitle(request.getTitle()));
+        }
+        if (request.getDescription() != null) {
+            lesson.setDescription(normalizeText(request.getDescription()));
+            log.info("  ✅ Updated description to: {}", lesson.getDescription());
         }
         if (request.getOrderIndex() != null) {
             lesson.setOrderIndex(request.getOrderIndex());
         }
         if (request.getContentType() != null) {
             lesson.setContentType(request.getContentType());
+        }
+        if (request.getContent() != null) {
+            lesson.setContent(normalizeText(request.getContent()));
+            log.info("  ✅ Updated content to: {}", lesson.getContent());
+        }
+        if (request.getIsFree() != null) {
+            lesson.setIsFree(request.getIsFree());
+            log.info("  ✅ Updated isFree to: {}", lesson.getIsFree());
         }
         if (request.getMandatory() != null) {
             lesson.setMandatory(request.getMandatory());
@@ -191,7 +233,8 @@ public class CourseMapper {
         lesson.setUpdated(OffsetDateTime.now());
     }
 
-    public LessonAsset toLessonAssetEntity(LessonAssetRequest request, Lesson lesson, UUID actorId, Integer orderIndex) {
+    public LessonAsset toLessonAssetEntity(LessonAssetRequest request, Lesson lesson, UUID actorId,
+            Integer orderIndex) {
         LessonAsset asset = new LessonAsset();
         asset.setLesson(lesson);
         asset.setAssetType(request.getAssetType());

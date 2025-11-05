@@ -39,9 +39,9 @@ import java.util.UUID;
 @Getter
 @Setter
 @TypeDefs({
-    @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class),
-    @TypeDef(name = "list-array", typeClass = ListArrayType.class),
-    @TypeDef(name = "json", typeClass = JsonType.class)
+        @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class),
+        @TypeDef(name = "list-array", typeClass = ListArrayType.class),
+        @TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Lesson {
 
@@ -52,6 +52,9 @@ public class Lesson {
 
     @Column(nullable = false, length = 255)
     private String title;
+
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
 
     @Column(name = "\"order\"", nullable = false)
     private Integer orderIndex;
@@ -65,6 +68,9 @@ public class Lesson {
     @Column(name = "content_type", columnDefinition = "content_type", nullable = false)
     private ContentType contentType;
 
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
+
     @Column(name = "mandatory")
     private Boolean mandatory = Boolean.TRUE;
 
@@ -73,6 +79,9 @@ public class Lesson {
 
     @Column(name = "estimated_duration")
     private Integer estimatedDuration;
+
+    @Column(name = "is_free")
+    private Boolean isFree = Boolean.FALSE;
 
     @Column(name = "workspace_enabled")
     private Boolean workspaceEnabled = Boolean.FALSE;

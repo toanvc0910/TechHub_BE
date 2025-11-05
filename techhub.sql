@@ -262,12 +262,15 @@ CREATE INDEX idx_chapters_is_active ON chapters(is_active);
 CREATE TABLE lessons (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
+    description TEXT,
     "order" INTEGER NOT NULL,
     chapter_id UUID NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
     content_type content_type NOT NULL,
+    content TEXT,
     mandatory BOOLEAN DEFAULT TRUE,
     completion_weight FLOAT DEFAULT 1 CHECK (completion_weight >= 0),
     estimated_duration INTEGER,
+    is_free BOOLEAN DEFAULT FALSE,
     workspace_enabled BOOLEAN DEFAULT FALSE,
     workspace_languages TEXT[] DEFAULT '{}'::TEXT[],
     workspace_template JSONB DEFAULT '{}'::JSONB,
@@ -282,6 +285,8 @@ CREATE TABLE lessons (
 CREATE INDEX idx_lessons_chapter_id ON lessons(chapter_id);
 CREATE UNIQUE INDEX uniq_lessons_order_per_chapter ON lessons(chapter_id, "order");
 CREATE INDEX idx_lessons_is_active ON lessons(is_active);
+CREATE INDEX idx_lessons_is_free ON lessons(is_free);
+CREATE INDEX idx_lessons_content_type ON lessons(content_type);
 
 -- Lesson Assets Table
 CREATE TABLE lesson_assets (

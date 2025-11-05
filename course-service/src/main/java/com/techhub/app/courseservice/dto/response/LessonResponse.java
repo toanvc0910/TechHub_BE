@@ -21,9 +21,12 @@ public class LessonResponse {
 
     private UUID id;
     private String title;
+    private String description;
     private Integer orderIndex;
     private ContentType contentType;
+    private String content;
     private Boolean mandatory;
+    private Boolean isFree;
     private Float completionWeight;
     private Integer estimatedDuration;
     private Boolean workspaceEnabled;

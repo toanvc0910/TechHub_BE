@@ -309,6 +309,18 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    public LessonResponse getLesson(UUID courseId, UUID chapterId, UUID lessonId) {
+        Course course = getActiveCourse(courseId);
+        resolveChapter(courseId, chapterId);
+
+        Lesson lesson = lessonRepository.findByIdAndChapter_IdAndIsActiveTrue(lessonId, chapterId)
+                .orElseThrow(() -> new NotFoundException("Lesson not found"));
+
+        log.info("Lesson {} retrieved from chapter {}", lessonId, chapterId);
+        return buildLessonResponse(lesson, course, null);
+    }
+
+    @Override
     public LessonResponse createLesson(UUID courseId, UUID chapterId, LessonRequest request) {
         Course course = getActiveCourse(courseId);
         UUID currentUserId = requireCurrentUser();
@@ -669,8 +681,11 @@ public class CourseServiceImpl implements CourseService {
         return LessonResponse.builder()
                 .id(lesson.getId())
                 .title(lesson.getTitle())
+                .description(lesson.getDescription())
                 .orderIndex(lesson.getOrderIndex())
                 .contentType(lesson.getContentType())
+                .content(lesson.getContent())
+                .isFree(lesson.getIsFree())
                 .mandatory(lesson.getMandatory())
                 .completionWeight(lesson.getCompletionWeight())
                 .estimatedDuration(lesson.getEstimatedDuration())

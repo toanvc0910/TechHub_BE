@@ -92,7 +92,7 @@ curl -X POST "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters" \
   -d '{
     "title": "Getting Started",
     "description": "Introduction to the course",
-    "order": 1
+    "orderIndex": 1
   }'
 ```
 
@@ -105,7 +105,7 @@ curl -X PUT "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAP
   -d '{
     "title": "Getting Started - Updated",
     "description": "Updated description",
-    "order": 1
+    "orderIndex": 1
   }'
 ```
 
@@ -116,11 +116,20 @@ curl -X DELETE "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/C
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
+**Note:** This is a HARD DELETE with CASCADE. All related lessons and assets will be automatically deleted, and remaining chapters will be auto-reordered (1, 2, 3...).
+
 ---
 
 ## 📝 4. LESSON MANAGEMENT
 
-### 4.1 Create Lesson (Requires Auth - Instructor/Admin)
+### 4.1 Get Lesson by ID (Requires Auth - Instructor/Admin)
+```bash
+curl -X GET "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons/LESSON_ID/detail" \
+  -H "accept: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### 4.2 Create Lesson (Requires Auth - Instructor/Admin)
 ```bash
 curl -X POST "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons" \
   -H "accept: application/json" \
@@ -132,12 +141,12 @@ curl -X POST "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHA
     "contentType": "VIDEO",
     "content": "https://youtube.com/watch?v=example",
     "duration": 600,
-    "order": 1,
+    "orderIndex": 1,
     "isFree": false
   }'
 ```
 
-### 4.2 Update Lesson (Requires Auth - Instructor/Admin)
+### 4.3 Update Lesson (Requires Auth - Instructor/Admin)
 ```bash
 curl -X PUT "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons/LESSON_ID" \
   -H "accept: application/json" \
@@ -145,17 +154,19 @@ curl -X PUT "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAP
   -H "Content-Type: application/json" \
   -d '{
     "title": "Variables and Data Types - Updated",
-    "duration": 720,
-    "order": 1
+    "estimatedDuration": 720,
+    "orderIndex": 1
   }'
 ```
 
-### 4.3 Delete Lesson (Requires Auth - Instructor/Admin)
+### 4.4 Delete Lesson (Requires Auth - Instructor/Admin)
 ```bash
 curl -X DELETE "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons/LESSON_ID" \
   -H "accept: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
+
+**Note:** This is a HARD DELETE with CASCADE. All related lesson assets will be automatically deleted, and remaining lessons will be auto-reordered (1, 2, 3...).
 
 ---
 
@@ -168,10 +179,10 @@ curl -X POST "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHA
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "type": "DOCUMENT",
+    "assetType": "DOCUMENT",
     "title": "Lecture Slides",
-    "url": "https://example.com/slides.pdf",
-    "order": 1
+    "externalUrl": "https://example.com/slides.pdf",
+    "orderIndex": 1
   }'
 ```
 
@@ -183,7 +194,7 @@ curl -X PUT "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAP
   -H "Content-Type: application/json" \
   -d '{
     "title": "Updated Lecture Slides",
-    "order": 1
+    "orderIndex": 1
   }'
 ```
 
@@ -429,6 +440,18 @@ Response will include `accessToken`. Use it in subsequent requests:
 6. **Languages:** `JAVASCRIPT`, `PYTHON`, `JAVA`, `CPP`, `GO`, etc.
 
 7. **Asset Types:** `VIDEO`, `DOCUMENT`, `LINK`, `IMAGE`, `CODE`
+
+8. **⚠️ IMPORTANT - Field Name Changes:**
+   - Use `orderIndex` (NOT `order`) for chapters, lessons, and assets
+   - Use `estimatedDuration` (NOT `duration`) when updating lessons
+   - Use `assetType` (NOT `type`) for assets
+   - Use `externalUrl` (NOT `url`) for assets
+
+9. **🗑️ DELETE Operations:**
+   - Chapter and Lesson deletes are HARD DELETE with CASCADE
+   - Deleting a chapter removes all its lessons and assets
+   - Deleting a lesson removes all its assets
+   - Remaining items are auto-reordered (1, 2, 3...)
 
 ---
 
