@@ -38,9 +38,9 @@ import java.util.UUID;
 @Getter
 @Setter
 @TypeDefs({
-    @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class),
-    @TypeDef(name = "list-array", typeClass = ListArrayType.class),
-    @TypeDef(name = "json", typeClass = JsonType.class)
+        @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class),
+        @TypeDef(name = "list-array", typeClass = ListArrayType.class),
+        @TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Course {
 
@@ -90,11 +90,11 @@ public class Course {
     @Column(name = "promo_end_date")
     private OffsetDateTime promoEndDate;
 
-    @Column(name = "thumbnail_file_id")
-    private UUID thumbnailFileId;
+    @Column(name = "thumbnail", length = 500)
+    private String thumbnail;
 
-    @Column(name = "intro_video_file_id")
-    private UUID introVideoFileId;
+    @Column(name = "intro_video_file", length = 500)
+    private String introVideoFile;
 
     @Type(type = "json")
     @Column(name = "objectives", columnDefinition = "jsonb")

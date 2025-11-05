@@ -45,16 +45,19 @@ public class CourseRequest {
 
     private OffsetDateTime promoEndDate;
 
-    private UUID thumbnailFileId;
+    @Size(max = 500)
+    private String thumbnail;
 
-    private UUID introVideoFileId;
+    @Size(max = 500)
+    private String introVideo;
 
     private List<@Size(max = 255) String> objectives;
 
     private List<@Size(max = 255) String> requirements;
 
     /**
-     * Optional instructor id (allowed for admins when creating/updating courses on behalf of others)
+     * Optional instructor id (allowed for admins when creating/updating courses on
+     * behalf of others)
      */
     private UUID instructorId;
 }

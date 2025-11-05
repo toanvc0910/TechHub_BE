@@ -41,8 +41,8 @@ public class CourseMapper {
         course.setTags(normalizeList(request.getTags(), true));
         course.setDiscountPrice(normalizePrice(request.getDiscountPrice()));
         course.setPromoEndDate(request.getPromoEndDate());
-        course.setThumbnailFileId(request.getThumbnailFileId());
-        course.setIntroVideoFileId(request.getIntroVideoFileId());
+        course.setThumbnail(normalizeText(request.getThumbnail()));
+        course.setIntroVideoFile(normalizeText(request.getIntroVideo()));
         course.setObjectives(normalizeList(request.getObjectives(), false));
         course.setRequirements(normalizeList(request.getRequirements(), false));
         course.setCreatedBy(actorId);
@@ -79,8 +79,12 @@ public class CourseMapper {
             course.setDiscountPrice(normalizePrice(request.getDiscountPrice()));
         }
         course.setPromoEndDate(request.getPromoEndDate());
-        course.setThumbnailFileId(request.getThumbnailFileId());
-        course.setIntroVideoFileId(request.getIntroVideoFileId());
+        if (request.getThumbnail() != null) {
+            course.setThumbnail(normalizeText(request.getThumbnail()));
+        }
+        if (request.getIntroVideo() != null) {
+            course.setIntroVideoFile(normalizeText(request.getIntroVideo()));
+        }
         if (request.getObjectives() != null) {
             course.setObjectives(normalizeList(request.getObjectives(), false));
         }

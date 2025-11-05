@@ -472,8 +472,8 @@ public class CourseServiceImpl implements CourseService {
     }
 
     private CourseSummaryResponse buildCourseSummary(Course course) {
-        CourseFileResource thumbnail = buildFileResource(course.getThumbnailFileId());
-        CourseFileResource intro = buildFileResource(course.getIntroVideoFileId());
+        CourseFileResource thumbnail = buildFileResourceFromUrl(course.getThumbnail());
+        CourseFileResource intro = buildFileResourceFromUrl(course.getIntroVideoFile());
         long totalEnrollments = enrollmentRepository.countByCourseAndIsActiveTrue(course);
         Double averageRating = ratingRepository.getAverageScore(course.getId(), RatingTarget.COURSE.name());
         long ratingCount = ratingRepository.countByTargetIdAndTargetTypeAndIsActiveTrue(course.getId(),
@@ -726,6 +726,13 @@ public class CourseServiceImpl implements CourseService {
             return null;
         }
         return CourseFileResource.builder().fileId(fileId).build();
+    }
+
+    private CourseFileResource buildFileResourceFromUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return null;
+        }
+        return CourseFileResource.builder().url(url).build();
     }
 
     private Course getActiveCourse(UUID courseId) {
