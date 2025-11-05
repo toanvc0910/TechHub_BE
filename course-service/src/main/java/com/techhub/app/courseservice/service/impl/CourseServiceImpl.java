@@ -267,6 +267,8 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public void deleteChapter(UUID courseId, UUID chapterId) {
+        log.info("🗑️ START deleteChapter: courseId={}, chapterId={}", courseId, chapterId);
+
         Course course = getActiveCourse(courseId);
         UUID currentUserId = requireCurrentUser();
         ensureCanManage(course, currentUserId);
@@ -274,11 +276,36 @@ public class CourseServiceImpl implements CourseService {
         Chapter chapter = chapterRepository.findByIdAndCourse_IdAndIsActiveTrue(chapterId, courseId)
                 .orElseThrow(() -> new NotFoundException("Chapter not found"));
 
-        chapter.setIsActive(false);
-        chapter.setUpdatedBy(currentUserId);
-        chapter.setUpdated(OffsetDateTime.now());
-        chapterRepository.save(chapter);
-        log.info("Chapter {} soft-deleted for course {}", chapterId, courseId);
+        log.info("🗑️ Found chapter to delete: id={}, orderIndex={}, title={}",
+                chapter.getId(), chapter.getOrderIndex(), chapter.getTitle());
+
+        // ✅ HARD DELETE - Xóa cứng luôn
+        chapterRepository.delete(chapter);
+        log.info("✅ Chapter {} hard-deleted (CASCADE will delete all lessons & assets)", chapterId);
+
+        // ✅ AUTO REORDER: Update orderIndex of remaining chapters
+        List<Chapter> remainingChapters = chapterRepository
+                .findByCourse_IdAndIsActiveTrueOrderByOrderIndexAsc(courseId);
+
+        log.info("🔄 Found {} remaining chapters to reorder", remainingChapters.size());
+
+        if (!remainingChapters.isEmpty()) {
+            int newOrder = 1;
+            for (Chapter ch : remainingChapters) {
+                if (!ch.getOrderIndex().equals(newOrder)) {
+                    ch.setOrderIndex(newOrder);
+                    ch.setUpdatedBy(currentUserId);
+                    ch.setUpdated(OffsetDateTime.now());
+                    log.info("📝 Reorder chapter {} from {} to {}", ch.getId(), ch.getOrderIndex(), newOrder);
+                }
+                newOrder++;
+            }
+            chapterRepository.saveAll(remainingChapters);
+            log.info("✅ Reordered {} chapters successfully", remainingChapters.size());
+        }
+
+        log.info("🏁 DONE deleteChapter: {} remaining chapters in course {}",
+                remainingChapters.size(), courseId);
     }
 
     @Override
@@ -318,6 +345,8 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public void deleteLesson(UUID courseId, UUID chapterId, UUID lessonId) {
+        log.info("🗑️ START deleteLesson: courseId={}, chapterId={}, lessonId={}", courseId, chapterId, lessonId);
+
         Course course = getActiveCourse(courseId);
         UUID currentUserId = requireCurrentUser();
         ensureCanManage(course, currentUserId);
@@ -326,11 +355,36 @@ public class CourseServiceImpl implements CourseService {
         Lesson lesson = lessonRepository.findByIdAndChapter_IdAndIsActiveTrue(lessonId, chapterId)
                 .orElseThrow(() -> new NotFoundException("Lesson not found"));
 
-        lesson.setIsActive(false);
-        lesson.setUpdatedBy(currentUserId);
-        lesson.setUpdated(OffsetDateTime.now());
-        lessonRepository.save(lesson);
-        log.info("Lesson {} soft-deleted in chapter {}", lessonId, chapterId);
+        log.info("🗑️ Found lesson to delete: id={}, orderIndex={}, title={}",
+                lesson.getId(), lesson.getOrderIndex(), lesson.getTitle());
+
+        // ✅ HARD DELETE - Xóa cứng luôn
+        lessonRepository.delete(lesson);
+        log.info("✅ Lesson {} hard-deleted (CASCADE will delete all assets & progress)", lessonId);
+
+        // ✅ AUTO REORDER: Update orderIndex of remaining lessons
+        List<Lesson> remainingLessons = lessonRepository
+                .findByChapter_IdAndIsActiveTrueOrderByOrderIndexAsc(chapterId);
+
+        log.info("🔄 Found {} remaining lessons to reorder", remainingLessons.size());
+
+        if (!remainingLessons.isEmpty()) {
+            int newOrder = 1;
+            for (Lesson l : remainingLessons) {
+                if (!l.getOrderIndex().equals(newOrder)) {
+                    l.setOrderIndex(newOrder);
+                    l.setUpdatedBy(currentUserId);
+                    l.setUpdated(OffsetDateTime.now());
+                    log.info("📝 Reorder lesson {} from {} to {}", l.getId(), l.getOrderIndex(), newOrder);
+                }
+                newOrder++;
+            }
+            lessonRepository.saveAll(remainingLessons);
+            log.info("✅ Reordered {} lessons successfully", remainingLessons.size());
+        }
+
+        log.info("🏁 DONE deleteLesson: {} remaining lessons in chapter {}",
+                remainingLessons.size(), chapterId);
     }
 
     @Override
