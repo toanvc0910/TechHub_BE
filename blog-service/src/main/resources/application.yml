@@ -7,7 +7,7 @@ spring:
   profiles:
     active: prod
   datasource:
-    url: jdbc:postgresql://localhost:5432/techhub3
+    url: jdbc:postgresql://localhost:5432/techhub
     username: postgres
     password: 123456
     driver-class-name: org.postgresql.Driver

@@ -1,0 +1,843 @@
+{
+	"info": {
+		"name": "TechHub - Course Service API (Simple)",
+		"description": "Course Service API - Replace COURSE_ID, CHAPTER_ID, LESSON_ID, ASSET_ID, COMMENT_ID with actual UUIDs\nReplace YOUR_JWT_TOKEN with actual token from login",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"instructor@techhub.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/auth/login",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "auth", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📚 Course Management",
+			"item": [
+				{
+					"name": "Get All Courses",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses?page=0&size=10&search=javascript",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "search",
+									"value": "javascript"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Course by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID"]
+						}
+					}
+				},
+				{
+					"name": "Create Course",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Introduction to JavaScript\",\n  \"description\": \"Learn JavaScript from scratch with hands-on projects\",\n  \"price\": 49.99,\n  \"discountPrice\": 29.99,\n  \"level\": \"BEGINNER\",\n  \"language\": \"VI\",\n  \"categories\": [\"javascript\", \"programming\", \"web-development\"],\n  \"tags\": [\"frontend\", \"es6\", \"beginner\"],\n  \"objectives\": [\"Understand JavaScript fundamentals\", \"Build interactive web pages\"],\n  \"requirements\": [\"Basic HTML knowledge\"],\n  \"status\": \"DRAFT\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses"]
+						}
+					}
+				},
+				{
+					"name": "Update Course",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Advanced JavaScript - Updated\",\n  \"description\": \"Master advanced JavaScript concepts\",\n  \"level\": \"ADVANCED\",\n  \"status\": \"PUBLISHED\",\n  \"price\": 99.99\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID"]
+						}
+					}
+				},
+				{
+					"name": "Delete Course",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🎓 Enrollment",
+			"item": [
+				{
+					"name": "Enroll in Course",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/enroll",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "enroll"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📖 Chapter Management",
+			"item": [
+				{
+					"name": "Get Course Chapters",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters"]
+						}
+					}
+				},
+				{
+					"name": "Create Chapter",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Getting Started with JavaScript\",\n  \"orderIndex\": 1,\n  \"minCompletionThreshold\": 0.8,\n  \"autoUnlock\": true\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters"]
+						}
+					}
+				},
+				{
+					"name": "Update Chapter",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Getting Started - Updated\",\n  \"orderIndex\": 1\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters", "CHAPTER_ID"]
+						}
+					}
+				},
+				{
+					"name": "Delete Chapter",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters", "CHAPTER_ID"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📝 Lesson Management",
+			"item": [
+				{
+					"name": "Create Lesson",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Variables and Data Types\",\n  \"orderIndex\": 1,\n  \"contentType\": \"VIDEO\",\n  \"mandatory\": true,\n  \"completionWeight\": 1.0,\n  \"estimatedDuration\": 600,\n  \"videoUrl\": \"https://youtube.com/watch?v=example\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters", "CHAPTER_ID", "lessons"]
+						}
+					}
+				},
+				{
+					"name": "Update Lesson",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Variables and Data Types - Updated\",\n  \"estimatedDuration\": 720\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons/LESSON_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters", "CHAPTER_ID", "lessons", "LESSON_ID"]
+						}
+					}
+				},
+				{
+					"name": "Delete Lesson",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons/LESSON_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters", "CHAPTER_ID", "lessons", "LESSON_ID"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📎 Lesson Assets",
+			"item": [
+				{
+					"name": "Create Lesson Asset",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"assetType\": \"DOCUMENT\",\n  \"orderIndex\": 1,\n  \"title\": \"Lecture Slides\",\n  \"externalUrl\": \"https://example.com/slides.pdf\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons/LESSON_ID/assets",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters", "CHAPTER_ID", "lessons", "LESSON_ID", "assets"]
+						}
+					}
+				},
+				{
+					"name": "Update Lesson Asset",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Slides\",\n  \"orderIndex\": 1\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons/LESSON_ID/assets/ASSET_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters", "CHAPTER_ID", "lessons", "LESSON_ID", "assets", "ASSET_ID"]
+						}
+					}
+				},
+				{
+					"name": "Delete Lesson Asset",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/chapters/CHAPTER_ID/lessons/LESSON_ID/assets/ASSET_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "chapters", "CHAPTER_ID", "lessons", "LESSON_ID", "assets", "ASSET_ID"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📊 Progress Tracking",
+			"item": [
+				{
+					"name": "Get Course Progress",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/progress",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "progress"]
+						}
+					}
+				},
+				{
+					"name": "Mark Lesson Complete",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/lessons/LESSON_ID/progress/complete",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "lessons", "LESSON_ID", "progress", "complete"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "⭐ Ratings",
+			"item": [
+				{
+					"name": "Get Course Rating",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/ratings",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "ratings"]
+						}
+					}
+				},
+				{
+					"name": "Submit Course Rating",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"score\": 5\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/ratings",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "ratings"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "💬 Comments",
+			"item": [
+				{
+					"name": "Get Course Comments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/comments",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Add Course Comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Great course!\",\n  \"parentId\": null\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/comments",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Get Lesson Comments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/lessons/LESSON_ID/comments",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "lessons", "LESSON_ID", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Add Lesson Comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Can you explain more?\",\n  \"parentId\": null\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/lessons/LESSON_ID/comments",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "lessons", "LESSON_ID", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Get Code Comments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/lessons/LESSON_ID/workspace/comments",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "lessons", "LESSON_ID", "workspace", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Add Code Comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"My code is not working\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/lessons/LESSON_ID/workspace/comments",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "lessons", "LESSON_ID", "workspace", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Delete Comment",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/comments/COMMENT_ID",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "comments", "COMMENT_ID"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "💻 User Workspace",
+			"item": [
+				{
+					"name": "Get User Workspace",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/lessons/LESSON_ID/workspace",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "lessons", "LESSON_ID", "workspace"]
+						}
+					}
+				},
+				{
+					"name": "Save User Workspace",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer YOUR_JWT_TOKEN"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"const greeting = 'Hello World';\\nconsole.log(greeting);\",\n  \"language\": \"javascript\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses/COURSE_ID/lessons/LESSON_ID/workspace",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses", "COURSE_ID", "lessons", "LESSON_ID", "workspace"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

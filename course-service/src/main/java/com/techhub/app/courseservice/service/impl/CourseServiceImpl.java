@@ -83,7 +83,7 @@ public class CourseServiceImpl implements CourseService {
         } else if (isInstructor && currentUserId != null) {
             courses = courseRepository.searchInstructorCourses(currentUserId, normalized, pageable);
         } else {
-            courses = courseRepository.searchCourses(CourseStatus.PUBLISHED, normalized, pageable);
+            courses = courseRepository.searchCourses(CourseStatus.PUBLISHED.name(), normalized, pageable);
         }
         return courses.map(this::buildCourseSummary);
     }
@@ -160,7 +160,8 @@ public class CourseServiceImpl implements CourseService {
             course.setInstructorId(request.getInstructorId());
         }
 
-        validateDiscount(request.getPrice() != null ? request.getPrice() : course.getPrice(), request.getDiscountPrice());
+        validateDiscount(request.getPrice() != null ? request.getPrice() : course.getPrice(),
+                request.getDiscountPrice());
         courseMapper.updateEntity(course, request, currentUserId);
         courseRepository.save(course);
         log.info("Course {} updated by {}", courseId, currentUserId);
@@ -333,7 +334,8 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    public LessonAssetResponse addLessonAsset(UUID courseId, UUID chapterId, UUID lessonId, LessonAssetRequest request) {
+    public LessonAssetResponse addLessonAsset(UUID courseId, UUID chapterId, UUID lessonId,
+            LessonAssetRequest request) {
         Course course = getActiveCourse(courseId);
         UUID currentUserId = requireCurrentUser();
         ensureCanManage(course, currentUserId);
@@ -354,7 +356,8 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    public LessonAssetResponse updateLessonAsset(UUID courseId, UUID chapterId, UUID lessonId, UUID assetId, LessonAssetRequest request) {
+    public LessonAssetResponse updateLessonAsset(UUID courseId, UUID chapterId, UUID lessonId, UUID assetId,
+            LessonAssetRequest request) {
         Course course = getActiveCourse(courseId);
         UUID currentUserId = requireCurrentUser();
         ensureCanManage(course, currentUserId);
@@ -406,8 +409,9 @@ public class CourseServiceImpl implements CourseService {
         CourseFileResource thumbnail = buildFileResource(course.getThumbnailFileId());
         CourseFileResource intro = buildFileResource(course.getIntroVideoFileId());
         long totalEnrollments = enrollmentRepository.countByCourseAndIsActiveTrue(course);
-        Double averageRating = ratingRepository.getAverageScore(course.getId(), RatingTarget.COURSE);
-        long ratingCount = ratingRepository.countByTargetIdAndTargetTypeAndIsActiveTrue(course.getId(), RatingTarget.COURSE);
+        Double averageRating = ratingRepository.getAverageScore(course.getId(), RatingTarget.COURSE.name());
+        long ratingCount = ratingRepository.countByTargetIdAndTargetTypeAndIsActiveTrue(course.getId(),
+                RatingTarget.COURSE);
         return CourseSummaryResponse.builder()
                 .id(course.getId())
                 .title(course.getTitle())
@@ -434,12 +438,15 @@ public class CourseServiceImpl implements CourseService {
                 .build();
     }
 
-    private CourseProgressSnapshot buildChapterSnapshot(Course course, UUID userId, boolean isManager, List<Progress> userProgress) {
+    private CourseProgressSnapshot buildChapterSnapshot(Course course, UUID userId, boolean isManager,
+            List<Progress> userProgress) {
         Map<UUID, Progress> progressByLesson = userProgress.stream()
                 .filter(progress -> progress.getLesson() != null)
-                .collect(Collectors.toMap(progress -> progress.getLesson().getId(), Function.identity(), (left, right) -> left));
+                .collect(Collectors.toMap(progress -> progress.getLesson().getId(), Function.identity(),
+                        (left, right) -> left));
 
-        List<Chapter> chapterEntities = chapterRepository.findByCourse_IdAndIsActiveTrueOrderByOrderIndexAsc(course.getId());
+        List<Chapter> chapterEntities = chapterRepository
+                .findByCourse_IdAndIsActiveTrueOrderByOrderIndexAsc(course.getId());
         List<ChapterResponse> chapterResponses = new ArrayList<>();
         List<UUID> unlockedChapters = new ArrayList<>();
         List<UUID> lockedChapters = new ArrayList<>();
@@ -456,7 +463,8 @@ public class CourseServiceImpl implements CourseService {
 
         for (int index = 0; index < chapterEntities.size(); index++) {
             Chapter chapter = chapterEntities.get(index);
-            List<Lesson> lessonEntities = lessonRepository.findByChapter_IdAndIsActiveTrueOrderByOrderIndexAsc(chapter.getId());
+            List<Lesson> lessonEntities = lessonRepository
+                    .findByChapter_IdAndIsActiveTrueOrderByOrderIndexAsc(chapter.getId());
 
             List<LessonResponse> lessonResponses = new ArrayList<>();
             double chapterMandatoryWeight = 0;
@@ -489,14 +497,16 @@ public class CourseServiceImpl implements CourseService {
                 }
             }
 
-            double chapterCompletionRatio = chapterMandatoryWeight == 0 ? 1d : chapterCompletedWeight / chapterMandatoryWeight;
+            double chapterCompletionRatio = chapterMandatoryWeight == 0 ? 1d
+                    : chapterCompletedWeight / chapterMandatoryWeight;
             chapterCompletionRatio = Math.min(1d, Math.max(0d, chapterCompletionRatio));
 
             boolean baseLocked = chapter.getLocked() != null ? chapter.getLocked() : Boolean.FALSE;
             boolean unlocked = isManager || !baseLocked;
 
             if (!unlocked) {
-                double threshold = chapter.getMinCompletionThreshold() != null ? chapter.getMinCompletionThreshold() : 0.7d;
+                double threshold = chapter.getMinCompletionThreshold() != null ? chapter.getMinCompletionThreshold()
+                        : 0.7d;
                 if (index == 0) {
                     unlocked = true;
                 } else if (Boolean.TRUE.equals(chapter.getAutoUnlock())) {
@@ -563,12 +573,12 @@ public class CourseServiceImpl implements CourseService {
                 currentChapterId,
                 unlockedChapters,
                 lockedChapters,
-                completedLessons
-        );
+                completedLessons);
     }
 
     private ChapterResponse buildChapterResponseForManager(Chapter chapter, Course course) {
-        List<LessonResponse> lessons = lessonRepository.findByChapter_IdAndIsActiveTrueOrderByOrderIndexAsc(chapter.getId()).stream()
+        List<LessonResponse> lessons = lessonRepository
+                .findByChapter_IdAndIsActiveTrueOrderByOrderIndexAsc(chapter.getId()).stream()
                 .map(lesson -> buildLessonResponse(lesson, course, null))
                 .collect(Collectors.toList());
 
@@ -590,7 +600,8 @@ public class CourseServiceImpl implements CourseService {
     }
 
     private LessonResponse buildLessonResponse(Lesson lesson, Course course, Progress progress) {
-        List<LessonAssetResponse> assets = lessonAssetRepository.findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId()).stream()
+        List<LessonAssetResponse> assets = lessonAssetRepository
+                .findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId()).stream()
                 .map(asset -> buildAssetResponse(asset, course))
                 .collect(Collectors.toList());
 
@@ -610,7 +621,8 @@ public class CourseServiceImpl implements CourseService {
                 .completionWeight(lesson.getCompletionWeight())
                 .estimatedDuration(lesson.getEstimatedDuration())
                 .workspaceEnabled(lesson.getWorkspaceEnabled())
-                .workspaceLanguages(lesson.getWorkspaceLanguages() != null ? List.copyOf(lesson.getWorkspaceLanguages()) : List.of())
+                .workspaceLanguages(lesson.getWorkspaceLanguages() != null ? List.copyOf(lesson.getWorkspaceLanguages())
+                        : List.of())
                 .workspaceTemplate(lesson.getWorkspaceTemplate())
                 .videoUrl(lesson.getVideoUrl())
                 .documentUrls(lesson.getDocumentUrls() != null ? List.copyOf(lesson.getDocumentUrls()) : List.of())
@@ -726,13 +738,13 @@ public class CourseServiceImpl implements CourseService {
         private final long completedLessons;
 
         CourseProgressSnapshot(List<ChapterResponse> chapters,
-                               long totalLessons,
-                               long totalEstimatedDurationMinutes,
-                               double overallProgress,
-                               UUID currentChapterId,
-                               List<UUID> unlockedChapterIds,
-                               List<UUID> lockedChapterIds,
-                               long completedLessons) {
+                long totalLessons,
+                long totalEstimatedDurationMinutes,
+                double overallProgress,
+                UUID currentChapterId,
+                List<UUID> unlockedChapterIds,
+                List<UUID> lockedChapterIds,
+                long completedLessons) {
             this.chapters = chapters;
             this.totalLessons = totalLessons;
             this.totalEstimatedDurationMinutes = totalEstimatedDurationMinutes;

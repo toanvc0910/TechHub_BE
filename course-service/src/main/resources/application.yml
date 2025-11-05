@@ -7,9 +7,9 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
-    url: ${COURSE_DB_URL:jdbc:postgresql://${DB_HOSTNAME:localhost}:${DB_PORT:5432}/techhub3}
-    username: ${COURSE_DB_USERNAME:${DB_USERNAME:postgres}}
-    password: ${COURSE_DB_PASSWORD:${DB_PASSWORD:postgres}}
+    url: ${COURSE_DB_URL:jdbc:postgresql://${DB_HOSTNAME:localhost}:${DB_PORT:5432}/techhub}
+    username: postgres
+    password: 123456
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

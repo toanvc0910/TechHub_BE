@@ -291,7 +291,7 @@ CREATE TABLE lesson_assets (
     "order" INTEGER NOT NULL DEFAULT 0,
     title VARCHAR(255),
     description TEXT,
-    file_id UUID REFERENCES files(id) ON DELETE SET NULL,
+    file_id UUID,
     external_url TEXT,
     metadata JSONB DEFAULT '{}'::JSONB,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -435,6 +435,7 @@ CREATE TABLE submissions (
     graded_by UUID REFERENCES users(id),
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status submission_status NOT NULL DEFAULT 'PENDING',
     created_by UUID REFERENCES users(id),
     updated_by UUID REFERENCES users(id),
     is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
@@ -442,6 +443,7 @@ CREATE TABLE submissions (
 CREATE INDEX idx_submissions_user_id ON submissions(user_id);
 CREATE INDEX idx_submissions_exercise_id ON submissions(exercise_id);
 CREATE INDEX idx_submissions_grade ON submissions(grade);
+CREATE INDEX idx_submissions_status ON submissions(status);
 CREATE INDEX idx_submissions_is_active ON submissions(is_active);
 
 -- User Codes
@@ -975,6 +977,13 @@ CREATE INDEX idx_files_created ON files(created);
 CREATE INDEX idx_files_is_active ON files(is_active);
 CREATE INDEX idx_files_reference ON files(reference_id, reference_type);
 CREATE INDEX idx_files_name_trgm ON files USING GIN (name gin_trgm_ops);
+
+-- Backfill foreign key constraint now that files table exists
+ALTER TABLE lesson_assets
+    ADD CONSTRAINT fk_lesson_assets_file
+    FOREIGN KEY (file_id)
+    REFERENCES files(id)
+    ON DELETE SET NULL;
 
 -- File Usage Tracking
 CREATE TABLE file_usage (

@@ -1,0 +1,680 @@
+{
+	"info": {
+		"_postman_id": "course-service-api-collection",
+		"name": "TechHub - Course Service API",
+		"description": "Complete API collection for TechHub Course Service - Replace COURSE_ID, CHAPTER_ID, LESSON_ID, etc. with actual UUIDs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "📚 Course Management",
+			"item": [
+				{
+					"name": "Get All Courses",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/courses?page=0&size=10&search=",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "courses"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "search",
+									"value": ""
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Course by ID",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Course",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.id) {",
+									"        pm.collectionVariables.set(\"course_id\", jsonData.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Introduction to JavaScript\",\n  \"description\": \"Learn JavaScript from scratch with hands-on projects\",\n  \"price\": 49.99,\n  \"discountPrice\": 29.99,\n  \"level\": \"BEGINNER\",\n  \"language\": \"VI\",\n  \"categories\": [\"javascript\", \"programming\", \"web-development\"],\n  \"tags\": [\"frontend\", \"es6\", \"beginner\"],\n  \"objectives\": [\"Understand JavaScript fundamentals\", \"Build interactive web pages\", \"Master async programming\"],\n  \"requirements\": [\"Basic HTML knowledge\", \"Computer with internet\"],\n  \"status\": \"DRAFT\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}",
+							"host": ["{{base_url}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Course",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Advanced JavaScript - Updated\",\n  \"description\": \"Master advanced JavaScript concepts\",\n  \"level\": \"ADVANCED\",\n  \"status\": \"PUBLISHED\",\n  \"price\": 99.99\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Course",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🎓 Enrollment",
+			"item": [
+				{
+					"name": "Enroll in Course",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/enroll",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "enroll"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📖 Chapter Management",
+			"item": [
+				{
+					"name": "Get Course Chapters",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters"]
+						}
+					}
+				},
+				{
+					"name": "Create Chapter",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.id) {",
+									"        pm.collectionVariables.set(\"chapter_id\", jsonData.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Getting Started with JavaScript\",\n  \"orderIndex\": 1,\n  \"minCompletionThreshold\": 0.8,\n  \"autoUnlock\": true\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters"]
+						}
+					}
+				},
+				{
+					"name": "Update Chapter",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Getting Started - Updated\",\n  \"orderIndex\": 1,\n  \"minCompletionThreshold\": 0.7\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters/{{chapter_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters", "{{chapter_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Chapter",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters/{{chapter_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters", "{{chapter_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📝 Lesson Management",
+			"item": [
+				{
+					"name": "Create Lesson",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.id) {",
+									"        pm.collectionVariables.set(\"lesson_id\", jsonData.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Variables and Data Types\",\n  \"orderIndex\": 1,\n  \"contentType\": \"VIDEO\",\n  \"mandatory\": true,\n  \"completionWeight\": 1.0,\n  \"estimatedDuration\": 600,\n  \"videoUrl\": \"https://youtube.com/watch?v=example\",\n  \"workspaceEnabled\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters/{{chapter_id}}/lessons",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters", "{{chapter_id}}", "lessons"]
+						}
+					}
+				},
+				{
+					"name": "Update Lesson",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Variables and Data Types - Updated\",\n  \"estimatedDuration\": 720,\n  \"orderIndex\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters/{{chapter_id}}/lessons/{{lesson_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters", "{{chapter_id}}", "lessons", "{{lesson_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Lesson",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters/{{chapter_id}}/lessons/{{lesson_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters", "{{chapter_id}}", "lessons", "{{lesson_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📎 Lesson Assets",
+			"item": [
+				{
+					"name": "Create Lesson Asset",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.id) {",
+									"        pm.collectionVariables.set(\"asset_id\", jsonData.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"assetType\": \"DOCUMENT\",\n  \"orderIndex\": 1,\n  \"title\": \"Lecture Slides\",\n  \"description\": \"PDF slides for the lesson\",\n  \"externalUrl\": \"https://example.com/slides.pdf\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters/{{chapter_id}}/lessons/{{lesson_id}}/assets",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters", "{{chapter_id}}", "lessons", "{{lesson_id}}", "assets"]
+						}
+					}
+				},
+				{
+					"name": "Update Lesson Asset",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Lecture Slides\",\n  \"orderIndex\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters/{{chapter_id}}/lessons/{{lesson_id}}/assets/{{asset_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters", "{{chapter_id}}", "lessons", "{{lesson_id}}", "assets", "{{asset_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Lesson Asset",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/chapters/{{chapter_id}}/lessons/{{lesson_id}}/assets/{{asset_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "chapters", "{{chapter_id}}", "lessons", "{{lesson_id}}", "assets", "{{asset_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📊 Progress Tracking",
+			"item": [
+				{
+					"name": "Get Course Progress",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/progress",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "progress"]
+						}
+					}
+				},
+				{
+					"name": "Mark Lesson Complete",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/lessons/{{lesson_id}}/progress/complete",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "lessons", "{{lesson_id}}", "progress", "complete"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "⭐ Ratings",
+			"item": [
+				{
+					"name": "Get Course Rating",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/ratings",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "ratings"]
+						}
+					}
+				},
+				{
+					"name": "Submit Course Rating",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"score\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/ratings",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "ratings"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "💬 Comments",
+			"item": [
+				{
+					"name": "Get Course Comments",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/comments",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Add Course Comment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.id) {",
+									"        pm.collectionVariables.set(\"comment_id\", jsonData.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Great course! Very informative.\",\n  \"parentId\": null\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/comments",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Get Lesson Comments",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/lessons/{{lesson_id}}/comments",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "lessons", "{{lesson_id}}", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Add Lesson Comment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Can you explain this part in more detail?\",\n  \"parentId\": null\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/lessons/{{lesson_id}}/comments",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "lessons", "{{lesson_id}}", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Get Code Comments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/lessons/{{lesson_id}}/workspace/comments",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "lessons", "{{lesson_id}}", "workspace", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Add Code Comment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"My code is not working as expected\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/lessons/{{lesson_id}}/workspace/comments",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "lessons", "{{lesson_id}}", "workspace", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Delete Comment",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/comments/{{comment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "comments", "{{comment_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "💻 User Workspace",
+			"item": [
+				{
+					"name": "Get User Workspace",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/lessons/{{lesson_id}}/workspace",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "lessons", "{{lesson_id}}", "workspace"]
+						}
+					}
+				},
+				{
+					"name": "Save User Workspace",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"const greeting = 'Hello World';\\nconsole.log(greeting);\",\n  \"language\": \"javascript\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/{{course_id}}/lessons/{{lesson_id}}/workspace",
+							"host": ["{{base_url}}"],
+							"path": ["{{course_id}}", "lessons", "{{lesson_id}}", "workspace"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.token) {",
+									"        pm.collectionVariables.set(\"jwt_token\", jsonData.data.token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"instructor@techhub.com\",\n  \"password\": \"password123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8443/app/api/proxy/auth/login",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8443",
+							"path": ["app", "api", "proxy", "auth", "login"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

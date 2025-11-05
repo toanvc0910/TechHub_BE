@@ -64,7 +64,8 @@ public class ExerciseTestCase {
     @Column(name = "sample")
     private Boolean sample = Boolean.FALSE;
 
-    @Column(name = "metadata")
+    @Type(type = "json")
+    @Column(name = "metadata", columnDefinition = "jsonb")
     private String metadata;
 
     @Column(name = "created", nullable = false)

@@ -37,13 +37,14 @@ public class CourseRatingServiceImpl implements CourseRatingService {
     public CourseRatingResponse getCourseRating(UUID courseId) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new NotFoundException("Course not found"));
-        Double average = ratingRepository.getAverageScore(course.getId(), RatingTarget.COURSE);
+        Double average = ratingRepository.getAverageScore(course.getId(), RatingTarget.COURSE.name());
         long count = ratingRepository.countByTargetIdAndTargetTypeAndIsActiveTrue(course.getId(), RatingTarget.COURSE);
 
         UUID currentUserId = UserContext.getCurrentUserId();
         Integer userScore = null;
         if (currentUserId != null) {
-            userScore = ratingRepository.findByUserIdAndTargetIdAndTargetTypeAndIsActiveTrue(currentUserId, courseId, RatingTarget.COURSE)
+            userScore = ratingRepository
+                    .findByUserIdAndTargetIdAndTargetTypeAndIsActiveTrue(currentUserId, courseId, RatingTarget.COURSE)
                     .map(Rating::getScore)
                     .orElse(null);
         }
@@ -63,7 +64,8 @@ public class CourseRatingServiceImpl implements CourseRatingService {
                 .orElseThrow(() -> new NotFoundException("Course not found"));
         ensureCanRate(course, userId);
 
-        Rating rating = ratingRepository.findByUserIdAndTargetIdAndTargetTypeAndIsActiveTrue(userId, courseId, RatingTarget.COURSE)
+        Rating rating = ratingRepository
+                .findByUserIdAndTargetIdAndTargetTypeAndIsActiveTrue(userId, courseId, RatingTarget.COURSE)
                 .orElseGet(() -> {
                     Rating entity = new Rating();
                     entity.setUserId(userId);

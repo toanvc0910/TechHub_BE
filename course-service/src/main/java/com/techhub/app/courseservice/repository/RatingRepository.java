@@ -12,15 +12,16 @@ import java.util.UUID;
 
 public interface RatingRepository extends JpaRepository<Rating, UUID> {
 
-    Optional<Rating> findByUserIdAndTargetIdAndTargetTypeAndIsActiveTrue(UUID userId, UUID targetId, RatingTarget targetType);
+    Optional<Rating> findByUserIdAndTargetIdAndTargetTypeAndIsActiveTrue(UUID userId, UUID targetId,
+            RatingTarget targetType);
 
     List<Rating> findByTargetIdAndTargetTypeAndIsActiveTrue(UUID targetId, RatingTarget targetType);
 
-    @Query("SELECT AVG(r.score) FROM Rating r " +
-           "WHERE r.targetId = :targetId " +
-           "AND r.targetType = :targetType " +
-           "AND r.isActive = true")
-    Double getAverageScore(@Param("targetId") UUID targetId, @Param("targetType") RatingTarget targetType);
+    @Query(value = "SELECT AVG(r.score) FROM ratings r " +
+            "WHERE r.target_id = CAST(:targetId AS uuid) " +
+            "AND r.target_type = CAST(:targetType AS rating_target) " +
+            "AND r.is_active = 'Y'", nativeQuery = true)
+    Double getAverageScore(@Param("targetId") UUID targetId, @Param("targetType") String targetType);
 
     long countByTargetIdAndTargetTypeAndIsActiveTrue(UUID targetId, RatingTarget targetType);
 }
