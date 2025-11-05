@@ -18,7 +18,7 @@ COPY target/api-gateway-0.0.1-SNAPSHOT.jar app.jar
 ENV SPRING_PROFILES_ACTIVE=dev
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8443
 
 # Chạy app
 ENTRYPOINT ["java", "-Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}", "-jar", "app.jar"]

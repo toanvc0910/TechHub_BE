@@ -13,7 +13,7 @@ spring:
         dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
         format_sql: false
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP:user-service}
       auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
@@ -25,7 +25,7 @@ logging:
     com.techhub.app.userservice: INFO
 
 kafka:
-  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
   topics:
     email: ${KAFKA_EMAIL_TOPIC:email-notifications}
   producer:

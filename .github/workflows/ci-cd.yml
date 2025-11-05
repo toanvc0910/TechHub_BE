@@ -7,58 +7,87 @@ on:
       - dev/*
 
 env:
-  DOCKER_USER: tuyentvwork
-  IMAGE_VERSION: 0.1.0
+  DOCKER_NAMESPACE: tuyentvwork
+  IMAGE_TAG: 0.1.0
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        service:
+          - name: service-discovery
+            context: ./service-discovery
+          - name: api-gateway
+            context: ./api-gateway
+          - name: proxy-client
+            context: ./proxy-client
+          - name: user-service
+            context: ./user-service
+          - name: blog-service
+            context: ./blog-service
+          - name: course-service
+            context: ./course-service
+          - name: learning-path-service
+            context: ./learning-path-service
+          - name: payment-service
+            context: ./payment-service
+          - name: file-service
+            context: ./file-service
+          - name: notification-service
+            context: ./notification-service
+
     steps:
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Build backend artifacts
+        working-directory: .
+        run: |
+          chmod +x mvnw
+          ./mvnw -B clean package -DskipTests
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # build + push từng service
-      - name: Build & Push Service Discovery
-        run: |
-          docker build -t $DOCKER_USER/service-discovery:$IMAGE_VERSION ./service-discovery
-          docker push $DOCKER_USER/service-discovery:$IMAGE_VERSION
+      - name: Build & push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.context }}/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_NAMESPACE }}/${{ matrix.service.name }}:${{ env.IMAGE_TAG }}
+            ${{ env.DOCKER_NAMESPACE }}/${{ matrix.service.name }}:${{ github.sha }}
 
-      - name: Build & Push API Gateway
+      - name: Trigger Portainer redeploy
+        if: github.ref == 'refs/heads/main' && matrix.service.name == 'notification-service'
+        env:
+          PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
         run: |
-          docker build -t $DOCKER_USER/api-gateway:$IMAGE_VERSION ./api-gateway
-          docker push $DOCKER_USER/api-gateway:$IMAGE_VERSION
-
-      - name: Build & Push Proxy Client
-        run: |
-          docker build -t $DOCKER_USER/proxy-client:$IMAGE_VERSION ./proxy-client
-          docker push $DOCKER_USER/proxy-client:$IMAGE_VERSION
-
-      - name: Build & Push Blog Service
-        run: |
-          docker build -t $DOCKER_USER/blog-service:$IMAGE_VERSION ./blog-service
-          docker push $DOCKER_USER/blog-service:$IMAGE_VERSION
-
-      - name: Build & Push Course Service
-        run: |
-          docker build -t $DOCKER_USER/course-service:$IMAGE_VERSION ./course-service
-          docker push $DOCKER_USER/course-service:$IMAGE_VERSION
-
-      - name: Build & Push Learning Path Service
-        run: |
-          docker build -t $DOCKER_USER/learning-path-service:$IMAGE_VERSION ./learning-path-service
-          docker push $DOCKER_USER/learning-path-service:$IMAGE_VERSION
-
-      - name: Build & Push Payment Service
-        run: |
-          docker build -t $DOCKER_USER/payment-service:$IMAGE_VERSION ./payment-service
-          docker push $DOCKER_USER/payment-service:$IMAGE_VERSION
+          if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
+            curl -fsSL -X POST "${PORTAINER_WEBHOOK_URL}"
+          else
+            echo "PORTAINER_WEBHOOK_URL not set; skipping redeploy trigger."
+          fi

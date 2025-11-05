@@ -4,7 +4,7 @@ spring:
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP:common-service}
       auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
@@ -12,7 +12,7 @@ spring:
         spring.json.trusted.packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
 
 kafka:
-  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
   hostname: ${KAFKA_HOSTNAME:localhost}
   port: ${KAFKA_PORT:9092}
   topics:

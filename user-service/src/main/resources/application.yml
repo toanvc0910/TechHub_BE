@@ -31,7 +31,7 @@ spring:
           starttls:
             enable: true
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -68,7 +68,7 @@ spring:
               - read:user
 
 kafka:
-  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
   topics:
     email: ${KAFKA_EMAIL_TOPIC:email-notifications}
   consumer:

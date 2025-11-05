@@ -11,7 +11,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
   kafka:
-    bootstrap-servers: localhost:29092
+    bootstrap-servers: 103.188.83.154:9092
     consumer:
       auto-startup: false
 

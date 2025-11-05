@@ -20,7 +20,7 @@ spring:
         dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
         format_sql: true
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP:notification-service-v3}
       auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
@@ -73,7 +73,7 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
 kafka:
-  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
   topics:
     email: ${KAFKA_EMAIL_TOPIC:email-notifications}
     notification: ${KAFKA_NOTIFICATION_TOPIC:notification-commands}

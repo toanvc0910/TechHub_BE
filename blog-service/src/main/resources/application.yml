@@ -1,11 +1,11 @@
 server:
-  port: 8083
+  port: 8081
 
 spring:
   application:
     name: BLOG-SERVICE
   profiles:
-    active: prod
+    active: dev
   datasource:
     url: jdbc:postgresql://localhost:5432/techhub
     username: postgres
@@ -20,7 +20,7 @@ spring:
         dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
         format_sql: true
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -49,7 +49,7 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
 kafka:
-  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
   topics:
     email: ${KAFKA_EMAIL_TOPIC:email-notifications}
   consumer:

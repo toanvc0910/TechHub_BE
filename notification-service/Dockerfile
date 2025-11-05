@@ -17,8 +17,8 @@ COPY target/notification-service-0.0.1-SNAPSHOT.jar app.jar
 # Biến môi trường cho Spring profile
 ENV SPRING_PROFILES_ACTIVE=dev
 
-# Expose port (ví dụ notification-service chạy trên 8084)
-EXPOSE 8084
+# Expose port (ví dụ notification-service chạy trên 8088)
+EXPOSE 8088
 
 # Chạy app
 ENTRYPOINT ["java", "-Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}", "-jar", "app.jar"]
