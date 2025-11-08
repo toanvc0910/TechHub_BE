@@ -7,10 +7,19 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
-    url: ${COURSE_DB_URL:jdbc:postgresql://${DB_HOSTNAME:localhost}:${DB_PORT:5432}/techhub}
-    username: postgres
-    password: 123456
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: true
+      pool-name: CourseServiceHikariPool
+      leak-detection-threshold: 60000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -27,10 +36,10 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://${HOST_IP_ADDRESS:localhost}:8761/eureka}
+      defaultZone: ${EUREKA_SERVER_URL:https://eureka.tonynyan.id.vn/eureka/}
   instance:
     prefer-ip-address: true
-    hostname: ${HOST_IP_ADDRESS:localhost}
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
 
 resilience4j:
   circuitbreaker:

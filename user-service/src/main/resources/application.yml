@@ -5,12 +5,21 @@ spring:
   application:
     name: USER-SERVICE
   profiles:
-    active: prod
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
-    url: jdbc:postgresql://localhost:5432/techhub
-    username: postgres
-    password: 123456
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: true
+      pool-name: UserServiceHikariPool
+      leak-detection-threshold: 60000
   jpa:
     hibernate:
       ddl-auto: update
@@ -22,8 +31,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: trungphandinh340@gmail.com
-    password: zqik zowr vngn cgsx
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -31,17 +40,17 @@ spring:
           starttls:
             enable: true
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         spring.json.add.type.headers: false
     consumer:
-      group-id: ${KAFKA_CONSUMER_GROUP:user-service}
-      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
+      group-id: user-service
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET}
       properties:
-        spring.json.trusted.packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
+        spring.json.trusted.packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES}
 
   # OAuth2 Configuration for Social Login
   security:
@@ -49,42 +58,42 @@ spring:
       client:
         registration:
           google:
-            client-id: 277346786159-ldes3jasve2esa38ln4vro3dhkogvtrf.apps.googleusercontent.com
-            client-secret: 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
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             scope:
               - email
               - profile
           facebook:
-            client-id: your-facebook-app-id
-            client-secret: your-facebook-app-secret
+            client-id: ${FACEBOOK_CLIENT_ID}
+            client-secret: ${FACEBOOK_CLIENT_SECRET}
             scope:
               - email
               - public_profile
           github:
-            client-id: Ov23li8nzLrd782hJFCl
-            client-secret: ea5864eebec0623ad13a2d1f61f61a6df9b8e7bc
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
             scope:
               - user:email
               - read:user
 
 kafka:
-  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
   topics:
-    email: ${KAFKA_EMAIL_TOPIC:email-notifications}
+    email: ${KAFKA_EMAIL_TOPIC}
   consumer:
-    group-id: ${KAFKA_CONSUMER_GROUP:user-service}
-    concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
-    ack-mode: ${KAFKA_CONSUMER_ACK_MODE:MANUAL_IMMEDIATE}
-    trusted-packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
+    group-id: user-service
+    concurrency: ${KAFKA_CONSUMER_CONCURRENCY}
+    ack-mode: ${KAFKA_CONSUMER_ACK_MODE}
+    trusted-packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_SERVER_URL:https://eureka.tonynyan.id.vn/eureka/}
     fetch-registry: true
     register-with-eureka: true
   instance:
-    hostname: localhost
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
     prefer-ip-address: true
 
 logging:
@@ -100,4 +109,4 @@ app:
     enabled: ${APP_EMAIL_ENABLED:true}
   oauth2:
     # Frontend URL to redirect after successful OAuth2 login
-    authorized-redirect-uris: ${APP_OAUTH2_REDIRECT_URI:http://localhost:3000/oauth2/redirect}
+    authorized-redirect-uris: ${APP_OAUTH2_REDIRECT_URI}

@@ -1,0 +1,289 @@
+version: "3.8"
+
+services:
+  service-discovery-container:
+    image: toandeptroai/service-discovery:0.1.0
+    container_name: service-discovery-container
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - SPRING_ZIPKIN_BASE_URL=${SPRING_ZIPKIN_BASE_URL}
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+    networks:
+      - do-an-net
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  api-gateway-container:
+    image: toandeptroai/api-gateway:0.1.0
+    container_name: api-gateway-container
+    ports:
+      - "8443:8443"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_API_GATEWAY}
+      - CLIENT_HOST=${CLIENT_HOST}
+      - SPRING_ZIPKIN_BASE_URL=${SPRING_ZIPKIN_BASE_URL}
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+    networks:
+      - do-an-net
+    depends_on:
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  proxy-client-container:
+    image: toandeptroai/proxy-client:0.1.0
+    container_name: proxy-client-container
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_PROXY_CLIENT}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
+    networks:
+      - do-an-net
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  user-service-container:
+    image: toandeptroai/user-service:0.1.0
+    container_name: user-service-container
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_USER_SERVICE}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - KAFKA_EMAIL_TOPIC=${KAFKA_EMAIL_TOPIC}
+      - KAFKA_CONSUMER_GROUP=user-service
+      - KAFKA_AUTO_OFFSET_RESET=${KAFKA_AUTO_OFFSET_RESET}
+      - KAFKA_CONSUMER_TRUSTED_PACKAGES=${KAFKA_CONSUMER_TRUSTED_PACKAGES}
+      - KAFKA_CONSUMER_CONCURRENCY=${KAFKA_CONSUMER_CONCURRENCY}
+      - KAFKA_CONSUMER_ACK_MODE=${KAFKA_CONSUMER_ACK_MODE}
+      - MAIL_USERNAME=${USER_MAIL_USERNAME}
+      - MAIL_PASSWORD=${USER_MAIL_PASSWORD}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - FACEBOOK_CLIENT_ID=${FACEBOOK_CLIENT_ID}
+      - FACEBOOK_CLIENT_SECRET=${FACEBOOK_CLIENT_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - APP_OAUTH2_REDIRECT_URI=${APP_OAUTH2_REDIRECT_URI}
+      - APP_EMAIL_ENABLED=${APP_EMAIL_ENABLED}
+    networks:
+      - do-an-net
+    depends_on:
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  blog-service-container:
+    image: toandeptroai/blog-service:0.1.0
+    container_name: blog-service-container
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_BLOG_SERVICE}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - KAFKA_EMAIL_TOPIC=${KAFKA_EMAIL_TOPIC}
+      - KAFKA_CONSUMER_GROUP=blog-service
+      - KAFKA_AUTO_OFFSET_RESET=${KAFKA_AUTO_OFFSET_RESET}
+      - KAFKA_CONSUMER_TRUSTED_PACKAGES=${KAFKA_CONSUMER_TRUSTED_PACKAGES}
+      - KAFKA_CONSUMER_CONCURRENCY=${KAFKA_CONSUMER_CONCURRENCY}
+      - KAFKA_CONSUMER_ACK_MODE=${KAFKA_CONSUMER_ACK_MODE}
+    networks:
+      - do-an-net
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  course-service-container:
+    image: toandeptroai/course-service:0.1.0
+    container_name: course-service-container
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_COURSE_SERVICE}
+      - SPRING_ZIPKIN_BASE_URL=${SPRING_ZIPKIN_BASE_URL}
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+    networks:
+      - do-an-net
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  learning-path-service-container:
+    image: toandeptroai/learning-path-service:0.1.0
+    container_name: learning-path-service-container
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_LEARNING_PATH_SERVICE}
+      - SPRING_ZIPKIN_BASE_URL=${SPRING_ZIPKIN_BASE_URL}
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+    networks:
+      - do-an-net
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  payment-service-container:
+    image: toandeptroai/payment-service:0.1.0
+    container_name: payment-service-container
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_PAYMENT_SERVICE}
+      - SPRING_ZIPKIN_BASE_URL=${SPRING_ZIPKIN_BASE_URL}
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+    networks:
+      - do-an-net
+    depends_on:
+      api-gateway-container:
+        condition: service_healthy
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  file-service-container:
+    image: toandeptroai/file-service:0.1.0
+    container_name: file-service-container
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_FILE_SERVICE}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    networks:
+      - do-an-net
+    depends_on:
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  notification-service-container:
+    image: toandeptroai/notification-service:0.1.0
+    container_name: notification-service-container
+    ports:
+      - "8088:8088"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_NOTIFICATION_SERVICE}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - KAFKA_EMAIL_TOPIC=${KAFKA_EMAIL_TOPIC}
+      - KAFKA_NOTIFICATION_TOPIC=${KAFKA_NOTIFICATION_TOPIC}
+      - KAFKA_CONSUMER_GROUP=notification-service-v3
+      - KAFKA_AUTO_OFFSET_RESET=${KAFKA_AUTO_OFFSET_RESET}
+      - KAFKA_CONSUMER_TRUSTED_PACKAGES=${KAFKA_CONSUMER_TRUSTED_PACKAGES}
+      - KAFKA_CONSUMER_CONCURRENCY=${KAFKA_CONSUMER_CONCURRENCY}
+      - KAFKA_CONSUMER_ACK_MODE=${KAFKA_CONSUMER_ACK_MODE}
+      - MAIL_USERNAME=${NOTIFICATION_MAIL_USERNAME}
+      - MAIL_PASSWORD=${NOTIFICATION_MAIL_PASSWORD}
+      - SPRING_ZIPKIN_BASE_URL=${SPRING_ZIPKIN_BASE_URL}
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+    networks:
+      - do-an-net
+    depends_on:
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8088/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  do-an-net:
+    name: do-an-network
+    external: true

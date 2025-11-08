@@ -1,5 +1,5 @@
 # Sử dụng image Java JRE nhẹ
-FROM openjdk:11-jre-slim
+FROM eclipse-temurin:11-jre
 
   # Biến truyền vào khi build
 ARG PROJECT_VERSION=0.1.0

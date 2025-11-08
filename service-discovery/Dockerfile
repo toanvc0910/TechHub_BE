@@ -1,5 +1,5 @@
 # Sử dụng image Java JRE nhẹ
-FROM openjdk:11-jre-slim
+FROM eclipse-temurin:11-jre
 
 # Biến truyền vào khi build
 ARG PROJECT_VERSION=0.1.0
@@ -12,7 +12,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /home/app
 
 # Copy file JAR vào container (đổi đúng tên jar service-discovery)
-COPY target/service-discovery-0.0.1-SNAPSHOT.jar app.jar
+COPY target/service-discovery-v2.5.12.jar app.jar
 
 # Biến môi trường cho Spring profile
 ENV SPRING_PROFILES_ACTIVE=dev

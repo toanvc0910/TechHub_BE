@@ -1,11 +1,11 @@
-version: '3'
+version: "3"
 services:
   api-gateway-container:
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
-    image: tuyentvwork/api-gateway:0.1.0
+    image: toandeptroai/api-gateway:0.1.0
     ports:
-      - 8080:8080
+      - 8443:8443
     environment:
       - SPRING_PROFILES_ACTIVE=dev

@@ -22,11 +22,13 @@ psql -U postgres
 ```
 
 Run the SQL script:
+
 ```bash
 psql -U postgres -f schema.sql
 ```
 
 Or create manually:
+
 ```sql
 CREATE DATABASE techhub_file;
 ```
@@ -45,6 +47,7 @@ cloudinary:
 ```
 
 Or use environment variables:
+
 ```bash
 export CLOUDINARY_CLOUD_NAME=your_cloud_name
 export CLOUDINARY_API_KEY=your_api_key
@@ -54,10 +57,11 @@ export CLOUDINARY_API_SECRET=your_api_secret
 ### 3. Update Database Connection
 
 Edit `application.yml`:
+
 ```yaml
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/techhub_file
+    url: jdbc:postgresql://techhub-toanc4439-3d01.f.aivencloud.com:21337/techhub_file
     username: your_username
     password: your_password
 ```
@@ -80,6 +84,7 @@ Service will run on port **8086**.
 ## API Endpoints
 
 ### Upload Single File
+
 ```
 POST http://localhost:8086/api/files/upload
 Content-Type: multipart/form-data
@@ -90,6 +95,7 @@ Form fields:
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -109,6 +115,7 @@ Form fields:
 ```
 
 ### Upload Multiple Files
+
 ```
 POST http://localhost:8086/api/files/upload/multiple
 Content-Type: multipart/form-data
@@ -119,16 +126,19 @@ Form fields:
 ```
 
 ### Delete File
+
 ```
 DELETE http://localhost:8086/api/files/{publicId}
 ```
 
 Example:
+
 ```
 DELETE http://localhost:8086/api/files/techhub/blogs/abc123
 ```
 
 ### Get File Metadata
+
 ```
 GET http://localhost:8086/api/files/{id}
 ```
@@ -162,6 +172,7 @@ async function uploadFile(file: File, folder: string = "uploads") {
 ## Folder Structure
 
 Files are organized in Cloudinary by folder:
+
 - `techhub/blogs` - Blog images and videos
 - `techhub/courses` - Course materials
 - `techhub/avatars` - User avatars
@@ -186,6 +197,7 @@ CREATE TABLE file_metadata (
 ## Troubleshooting
 
 ### Port 8086 already in use
+
 ```bash
 # Find process
 lsof -i :8086
@@ -195,11 +207,13 @@ kill -9 <PID>
 ```
 
 ### Database connection error
+
 - Check PostgreSQL is running: `pg_isready`
 - Verify database exists: `psql -U postgres -l`
 - Check credentials in application.yml
 
 ### Cloudinary upload error
+
 - Verify credentials are correct
 - Check network connection
 - Ensure file size < 100MB
@@ -208,6 +222,7 @@ kill -9 <PID>
 ## Production Deployment
 
 1. **Use environment variables** for sensitive data:
+
 ```bash
 export CLOUDINARY_CLOUD_NAME=prod_cloud_name
 export CLOUDINARY_API_KEY=prod_api_key

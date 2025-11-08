@@ -1,7 +1,7 @@
-version: '3'
+version: "3"
 services:
   service-discovery-container:
-    image: tuyentvwork/service-discovery:0.1.0
+    image: toandeptroai/service-discovery:0.1.0
     ports:
       - 8761:8761
     environment:

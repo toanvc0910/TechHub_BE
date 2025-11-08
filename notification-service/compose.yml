@@ -1,8 +1,8 @@
-version: '3'
+version: "3"
 services:
-  payment-service-container:
-    image: tuyentvwork/payment-service:0.1.0
+  notification-service-container:
+    image: toandeptroai/notification-service:0.1.0
     ports:
-      - 8084:8084
+      - 8088:8088
     environment:
       - SPRING_PROFILES_ACTIVE=dev

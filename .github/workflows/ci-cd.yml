@@ -7,7 +7,7 @@ on:
       - dev/*
 
 env:
-  DOCKER_NAMESPACE: tuyentvwork
+  DOCKER_NAMESPACE: toanvc
   IMAGE_TAG: 0.1.0
 
 jobs:

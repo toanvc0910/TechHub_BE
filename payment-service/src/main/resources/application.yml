@@ -14,10 +14,10 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://${HOST_IP_ADDRESS:localhost}:8761/eureka}
+      defaultZone: ${EUREKA_SERVER_URL:https://eureka.tonynyan.id.vn/eureka/}
   instance:
     prefer-ip-address: true
-    hostname: ${HOST_IP_ADDRESS:localhost}
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
 
 resilience4j:
   circuitbreaker:

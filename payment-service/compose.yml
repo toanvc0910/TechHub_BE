@@ -1,7 +1,7 @@
-version: '3'
+version: "3"
 services:
   payment-service-container:
-    image: tuyentvwork/payment-service:0.1.0
+    image: toandeptroai/payment-service:0.1.0
     ports:
       - 8084:8084
     environment:

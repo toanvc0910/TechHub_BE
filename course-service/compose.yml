@@ -1,7 +1,7 @@
-version: '3'
+version: "3"
 services:
   course-service-container:
-    image: tuyentvwork/course-service:0.1.0
+    image: toandeptroai/course-service:0.1.0
     ports:
       - 8082:8082
     environment:

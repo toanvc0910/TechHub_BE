@@ -5,12 +5,21 @@ spring:
   application:
     name: BLOG-SERVICE
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
-    url: jdbc:postgresql://localhost:5432/techhub
-    username: postgres
-    password: 123456
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: true
+      pool-name: BlogServiceHikariPool
+      leak-detection-threshold: 60000
   jpa:
     hibernate:
       ddl-auto: update
@@ -20,26 +29,26 @@ spring:
         dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
         format_sql: true
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         spring.json.add.type.headers: false
     consumer:
-      group-id: ${KAFKA_CONSUMER_GROUP:blog-service}
-      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
+      group-id: blog-service
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET}
       properties:
-        spring.json.trusted.packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
+        spring.json.trusted.packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_SERVER_URL:https://eureka.tonynyan.id.vn/eureka/}
     fetch-registry: true
     register-with-eureka: true
   instance:
-    hostname: localhost
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
     prefer-ip-address: true
 
 logging:
@@ -49,11 +58,11 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
 kafka:
-  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
   topics:
-    email: ${KAFKA_EMAIL_TOPIC:email-notifications}
+    email: ${KAFKA_EMAIL_TOPIC}
   consumer:
-    group-id: ${KAFKA_CONSUMER_GROUP:blog-service}
-    concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
-    ack-mode: ${KAFKA_CONSUMER_ACK_MODE:MANUAL_IMMEDIATE}
-    trusted-packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
+    group-id: blog-service
+    concurrency: ${KAFKA_CONSUMER_CONCURRENCY}
+    ack-mode: ${KAFKA_CONSUMER_ACK_MODE}
+    trusted-packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES}

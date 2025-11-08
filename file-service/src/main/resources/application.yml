@@ -5,10 +5,19 @@ spring:
   application:
     name: file-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/techhub
-    username: postgres
-    password: 123456
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: true
+      pool-name: FileServiceHikariPool
+      leak-detection-threshold: 60000
   jpa:
     hibernate:
       ddl-auto: update
@@ -24,15 +33,16 @@ spring:
       max-request-size: 100MB
 
 cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME:dfghle9yg}
-  api-key: ${CLOUDINARY_API_KEY:826669928256623}
-  api-secret: ${CLOUDINARY_API_SECRET:dHhG1xQSQgAxrbb-Zio2CsQ55bs}
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_SERVER_URL:https://eureka.tonynyan.id.vn/eureka/}
   instance:
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
     prefer-ip-address: true
 
 logging:
