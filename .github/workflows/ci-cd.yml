@@ -62,10 +62,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-
 
-      - name: Build backend artifacts
+      - name: Build ${{ matrix.service.name }}
+        working-directory: ${{ matrix.service.context }}
         run: |
-          chmod +x mvnw || true
-          ./mvnw -B -DskipTests clean package
+          if [ -f "mvnw" ]; then
+            chmod +x mvnw
+            ./mvnw -B -DskipTests clean package
+          else
+            echo "No mvnw found, using system Maven"
+            mvn -B -DskipTests clean package
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
