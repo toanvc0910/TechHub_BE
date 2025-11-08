@@ -6,15 +6,21 @@ on:
       - main
       - dev/*
 
+# Tránh chạy chồng chéo cùng branch
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  DOCKER_NAMESPACE: toanvc
+  # KHỚP VỚI FILE STACK (compose dùng toandeptroai/*)
+  DOCKER_NAMESPACE: toandeptroai
   IMAGE_TAG: 0.1.0
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     strategy:
+      fail-fast: false
       matrix:
         service:
           - name: service-discovery
@@ -42,7 +48,7 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up Java 11
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -57,10 +63,9 @@ jobs:
             ${{ runner.os }}-m2-
 
       - name: Build backend artifacts
-        working-directory: .
         run: |
-          chmod +x mvnw
-          ./mvnw -B clean package -DskipTests
+          chmod +x mvnw || true
+          ./mvnw -B -DskipTests clean package
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -80,14 +85,23 @@ jobs:
           tags: |
             ${{ env.DOCKER_NAMESPACE }}/${{ matrix.service.name }}:${{ env.IMAGE_TAG }}
             ${{ env.DOCKER_NAMESPACE }}/${{ matrix.service.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Trigger Portainer redeploy
-        if: github.ref == 'refs/heads/main' && matrix.service.name == 'notification-service'
+  deploy:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Portainer redeploy (webhook)
         env:
           PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
         run: |
           if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
+            echo "Triggering Portainer redeploy via webhook..."
             curl -fsSL -X POST "${PORTAINER_WEBHOOK_URL}"
+            echo "Done."
           else
-            echo "PORTAINER_WEBHOOK_URL not set; skipping redeploy trigger."
+            echo "PORTAINER_WEBHOOK_URL not set; skipping redeploy."
+            exit 1
           fi
