@@ -15,20 +15,20 @@ import java.util.TimeZone;
 @Configuration
 public class VNPAYConfig {
     @Getter
-    @Value("${payment.vnPay.url}")
+    @Value("${VNPAY_PAYMENT_URL}")
     private String vnp_PayUrl;
-    @Value("${payment.vnPay.returnUrl}")
+    @Value("${VNPAY_RETURN_URL}")
     private String vnp_ReturnUrl;
-    @Value("${payment.vnPay.tmnCode}")
+    @Value("${VNPAY_TMN_CODE}")
     private String vnp_TmnCode ;
     @Getter
-    @Value("${payment.vnPay.secretKey}")
+    @Value("${VNPAY_HASH_SECRET}")
     private String secretKey;
-    @Value("${payment.vnPay.version}")
+    @Value("${VNPAY_VERSION}")
     private String vnp_Version;
-    @Value("${payment.vnPay.command}")
+    @Value("${VNPAY_COMMAND}")
     private String vnp_Command;
-    @Value("${payment.vnPay.orderType}")
+    @Value("${VNPAY_ORDER_TYPE}")
     private String orderType;
 
     public Map<String, String> getVNPayConfig() {
