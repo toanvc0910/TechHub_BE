@@ -16,6 +16,6 @@ public interface ChapterRepository extends JpaRepository<Chapter, UUID> {
     Optional<Chapter> findByIdAndCourse_IdAndIsActiveTrue(UUID id, UUID courseId);
 
     @Query("SELECT COALESCE(MAX(c.orderIndex), 0) FROM Chapter c " +
-           "WHERE c.course.id = :courseId AND c.isActive = true")
+            "WHERE c.course.id = :courseId AND c.isActive = true")
     Integer findMaxOrderIndexByCourseId(@Param("courseId") UUID courseId);
 }

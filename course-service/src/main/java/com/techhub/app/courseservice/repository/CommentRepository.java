@@ -13,11 +13,11 @@ import java.util.UUID;
 public interface CommentRepository extends JpaRepository<Comment, UUID> {
 
     @Query("SELECT c FROM Comment c " +
-           "LEFT JOIN FETCH c.parent p " +
-           "WHERE c.targetId = :targetId " +
-           "AND c.targetType = :targetType " +
-           "AND c.isActive = true " +
-           "ORDER BY c.created ASC")
+            "LEFT JOIN FETCH c.parent p " +
+            "WHERE c.targetId = :targetId " +
+            "AND c.targetType = :targetType " +
+            "AND c.isActive = true " +
+            "ORDER BY c.created ASC")
     List<Comment> findAllByTarget(@Param("targetId") UUID targetId, @Param("targetType") CommentTarget targetType);
 
     Optional<Comment> findByIdAndIsActiveTrue(UUID id);

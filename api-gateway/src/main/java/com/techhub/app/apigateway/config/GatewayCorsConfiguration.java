@@ -6,7 +6,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
-@Configuration  // Add missing @Configuration annotation
+@Configuration // Add missing @Configuration annotation
 public class GatewayCorsConfiguration {
 
     @Bean
@@ -16,6 +16,7 @@ public class GatewayCorsConfiguration {
         // More secure CORS configuration
         config.addAllowedOriginPattern("http://localhost:*"); // Allow localhost with any port
         config.addAllowedOriginPattern("https://localhost:*"); // Allow HTTPS localhost
+        config.addAllowedOriginPattern("https://inova.id.vn"); // Allow HTTPS localhost
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         config.setAllowCredentials(true); // Enable credentials for JWT tokens
