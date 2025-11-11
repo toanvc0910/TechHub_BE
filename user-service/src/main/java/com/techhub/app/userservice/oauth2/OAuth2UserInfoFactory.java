@@ -2,7 +2,6 @@ package com.techhub.app.userservice.oauth2;
 
 import com.techhub.app.userservice.dto.oauth.*;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-
 import java.util.Map;
 
 public class OAuth2UserInfoFactory {

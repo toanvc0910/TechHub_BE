@@ -65,7 +65,8 @@ public class CourseProgressServiceImpl implements CourseProgressService {
 
         if (markComplete) {
             progress.setCompletion(1f);
-            progress.setCompletedAt(progress.getCompletedAt() == null ? OffsetDateTime.now() : progress.getCompletedAt());
+            progress.setCompletedAt(
+                    progress.getCompletedAt() == null ? OffsetDateTime.now() : progress.getCompletedAt());
         }
 
         progress.setUpdatedBy(userId);
