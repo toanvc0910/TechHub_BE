@@ -1,7 +1,7 @@
 package com.techhub.app.paymentservice.service;
 
 import com.techhub.app.paymentservice.config.VNPAYConfig;
-import com.techhub.app.paymentservice.dto.response.PaymentDTO;
+import com.techhub.app.paymentservice.dto.response.VNPayPaymentDTO;
 import com.techhub.app.paymentservice.util.VNPayUtil;
 import org.springframework.stereotype.Service;
 
@@ -9,15 +9,15 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 @Service
-public class PaymentService {
+public class VNPayPaymentService {
 
     private final VNPAYConfig vnPayConfig;
 
-    public PaymentService(VNPAYConfig vnPayConfig) {
+    public VNPayPaymentService(VNPAYConfig vnPayConfig) {
         this.vnPayConfig = vnPayConfig;
     }
 
-    public PaymentDTO.VNPayResponse createVnPayPayment(HttpServletRequest request) {
+    public VNPayPaymentDTO.VNPayResponse createVnPayPayment(HttpServletRequest request) {
         long amount = Integer.parseInt(request.getParameter("amount")) * 100L;
         String bankCode = request.getParameter("bankCode");
         Map<String, String> vnpParamsMap = vnPayConfig.getVNPayConfig();
@@ -32,7 +32,7 @@ public class PaymentService {
         String vnpSecureHash = VNPayUtil.hmacSHA512(vnPayConfig.getSecretKey(), hashData);
         queryUrl += "&vnp_SecureHash=" + vnpSecureHash;
         String paymentUrl = vnPayConfig.getVnp_PayUrl() + "?" + queryUrl;
-        return PaymentDTO.VNPayResponse.builder()
+        return VNPayPaymentDTO.VNPayResponse.builder()
                 .code("ok")
                 .message("success")
                 .paymentUrl(paymentUrl).build();

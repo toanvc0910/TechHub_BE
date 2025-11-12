@@ -37,3 +37,9 @@ logging:
     com.techhub.app.paymentservice: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+paypal:
+  mode: sandbox # or live
+  client-id: AaJznEpFe4e6d9IvlvAow5_hNb_LXF5Ux7ErjZuNlr4QRmyxMvxUlC6rBjxbUwOxAK5Ohpaodi7xY4dz
+  client-secret: EGtQvi4lftVEkMeDZP6Y-QiubFGstclyTGRTmE9zzxYNNKbCgF21ttfyC68C_-FNFsFpOgLuvzamuXWH
+  api-base: https://api-m.sandbox.paypal.com

@@ -1,5 +1,8 @@
 package com.techhub.app.paymentservice.config;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import javax.servlet.*;
@@ -14,6 +17,8 @@ import java.util.*;
  * to bypass UserContextInterceptor's validation
  */
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
+@Slf4j
 public class PaymentServiceHeaderFilter implements Filter {
 
     @Override
@@ -22,6 +27,9 @@ public class PaymentServiceHeaderFilter implements Filter {
 
         if (request instanceof HttpServletRequest) {
             HttpServletRequest httpRequest = (HttpServletRequest) request;
+
+            log.debug("PaymentServiceHeaderFilter: Processing {} {}",
+                    httpRequest.getMethod(), httpRequest.getRequestURI());
 
             // Wrap request to add fake headers
             HttpServletRequestWrapper wrapper = new HttpServletRequestWrapper(httpRequest) {
@@ -68,10 +76,10 @@ public class PaymentServiceHeaderFilter implements Filter {
                 }
             };
 
+            log.debug("Headers added: X-Request-Source=proxy-client, X-User-Id=00000000-0000-0000-0000-000000000000");
             chain.doFilter(wrapper, response);
         } else {
             chain.doFilter(request, response);
         }
     }
 }
-

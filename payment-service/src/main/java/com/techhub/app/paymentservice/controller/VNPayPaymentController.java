@@ -2,8 +2,8 @@ package com.techhub.app.paymentservice.controller;
 
 import com.techhub.app.paymentservice.config.RestResponseObject;
 import com.techhub.app.paymentservice.config.VNPAYConfig;
-import com.techhub.app.paymentservice.dto.response.PaymentDTO;
-import com.techhub.app.paymentservice.service.PaymentService;
+import com.techhub.app.paymentservice.dto.response.VNPayPaymentDTO;
+import com.techhub.app.paymentservice.service.VNPayPaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,18 +23,18 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("api/v1/payment")
-public class PaymentController {
-    private final PaymentService paymentService;
+public class VNPayPaymentController {
+    private final VNPayPaymentService paymentService;
     private final VNPAYConfig vnpayConfig;
 
     @Autowired
-    public PaymentController(PaymentService paymentService, VNPAYConfig vnpayConfig) {
+    public VNPayPaymentController(VNPayPaymentService paymentService, VNPAYConfig vnpayConfig) {
         this.paymentService = paymentService;
         this.vnpayConfig = vnpayConfig;
     }
 
     @GetMapping("/vn-pay")
-    public RestResponseObject<PaymentDTO.VNPayResponse> pay(HttpServletRequest request) {
+    public RestResponseObject<VNPayPaymentDTO.VNPayResponse> pay(HttpServletRequest request) {
         return new RestResponseObject<>(HttpStatus.OK, "Success", paymentService.createVnPayPayment(request));
     }
 

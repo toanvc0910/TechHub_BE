@@ -1,7 +1,7 @@
 package com.techhub.app.paymentservice.dto.response;
 import lombok.Builder;
 
-public abstract class PaymentDTO {
+public abstract class VNPayPaymentDTO {
     @Builder
     public static class VNPayResponse {
         public String code;
