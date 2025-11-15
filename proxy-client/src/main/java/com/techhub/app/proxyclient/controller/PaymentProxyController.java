@@ -5,12 +5,53 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/api/proxy/payments")
 @RequiredArgsConstructor
 public class PaymentProxyController {
 
     private final PaymentServiceClient paymentServiceClient;
+
+    // ===== PAYPAL ENDPOINTS =====
+
+    @PostMapping("/paypal/create")
+    public ResponseEntity<String> createPayPalOrder(@RequestParam Double amount) {
+        return paymentServiceClient.createPayPalOrder(amount);
+    }
+
+    @GetMapping("/paypal/success")
+    public ResponseEntity<String> paypalSuccess(@RequestParam String token) {
+        return paymentServiceClient.paypalSuccess(token);
+    }
+
+    @GetMapping("/paypal/cancel")
+    public ResponseEntity<String> paypalCancel() {
+        return paymentServiceClient.paypalCancel();
+    }
+
+    // ===== VNPAY ENDPOINTS =====
+
+    @GetMapping("/vn-pay")
+    public ResponseEntity<String> createVnPayPayment(
+            @RequestParam(value = "amount", required = false) String amount,
+            @RequestParam(value = "bankCode", required = false) String bankCode,
+            @RequestParam(value = "orderInfo", required = false) String orderInfo) {
+        return paymentServiceClient.createVnPayPayment(amount, bankCode, orderInfo);
+    }
+
+    @GetMapping("/vn-pay-callback")
+    public void vnPayCallback(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        // VNPay callback redirects directly - we forward to the payment service callback URL
+        // This is handled by VNPayPaymentController in payment-service
+        String queryString = request.getQueryString();
+        response.sendRedirect("http://localhost:8084/api/v1/payment/vn-pay-callback?" + queryString);
+    }
+
+    // ===== GENERIC PAYMENT ENDPOINTS =====
 
     @PostMapping("/create")
     public ResponseEntity<String> createPayment(@RequestBody Object paymentRequest,

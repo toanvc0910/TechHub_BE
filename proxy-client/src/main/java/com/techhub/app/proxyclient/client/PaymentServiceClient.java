@@ -1,12 +1,36 @@
 package com.techhub.app.proxyclient.client;
 
-import com.techhub.app.proxyclient.constant.AppConstant;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @FeignClient(name = "PAYMENT-SERVICE")
 public interface PaymentServiceClient {
+
+    // ===== PAYPAL ENDPOINTS =====
+
+    @PostMapping("/api/v1/payment/paypal/create")
+    ResponseEntity<String> createPayPalOrder(@RequestParam("amount") Double amount);
+
+    @GetMapping("/api/v1/payment/paypal/success")
+    ResponseEntity<String> paypalSuccess(@RequestParam("token") String token);
+
+    @GetMapping("/api/v1/payment/paypal/cancel")
+    ResponseEntity<String> paypalCancel();
+
+    // ===== VNPAY ENDPOINTS =====
+
+    @GetMapping("/api/v1/payment/vn-pay")
+    ResponseEntity<String> createVnPayPayment(
+        @RequestParam(value = "amount", required = false) String amount,
+        @RequestParam(value = "bankCode", required = false) String bankCode,
+        @RequestParam(value = "orderInfo", required = false) String orderInfo
+    );
+
+    // Note: VNPay callback is handled directly in payment-service, not through Feign
+    // The callback endpoint in proxy controller will forward the request parameters
+
+    // ===== GENERIC PAYMENT ENDPOINTS =====
 
     @PostMapping("/api/payments/create")
     ResponseEntity<String> createPayment(@RequestBody Object paymentRequest,
