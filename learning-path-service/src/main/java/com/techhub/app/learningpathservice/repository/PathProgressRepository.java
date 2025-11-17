@@ -1,0 +1,14 @@
+
+package com.techhub.app.learningpathservice.repository;
+
+import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.techhub.app.learningpathservice.entity.PathProgress;
+
+@Repository
+public interface PathProgressRepository extends JpaRepository<PathProgress, UUID> {
+
+}
