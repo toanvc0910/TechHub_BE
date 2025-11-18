@@ -1,50 +1,25 @@
 package com.techhub.app.learningpathservice.service;
 
-import java.util.List;
-import java.util.UUID;
+import com.techhub.app.learningpathservice.dto.PathProgressResponseDTO;
+import com.techhub.app.learningpathservice.dto.UpdateProgressRequestDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import com.techhub.app.learningpathservice.dto.request.UpdatePathProgressRequest;
-import com.techhub.app.learningpathservice.dto.response.PathProgressResponse;
+import java.util.UUID;
 
 public interface PathProgressService {
 
-    /**
-     * Bắt đầu học một learning path
-     */
-    PathProgressResponse startLearningPath(UUID userId, UUID pathId);
+    PathProgressResponseDTO createOrUpdateProgress(UpdateProgressRequestDTO requestDTO);
 
-    /**
-     * Cập nhật tiến độ học tập
-     */
-    PathProgressResponse updateProgress(UpdatePathProgressRequest request);
+    PathProgressResponseDTO getProgressByUserAndPath(UUID userId, UUID pathId);
 
-    /**
-     * Lấy tiến độ của user trên một path
-     */
-    PathProgressResponse getProgressByUserAndPath(UUID userId, UUID pathId);
+    Page<PathProgressResponseDTO> getProgressByUser(UUID userId, Pageable pageable);
 
-    /**
-     * Lấy tất cả tiến độ của user
-     */
-    List<PathProgressResponse> getAllProgressByUser(UUID userId);
+    Page<PathProgressResponseDTO> getProgressByPath(UUID pathId, Pageable pageable);
 
-    /**
-     * Lấy tất cả users đang học path
-     */
-    List<PathProgressResponse> getAllProgressByPath(UUID pathId);
+    void deleteProgress(UUID userId, UUID pathId);
 
-    /**
-     * Kiểm tra user đã hoàn thành path chưa
-     */
-    Boolean isPathCompleted(UUID userId, UUID pathId);
+    Long countEnrolledUsers(UUID pathId);
 
-    /**
-     * Lấy danh sách users đã hoàn thành path
-     */
-    List<PathProgressResponse> getCompletedUsers(UUID pathId);
-
-    /**
-     * Tính completion dựa trên các courses đã hoàn thành
-     */
-    Float calculateCompletion(UUID userId, UUID pathId);
+    Float getAverageCompletion(UUID pathId);
 }

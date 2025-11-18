@@ -1,187 +1,119 @@
 package com.techhub.app.learningpathservice.service.impl;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
+import com.techhub.app.learningpathservice.dto.PathProgressResponseDTO;
+import com.techhub.app.learningpathservice.dto.UpdateProgressRequestDTO;
+import com.techhub.app.learningpathservice.entity.PathProgress;
+import com.techhub.app.learningpathservice.mapper.PathProgressMapper;
+import com.techhub.app.learningpathservice.repository.PathProgressRepository;
+import com.techhub.app.learningpathservice.service.PathProgressService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.techhub.app.learningpathservice.dto.request.UpdatePathProgressRequest;
-import com.techhub.app.learningpathservice.dto.response.PathProgressResponse;
-import com.techhub.app.learningpathservice.entity.LearningPath;
-import com.techhub.app.learningpathservice.entity.PathProgress;
-import com.techhub.app.learningpathservice.exception.ResourceNotFoundException;
-import com.techhub.app.learningpathservice.mapper.PathProgressMapper;
-import com.techhub.app.learningpathservice.repository.LearningPathRepository;
-import com.techhub.app.learningpathservice.repository.PathProgressRepository;
-import com.techhub.app.learningpathservice.service.PathProgressService;
+import java.util.Optional;
+import java.util.UUID;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @Service
 @RequiredArgsConstructor
+@Slf4j
+@Transactional
 public class PathProgressServiceImpl implements PathProgressService {
 
-    private final PathProgressRepository progressRepository;
-    private final LearningPathRepository learningPathRepository;
-    private final PathProgressMapper mapper;
+    private final PathProgressRepository pathProgressRepository;
+    private final PathProgressMapper pathProgressMapper;
 
     @Override
-    @Transactional
-    public PathProgressResponse startLearningPath(UUID userId, UUID pathId) {
-        log.info("User {} starting learning path {}", userId, pathId);
+    public PathProgressResponseDTO createOrUpdateProgress(UpdateProgressRequestDTO requestDTO) {
+        log.info("Creating or updating progress for user {} on path {}",
+                requestDTO.getUserId(), requestDTO.getPathId());
 
-        // Verify path exists
-        LearningPath path = learningPathRepository.findById(pathId)
-                .orElseThrow(() -> new ResourceNotFoundException("Learning path not found with ID: " + pathId));
+        Optional<PathProgress> existingProgress = pathProgressRepository
+                .findByUserIdAndPathIdAndIsActive(
+                        requestDTO.getUserId(),
+                        requestDTO.getPathId(),
+                        Boolean.TRUE);
 
-        // Check if already started
-        if (progressRepository.findByUserIdAndPathIdAndIsActive(userId, pathId, "Y").isPresent()) {
-            throw new IllegalStateException("User already started this learning path");
+        PathProgress pathProgress;
+        if (existingProgress.isPresent()) {
+            pathProgress = existingProgress.get();
+            pathProgressMapper.updateEntity(pathProgress, requestDTO);
+            log.info("Updating existing progress with ID: {}", pathProgress.getId());
+        } else {
+            pathProgress = pathProgressMapper.toEntity(requestDTO);
+            log.info("Creating new progress");
         }
 
-        // Create new progress
-        PathProgress progress = new PathProgress();
-        progress.setUserId(userId);
-        progress.setPathId(pathId);
-        progress.setCompletion(0.0f);
-        progress.setMilestones(new ArrayList<>());
-        progress.setCreated(LocalDateTime.now());
-        progress.setUpdated(LocalDateTime.now());
-        progress.setCreatedBy(userId);
-        progress.setIsActive("Y");
+        pathProgress = pathProgressRepository.save(pathProgress);
 
-        PathProgress saved = progressRepository.save(progress);
-
-        PathProgressResponse response = mapper.toResponse(saved);
-        response.setPathTitle(path.getTitle());
-
-        log.info("User {} started learning path {} successfully", userId, pathId);
-        return response;
-    }
-
-    @Override
-    @Transactional
-    public PathProgressResponse updateProgress(UpdatePathProgressRequest request) {
-        log.info("Updating progress for user {} on path {}", request.getUserId(), request.getPathId());
-
-        PathProgress progress = progressRepository
-                .findByUserIdAndPathIdAndIsActive(request.getUserId(), request.getPathId(), "Y")
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Progress not found for user " + request.getUserId() + " on path " + request.getPathId()));
-
-        // Update fields
-        if (request.getCompletion() != null) {
-            progress.setCompletion(request.getCompletion());
-        }
-
-        if (request.getMilestones() != null) {
-            // Convert Map to List<String> for JSONB storage
-            List<String> milestonesList = new ArrayList<>();
-            request.getMilestones().forEach((key, value) -> {
-                milestonesList.add(key + ":" + value);
-            });
-            progress.setMilestones(milestonesList);
-        }
-
-        progress.setUpdated(LocalDateTime.now());
-        progress.setUpdatedBy(request.getUserId());
-
-        PathProgress updated = progressRepository.save(progress);
-
-        PathProgressResponse response = mapper.toResponse(updated);
-        enrichResponse(response);
-
-        log.info("Updated progress successfully");
-        return response;
+        log.info("Progress saved successfully with ID: {}", pathProgress.getId());
+        return pathProgressMapper.toDTO(pathProgress);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PathProgressResponse getProgressByUserAndPath(UUID userId, UUID pathId) {
-        log.debug("Getting progress for user {} on path {}", userId, pathId);
+    public PathProgressResponseDTO getProgressByUserAndPath(UUID userId, UUID pathId) {
+        log.info("Fetching progress for user {} on path {}", userId, pathId);
 
-        PathProgress progress = progressRepository
-                .findByUserIdAndPathIdAndIsActive(userId, pathId, "Y")
-                .orElseThrow(() -> new ResourceNotFoundException(
+        PathProgress pathProgress = pathProgressRepository
+                .findByUserIdAndPathIdAndIsActive(userId, pathId, Boolean.TRUE)
+                .orElseThrow(() -> new RuntimeException(
                         "Progress not found for user " + userId + " on path " + pathId));
 
-        PathProgressResponse response = mapper.toResponse(progress);
-        enrichResponse(response);
-
-        return response;
+        return pathProgressMapper.toDTO(pathProgress);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<PathProgressResponse> getAllProgressByUser(UUID userId) {
-        log.debug("Getting all progress for user {}", userId);
+    public Page<PathProgressResponseDTO> getProgressByUser(UUID userId, Pageable pageable) {
+        log.info("Fetching all progress for user {}", userId);
 
-        List<PathProgress> progressList = progressRepository.findByUserIdAndIsActive(userId, "Y");
-        List<PathProgressResponse> responses = mapper.toResponseList(progressList);
+        Page<PathProgress> progressList = pathProgressRepository
+                .findByUserIdAndIsActive(userId, Boolean.TRUE, pageable);
 
-        responses.forEach(this::enrichResponse);
-
-        return responses;
+        return progressList.map(pathProgressMapper::toDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<PathProgressResponse> getAllProgressByPath(UUID pathId) {
-        log.debug("Getting all progress for path {}", pathId);
+    public Page<PathProgressResponseDTO> getProgressByPath(UUID pathId, Pageable pageable) {
+        log.info("Fetching all progress for path {}", pathId);
 
-        List<PathProgress> progressList = progressRepository.findByPathIdAndIsActive(pathId, "Y");
-        List<PathProgressResponse> responses = mapper.toResponseList(progressList);
+        Page<PathProgress> progressList = pathProgressRepository
+                .findByPathIdAndIsActive(pathId, Boolean.TRUE, pageable);
 
-        responses.forEach(this::enrichResponse);
+        return progressList.map(pathProgressMapper::toDTO);
+    }
 
-        return responses;
+    @Override
+    public void deleteProgress(UUID userId, UUID pathId) {
+        log.info("Deleting progress for user {} on path {}", userId, pathId);
+
+        PathProgress pathProgress = pathProgressRepository
+                .findByUserIdAndPathIdAndIsActive(userId, pathId, Boolean.TRUE)
+                .orElseThrow(() -> new RuntimeException(
+                        "Progress not found for user " + userId + " on path " + pathId));
+
+        pathProgress.setIsActive(Boolean.FALSE);
+        pathProgressRepository.save(pathProgress);
+
+        log.info("Progress deleted successfully");
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Boolean isPathCompleted(UUID userId, UUID pathId) {
-        return progressRepository.findByUserIdAndPathIdAndIsActive(userId, pathId, "Y")
-                .map(progress -> progress.getCompletion() >= 1.0f)
-                .orElse(false);
+    public Long countEnrolledUsers(UUID pathId) {
+        log.info("Counting enrolled users for path {}", pathId);
+        return pathProgressRepository.countByPathId(pathId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<PathProgressResponse> getCompletedUsers(UUID pathId) {
-        log.debug("Getting completed users for path {}", pathId);
-
-        List<PathProgress> progressList = progressRepository
-                .findByPathIdAndCompletionGreaterThanEqualAndIsActive(pathId, 1.0f, "Y");
-
-        List<PathProgressResponse> responses = mapper.toResponseList(progressList);
-        responses.forEach(this::enrichResponse);
-
-        return responses;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Float calculateCompletion(UUID userId, UUID pathId) {
-        log.debug("Calculating completion for user {} on path {}", userId, pathId);
-
-        // TODO: Calculate based on completed courses from Course Service
-        return progressRepository.findByUserIdAndPathIdAndIsActive(userId, pathId, "Y")
-                .map(PathProgress::getCompletion)
-                .orElse(0.0f);
-    }
-
-    /**
-     * Enrich response with path title
-     */
-    private void enrichResponse(PathProgressResponse response) {
-        if (response.getPathId() != null) {
-            learningPathRepository.findById(response.getPathId())
-                    .ifPresent(path -> response.setPathTitle(path.getTitle()));
-        }
+    public Float getAverageCompletion(UUID pathId) {
+        log.info("Calculating average completion for path {}", pathId);
+        Float average = pathProgressRepository.getAverageCompletionByPathId(pathId);
+        return average != null ? average : 0.0f;
     }
 }

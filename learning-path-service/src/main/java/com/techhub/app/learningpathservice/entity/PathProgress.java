@@ -1,56 +1,53 @@
 package com.techhub.app.learningpathservice.entity;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-
+import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
+import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
+import com.vladmihalcea.hibernate.type.json.JsonType;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
+import org.hibernate.annotations.TypeDefs;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import javax.persistence.*;
+import java.time.OffsetDateTime;
+import java.util.Map;
+import java.util.UUID;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @Entity
 @Table(name = "path_progress")
+@Getter
+@Setter
+@TypeDefs({
+        @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class),
+        @TypeDef(name = "json", typeClass = JsonType.class)
+})
 public class PathProgress {
+
     @Id
     @GeneratedValue(generator = "uuid2")
     @GenericGenerator(name = "uuid2", strategy = "uuid2")
-    @Column(name = "id")
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(nullable = false)
+    @Column(name = "path_id", nullable = false)
     private UUID pathId;
 
-    @Column(nullable = false)
+    @Column(name = "completion", nullable = false)
     private Float completion = 0.0f;
 
     @Type(type = "json")
     @Column(name = "milestones", columnDefinition = "jsonb")
-    private List<String> milestones = new ArrayList<>();
+    private Map<String, Object> milestones;
+
     @Column(name = "created", nullable = false)
-    private LocalDateTime created;
+    private OffsetDateTime created;
 
     @Column(name = "updated", nullable = false)
-    private LocalDateTime updated;
+    private OffsetDateTime updated;
 
     @Column(name = "created_by")
     private UUID createdBy;
@@ -58,10 +55,35 @@ public class PathProgress {
     @Column(name = "updated_by")
     private UUID updatedBy;
 
-    @Column(nullable = false, length = 1)
-    private String isActive = "Y";
+    @Convert(converter = BooleanToYNStringConverter.class)
+    @Column(name = "is_active", nullable = false, length = 1)
+    private Boolean isActive = Boolean.TRUE;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "path_id", insertable = false, updatable = false)
     private LearningPath learningPath;
+
+    @PrePersist
+    void beforeInsert() {
+        OffsetDateTime now = OffsetDateTime.now();
+        created = now;
+        updated = now;
+        if (completion == null) {
+            completion = 0.0f;
+        }
+        if (isActive == null) {
+            isActive = Boolean.TRUE;
+        }
+    }
+
+    @PreUpdate
+    void beforeUpdate() {
+        updated = OffsetDateTime.now();
+        if (completion == null) {
+            completion = 0.0f;
+        }
+        if (isActive == null) {
+            isActive = Boolean.TRUE;
+        }
+    }
 }

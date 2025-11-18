@@ -1,29 +1,28 @@
 package com.techhub.app.learningpathservice.controller;
 
 import com.techhub.app.commonservice.payload.GlobalResponse;
-import com.techhub.app.learningpathservice.dto.request.UpdatePathProgressRequest;
-import com.techhub.app.learningpathservice.dto.response.CompletionPercentageResponse;
-import com.techhub.app.learningpathservice.dto.response.CompletionStatusResponse;
-import com.techhub.app.learningpathservice.dto.response.PathProgressResponse;
+import com.techhub.app.commonservice.payload.PageGlobalResponse;
+import com.techhub.app.learningpathservice.dto.PathProgressResponseDTO;
+import com.techhub.app.learningpathservice.dto.UpdateProgressRequestDTO;
 import com.techhub.app.learningpathservice.service.PathProgressService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
-/**
- * Controller for Learning Path Progress management
- * Handles user progress tracking and updates
- */
 @RestController
-@RequestMapping("/api/v1/progress")
+@RequestMapping("/api/v1/path-progress")
 @RequiredArgsConstructor
 @Slf4j
 @Validated
@@ -31,169 +30,102 @@ public class PathProgressController {
 
     private final PathProgressService pathProgressService;
 
-    /**
-     * Start learning a path
-     * POST /api/v1/progress/start
-     */
-    @PostMapping("/start")
-    public ResponseEntity<GlobalResponse<PathProgressResponse>> startLearningPath(
-            @RequestParam UUID userId,
-            @RequestParam UUID pathId,
-            HttpServletRequest httpRequest) {
+    @PostMapping
+    public ResponseEntity<GlobalResponse<PathProgressResponseDTO>> createOrUpdateProgress(
+            @Valid @RequestBody UpdateProgressRequestDTO requestDTO) {
+        log.info("REST request to create or update progress for user {} on path {}",
+                requestDTO.getUserId(), requestDTO.getPathId());
 
-        log.info("User {} starting learning path {}", userId, pathId);
-
-        PathProgressResponse response = pathProgressService.startLearningPath(userId, pathId);
+        PathProgressResponseDTO response = pathProgressService.createOrUpdateProgress(requestDTO);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(GlobalResponse.success("Learning path started successfully", response)
-                        .withStatus("LEARNING_PATH_STARTED")
-                        .withPath(httpRequest.getRequestURI()));
+                .body(GlobalResponse.success("Progress updated successfully", response));
     }
 
-    /**
-     * Update learning path progress
-     * PUT /api/v1/progress/{pathId}
-     */
-    @PutMapping("/{pathId}")
-    public ResponseEntity<GlobalResponse<PathProgressResponse>> updateProgress(
-            @PathVariable UUID pathId,
-            @Valid @RequestBody UpdatePathProgressRequest request,
-            HttpServletRequest httpRequest) {
-
-        log.info("Updating progress for user {} on path {}", request.getUserId(), pathId);
-
-        // Ensure pathId matches the request
-        request.setPathId(pathId);
-
-        PathProgressResponse response = pathProgressService.updateProgress(request);
-
-        return ResponseEntity.ok(
-                GlobalResponse.success("Progress updated successfully", response)
-                        .withStatus("PROGRESS_UPDATED")
-                        .withPath(httpRequest.getRequestURI()));
-    }
-
-    /**
-     * Get user progress for a specific learning path
-     * GET /api/v1/progress/{pathId}/user/{userId}
-     */
-    @GetMapping("/{pathId}/user/{userId}")
-    public ResponseEntity<GlobalResponse<PathProgressResponse>> getUserProgress(
-            @PathVariable UUID pathId,
+    @GetMapping("/user/{userId}/path/{pathId}")
+    public ResponseEntity<GlobalResponse<PathProgressResponseDTO>> getProgressByUserAndPath(
             @PathVariable UUID userId,
-            HttpServletRequest httpRequest) {
+            @PathVariable UUID pathId) {
+        log.info("REST request to get progress for user {} on path {}", userId, pathId);
 
-        log.info("Retrieving progress for user {} on path {}", userId, pathId);
+        PathProgressResponseDTO response = pathProgressService.getProgressByUserAndPath(userId, pathId);
 
-        PathProgressResponse response = pathProgressService.getProgressByUserAndPath(userId, pathId);
-
-        return ResponseEntity.ok(
-                GlobalResponse.success("Progress retrieved successfully", response)
-                        .withPath(httpRequest.getRequestURI()));
+        return ResponseEntity.ok(GlobalResponse.success(response));
     }
 
-    /**
-     * Get all progress for a user across all learning paths
-     * GET /api/v1/progress/user/{userId}
-     */
     @GetMapping("/user/{userId}")
-    public ResponseEntity<GlobalResponse<List<PathProgressResponse>>> getAllUserProgress(
+    public ResponseEntity<PageGlobalResponse<PathProgressResponseDTO>> getProgressByUser(
             @PathVariable UUID userId,
-            HttpServletRequest httpRequest) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("REST request to get all progress for user: {}", userId);
 
-        log.info("Retrieving all progress for user {}", userId);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updated"));
+        Page<PathProgressResponseDTO> responsePage = pathProgressService.getProgressByUser(userId, pageable);
 
-        List<PathProgressResponse> response = pathProgressService.getAllProgressByUser(userId);
+        PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                .page(responsePage.getNumber())
+                .size(responsePage.getSize())
+                .totalElements(responsePage.getTotalElements())
+                .totalPages(responsePage.getTotalPages())
+                .first(responsePage.isFirst())
+                .last(responsePage.isLast())
+                .hasNext(responsePage.hasNext())
+                .hasPrevious(responsePage.hasPrevious())
+                .build();
 
-        return ResponseEntity.ok(
-                GlobalResponse.success("User progress retrieved successfully", response)
-                        .withPath(httpRequest.getRequestURI()));
+        return ResponseEntity.ok(PageGlobalResponse.success("User progress retrieved successfully",
+                responsePage.getContent(), paginationInfo));
     }
 
-    /**
-     * Get all users learning a specific path
-     * GET /api/v1/progress/path/{pathId}
-     */
     @GetMapping("/path/{pathId}")
-    public ResponseEntity<GlobalResponse<List<PathProgressResponse>>> getPathProgress(
+    public ResponseEntity<PageGlobalResponse<PathProgressResponseDTO>> getProgressByPath(
             @PathVariable UUID pathId,
-            HttpServletRequest httpRequest) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("REST request to get all progress for path: {}", pathId);
 
-        log.info("Retrieving all users progress for path {}", pathId);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "completion"));
+        Page<PathProgressResponseDTO> responsePage = pathProgressService.getProgressByPath(pathId, pageable);
 
-        List<PathProgressResponse> response = pathProgressService.getAllProgressByPath(pathId);
-
-        return ResponseEntity.ok(
-                GlobalResponse.success("Path progress retrieved successfully", response)
-                        .withPath(httpRequest.getRequestURI()));
-    }
-
-    /**
-     * Check if user completed a learning path
-     * GET /api/v1/progress/{pathId}/user/{userId}/completed
-     */
-    @GetMapping("/{pathId}/user/{userId}/completed")
-    public ResponseEntity<GlobalResponse<CompletionStatusResponse>> checkCompletion(
-            @PathVariable UUID pathId,
-            @PathVariable UUID userId,
-            HttpServletRequest httpRequest) {
-
-        log.info("Checking completion status for user {} on path {}", userId, pathId);
-
-        Boolean isCompleted = pathProgressService.isPathCompleted(userId, pathId);
-
-        CompletionStatusResponse response = CompletionStatusResponse.builder()
-                .userId(userId)
-                .pathId(pathId)
-                .isCompleted(isCompleted)
+        PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                .page(responsePage.getNumber())
+                .size(responsePage.getSize())
+                .totalElements(responsePage.getTotalElements())
+                .totalPages(responsePage.getTotalPages())
+                .first(responsePage.isFirst())
+                .last(responsePage.isLast())
+                .hasNext(responsePage.hasNext())
+                .hasPrevious(responsePage.hasPrevious())
                 .build();
 
-        return ResponseEntity.ok(
-                GlobalResponse.success("Completion status retrieved successfully", response)
-                        .withPath(httpRequest.getRequestURI()));
+        return ResponseEntity.ok(PageGlobalResponse.success("Path progress retrieved successfully",
+                responsePage.getContent(), paginationInfo));
     }
 
-    /**
-     * Get all users who completed a specific path
-     * GET /api/v1/progress/path/{pathId}/completed
-     */
-    @GetMapping("/path/{pathId}/completed")
-    public ResponseEntity<GlobalResponse<List<PathProgressResponse>>> getCompletedUsers(
-            @PathVariable UUID pathId,
-            HttpServletRequest httpRequest) {
-
-        log.info("Retrieving users who completed path {}", pathId);
-
-        List<PathProgressResponse> response = pathProgressService.getCompletedUsers(pathId);
-
-        return ResponseEntity.ok(
-                GlobalResponse.success("Completed users retrieved successfully", response)
-                        .withPath(httpRequest.getRequestURI()));
-    }
-
-    /**
-     * Calculate completion percentage for a user on a path
-     * GET /api/v1/progress/{pathId}/user/{userId}/completion
-     */
-    @GetMapping("/{pathId}/user/{userId}/completion")
-    public ResponseEntity<GlobalResponse<CompletionPercentageResponse>> calculateCompletion(
-            @PathVariable UUID pathId,
+    @DeleteMapping("/user/{userId}/path/{pathId}")
+    public ResponseEntity<GlobalResponse<Void>> deleteProgress(
             @PathVariable UUID userId,
-            HttpServletRequest httpRequest) {
+            @PathVariable UUID pathId) {
+        log.info("REST request to delete progress for user {} on path {}", userId, pathId);
 
-        log.info("Calculating completion for user {} on path {}", userId, pathId);
+        pathProgressService.deleteProgress(userId, pathId);
 
-        Float completion = pathProgressService.calculateCompletion(userId, pathId);
+        return ResponseEntity.ok(GlobalResponse.success("Progress deleted successfully", null));
+    }
 
-        CompletionPercentageResponse response = CompletionPercentageResponse.builder()
-                .userId(userId)
-                .pathId(pathId)
-                .completionPercentage(completion)
-                .build();
+    @GetMapping("/path/{pathId}/statistics")
+    public ResponseEntity<GlobalResponse<Map<String, Object>>> getPathStatistics(
+            @PathVariable UUID pathId) {
+        log.info("REST request to get statistics for path: {}", pathId);
 
-        return ResponseEntity.ok(
-                GlobalResponse.success("Completion calculated successfully", response)
-                        .withPath(httpRequest.getRequestURI()));
+        Long enrolledUsers = pathProgressService.countEnrolledUsers(pathId);
+        Float averageCompletion = pathProgressService.getAverageCompletion(pathId);
+
+        Map<String, Object> statistics = new HashMap<>();
+        statistics.put("enrolledUsers", enrolledUsers);
+        statistics.put("averageCompletion", averageCompletion);
+
+        return ResponseEntity.ok(GlobalResponse.success("Path statistics retrieved successfully", statistics));
     }
 }

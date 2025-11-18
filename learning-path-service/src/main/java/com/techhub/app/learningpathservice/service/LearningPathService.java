@@ -1,72 +1,33 @@
 package com.techhub.app.learningpathservice.service;
 
+import com.techhub.app.learningpathservice.dto.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.UUID;
 
-import com.techhub.app.learningpathservice.dto.request.CourseOrderRequest;
-import com.techhub.app.learningpathservice.dto.request.CreateLearningPathRequest;
-import com.techhub.app.learningpathservice.dto.request.UpdateLearningPathRequest;
-import com.techhub.app.learningpathservice.dto.response.LearningPathResponse;
-
 public interface LearningPathService {
 
-    /**
-     * Tạo learning path mới
-     */
-    LearningPathResponse createLearningPath(CreateLearningPathRequest request, UUID createdBy);
+    LearningPathResponseDTO createLearningPath(LearningPathRequestDTO requestDTO);
 
-    /**
-     * Cập nhật learning path
-     */
-    LearningPathResponse updateLearningPath(UUID id, UpdateLearningPathRequest request, UUID updatedBy);
+    LearningPathResponseDTO updateLearningPath(UUID id, LearningPathRequestDTO requestDTO);
 
-    /**
-     * Xóa learning path (soft delete)
-     */
-    void deleteLearningPath(UUID id, UUID deletedBy);
+    LearningPathResponseDTO getLearningPathById(UUID id);
 
-    /**
-     * Lấy learning path theo ID
-     */
-    LearningPathResponse getLearningPathById(UUID id);
+    Page<LearningPathResponseDTO> getAllLearningPaths(Pageable pageable);
 
-    /**
-     * Lấy tất cả learning paths
-     */
-    List<LearningPathResponse> getAllLearningPaths();
+    Page<LearningPathResponseDTO> searchLearningPaths(String keyword, Pageable pageable);
 
-    /**
-     * Lấy learning paths đang active
-     */
-    List<LearningPathResponse> getActiveLearningPaths();
+    Page<LearningPathResponseDTO> getLearningPathsByCreator(UUID userId, Pageable pageable);
 
-    /**
-     * Tìm kiếm learning paths theo title
-     */
-    List<LearningPathResponse> searchLearningPaths(String keyword);
+    void deleteLearningPath(UUID id);
 
-    /**
-     * Thêm course vào learning path
-     */
-    void addCourseToPath(UUID pathId, CourseOrderRequest request, UUID updatedBy);
+    LearningPathResponseDTO addCoursesToPath(UUID pathId, AddCoursesToPathRequestDTO requestDTO);
 
-    /**
-     * Xóa course khỏi learning path
-     */
-    void removeCourseFromPath(UUID pathId, UUID courseId, UUID updatedBy);
+    LearningPathResponseDTO removeCourseFromPath(UUID pathId, UUID courseId);
 
-    /**
-     * Cập nhật thứ tự courses trong path
-     */
-    void updateCourseOrder(UUID pathId, List<CourseOrderRequest> courses, UUID updatedBy);
+    LearningPathResponseDTO reorderCourses(UUID pathId, List<CourseInPathDTO> courses);
 
-    /**
-     * Lấy số lượng users đang học path
-     */
-    Integer getTotalEnrolled(UUID pathId);
-
-    /**
-     * Lấy completion trung bình của path
-     */
-    Double getAverageCompletion(UUID pathId);
+    List<LearningPathResponseDTO> getLearningPathsByCourse(UUID courseId);
 }

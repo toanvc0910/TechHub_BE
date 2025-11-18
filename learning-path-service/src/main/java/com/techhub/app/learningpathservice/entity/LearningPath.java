@@ -1,41 +1,37 @@
 package com.techhub.app.learningpathservice.entity;
 
-import java.security.Timestamp;
-import java.time.LocalDateTime;
+import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
+import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
+import com.vladmihalcea.hibernate.type.json.JsonType;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
+import org.hibernate.annotations.TypeDefs;
+
+import javax.persistence.*;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.GenericGenerator;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @Entity
 @Table(name = "learning_paths")
+@Getter
+@Setter
+@TypeDefs({
+        @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class),
+        @TypeDef(name = "json", typeClass = JsonType.class)
+})
 public class LearningPath {
 
     @Id
     @GeneratedValue(generator = "uuid2")
     @GenericGenerator(name = "uuid2", strategy = "uuid2")
-    @Column(name = "id")
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String title;
 
     @Column(columnDefinition = "TEXT")
@@ -43,13 +39,13 @@ public class LearningPath {
 
     @Type(type = "json")
     @Column(name = "skills", columnDefinition = "jsonb")
-    private List<String> skills = new ArrayList<>();
+    private List<String> skills;
 
     @Column(name = "created", nullable = false)
-    private LocalDateTime created;
+    private OffsetDateTime created;
 
     @Column(name = "updated", nullable = false)
-    private LocalDateTime updated;
+    private OffsetDateTime updated;
 
     @Column(name = "created_by")
     private UUID createdBy;
@@ -57,12 +53,35 @@ public class LearningPath {
     @Column(name = "updated_by")
     private UUID updatedBy;
 
-    @Column(nullable = false, length = 1)
-    private String isActive = "Y";
+    @Convert(converter = BooleanToYNStringConverter.class)
+    @Column(name = "is_active", nullable = false, length = 1)
+    private Boolean isActive = Boolean.TRUE;
 
-    @OneToMany(mappedBy = "learningPath", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "learningPath", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("order ASC")
     private List<LearningPathCourse> courses = new ArrayList<>();
 
-    @OneToMany(mappedBy = "learningPath")
-    private List<PathProgress> pathProgresses = new ArrayList<>();
+    @PrePersist
+    void beforeInsert() {
+        OffsetDateTime now = OffsetDateTime.now();
+        created = now;
+        updated = now;
+        if (skills == null) {
+            skills = new ArrayList<>();
+        }
+        if (isActive == null) {
+            isActive = Boolean.TRUE;
+        }
+    }
+
+    @PreUpdate
+    void beforeUpdate() {
+        updated = OffsetDateTime.now();
+        if (skills == null) {
+            skills = new ArrayList<>();
+        }
+        if (isActive == null) {
+            isActive = Boolean.TRUE;
+        }
+    }
 }

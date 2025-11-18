@@ -1,39 +1,32 @@
-
 package com.techhub.app.learningpathservice.repository;
+
+import com.techhub.app.learningpathservice.entity.PathProgress;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
-
-import com.techhub.app.learningpathservice.entity.PathProgress;
-
 @Repository
 public interface PathProgressRepository extends JpaRepository<PathProgress, UUID> {
 
-    // Tìm progress của user trên path cụ thể
-    Optional<PathProgress> findByUserIdAndPathIdAndIsActive(UUID userId, UUID pathId, String isActive);
+    Optional<PathProgress> findByUserIdAndPathIdAndIsActive(UUID userId, UUID pathId, Boolean isActive);
 
-    // Tìm tất cả progress của user
-    List<PathProgress> findByUserIdAndIsActive(UUID userId, String isActive);
+    Page<PathProgress> findByUserIdAndIsActive(UUID userId, Boolean isActive, Pageable pageable);
 
-    // Tìm tất cả progress trên path
-    List<PathProgress> findByPathIdAndIsActive(UUID pathId, String isActive);
+    Page<PathProgress> findByPathIdAndIsActive(UUID pathId, Boolean isActive, Pageable pageable);
 
-    // Tìm users đã hoàn thành path
-    List<PathProgress> findByPathIdAndCompletionGreaterThanEqualAndIsActive(
-            UUID pathId, Float completion, String isActive);
+    @Query("SELECT pp FROM PathProgress pp WHERE pp.userId = :userId AND pp.completion = :completion AND pp.isActive = true")
+    List<PathProgress> findByUserIdAndCompletion(@Param("userId") UUID userId, @Param("completion") Float completion);
 
-    // Đếm số users đang học path
-    long countByPathIdAndIsActive(UUID pathId, String isActive);
+    @Query("SELECT COUNT(pp) FROM PathProgress pp WHERE pp.pathId = :pathId AND pp.isActive = true")
+    Long countByPathId(@Param("pathId") UUID pathId);
 
-    // Tìm tất cả progress active
-    List<PathProgress> findByIsActive(String isActive);
-
-    // Tính completion trung bình của path
-    @Query("SELECT AVG(pp.completion) FROM PathProgress pp WHERE pp.pathId = :pathId AND pp.isActive = 'Y'")
-    Double getAverageCompletion(UUID pathId);
+    @Query("SELECT AVG(pp.completion) FROM PathProgress pp WHERE pp.pathId = :pathId AND pp.isActive = true")
+    Float getAverageCompletionByPathId(@Param("pathId") UUID pathId);
 }

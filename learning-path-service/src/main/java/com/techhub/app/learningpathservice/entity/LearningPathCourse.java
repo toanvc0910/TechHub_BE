@@ -1,38 +1,61 @@
 package com.techhub.app.learningpathservice.entity;
 
+import lombok.Getter;
+import lombok.Setter;
+
+import javax.persistence.*;
+import java.io.Serializable;
 import java.util.UUID;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @Entity
 @Table(name = "learning_path_courses")
+@Getter
+@Setter
+@IdClass(LearningPathCourse.LearningPathCourseId.class)
 public class LearningPathCourse {
+
     @Id
+    @Column(name = "path_id")
     private UUID pathId;
 
     @Id
+    @Column(name = "course_id")
     private UUID courseId;
 
-    @Column(nullable = false, name = "\"order\"")
+    @Column(name = "\"order\"", nullable = false)
     private Integer order;
 
-    // Relationships
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "path_id", insertable = false, updatable = false)
     private LearningPath learningPath;
 
+    @Getter
+    @Setter
+    public static class LearningPathCourseId implements Serializable {
+        private UUID pathId;
+        private UUID courseId;
+
+        public LearningPathCourseId() {
+        }
+
+        public LearningPathCourseId(UUID pathId, UUID courseId) {
+            this.pathId = pathId;
+            this.courseId = courseId;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (o == null || getClass() != o.getClass())
+                return false;
+            LearningPathCourseId that = (LearningPathCourseId) o;
+            return pathId.equals(that.pathId) && courseId.equals(that.courseId);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * pathId.hashCode() + courseId.hashCode();
+        }
+    }
 }

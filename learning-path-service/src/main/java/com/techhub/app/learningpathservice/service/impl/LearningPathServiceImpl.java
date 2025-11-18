@@ -1,274 +1,192 @@
 package com.techhub.app.learningpathservice.service.impl;
 
-import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.techhub.app.learningpathservice.dto.request.CourseOrderRequest;
-import com.techhub.app.learningpathservice.dto.request.CreateLearningPathRequest;
-import com.techhub.app.learningpathservice.dto.request.UpdateLearningPathRequest;
-import com.techhub.app.learningpathservice.dto.response.LearningPathResponse;
+import com.techhub.app.learningpathservice.dto.*;
 import com.techhub.app.learningpathservice.entity.LearningPath;
 import com.techhub.app.learningpathservice.entity.LearningPathCourse;
-import com.techhub.app.learningpathservice.exception.ResourceNotFoundException;
 import com.techhub.app.learningpathservice.mapper.LearningPathMapper;
 import com.techhub.app.learningpathservice.repository.LearningPathCourseRepository;
 import com.techhub.app.learningpathservice.repository.LearningPathRepository;
-import com.techhub.app.learningpathservice.repository.PathProgressRepository;
 import com.techhub.app.learningpathservice.service.LearningPathService;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
+@Slf4j
+@Transactional
 public class LearningPathServiceImpl implements LearningPathService {
 
     private final LearningPathRepository learningPathRepository;
-    private final LearningPathCourseRepository pathCourseRepository;
-    private final PathProgressRepository pathProgressRepository;
-    private final LearningPathMapper mapper;
+    private final LearningPathCourseRepository learningPathCourseRepository;
+    private final LearningPathMapper learningPathMapper;
 
     @Override
-    @Transactional
-    public LearningPathResponse createLearningPath(CreateLearningPathRequest request, UUID createdBy) {
-        log.info("Creating learning path: {}", request.getTitle());
+    public LearningPathResponseDTO createLearningPath(LearningPathRequestDTO requestDTO) {
+        log.info("Creating new learning path with title: {}", requestDTO.getTitle());
 
-        // Convert DTO to Entity
-        LearningPath entity = mapper.toEntity(request);
-        entity.setCreatedBy(createdBy);
-        entity.setUpdatedBy(createdBy);
+        LearningPath learningPath = learningPathMapper.toEntity(requestDTO);
+        learningPath = learningPathRepository.save(learningPath);
 
-        // Save learning path
-        LearningPath saved = learningPathRepository.save(entity);
+        log.info("Learning path created successfully with ID: {}", learningPath.getId());
+        return learningPathMapper.toDTO(learningPath);
+    }
 
-        // Add courses if provided
-        if (request.getCourses() != null && !request.getCourses().isEmpty()) {
-            for (CourseOrderRequest courseRequest : request.getCourses()) {
-                LearningPathCourse pathCourse = new LearningPathCourse();
-                pathCourse.setPathId(saved.getId());
-                pathCourse.setCourseId(courseRequest.getCourseId());
-                pathCourse.setOrder(courseRequest.getOrder());
-                pathCourseRepository.save(pathCourse);
+    @Override
+    public LearningPathResponseDTO updateLearningPath(UUID id, LearningPathRequestDTO requestDTO) {
+        log.info("Updating learning path with ID: {}", id);
+
+        LearningPath learningPath = learningPathRepository.findByIdAndIsActive(id, Boolean.TRUE)
+                .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + id));
+
+        learningPathMapper.updateEntity(learningPath, requestDTO);
+        learningPath = learningPathRepository.save(learningPath);
+
+        log.info("Learning path updated successfully with ID: {}", id);
+        return learningPathMapper.toDTO(learningPath);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LearningPathResponseDTO getLearningPathById(UUID id) {
+        log.info("Fetching learning path with ID: {}", id);
+
+        LearningPath learningPath = learningPathRepository.findByIdAndIsActive(id, Boolean.TRUE)
+                .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + id));
+
+        return learningPathMapper.toDTO(learningPath);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<LearningPathResponseDTO> getAllLearningPaths(Pageable pageable) {
+        log.info("Fetching all learning paths");
+
+        Page<LearningPath> learningPaths = learningPathRepository.findByIsActive(Boolean.TRUE, pageable);
+        return learningPaths.map(learningPathMapper::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<LearningPathResponseDTO> searchLearningPaths(String keyword, Pageable pageable) {
+        log.info("Searching learning paths with keyword: {}", keyword);
+
+        Page<LearningPath> learningPaths = learningPathRepository.searchLearningPaths(keyword, pageable);
+        return learningPaths.map(learningPathMapper::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<LearningPathResponseDTO> getLearningPathsByCreator(UUID userId, Pageable pageable) {
+        log.info("Fetching learning paths created by user ID: {}", userId);
+
+        Page<LearningPath> learningPaths = learningPathRepository.findByCreatedBy(userId, pageable);
+        return learningPaths.map(learningPathMapper::toDTO);
+    }
+
+    @Override
+    public void deleteLearningPath(UUID id) {
+        log.info("Deleting learning path with ID: {}", id);
+
+        LearningPath learningPath = learningPathRepository.findByIdAndIsActive(id, Boolean.TRUE)
+                .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + id));
+
+        learningPath.setIsActive(Boolean.FALSE);
+        learningPathRepository.save(learningPath);
+
+        log.info("Learning path deleted successfully with ID: {}", id);
+    }
+
+    @Override
+    public LearningPathResponseDTO addCoursesToPath(UUID pathId, AddCoursesToPathRequestDTO requestDTO) {
+        log.info("Adding courses to learning path ID: {}", pathId);
+
+        LearningPath learningPath = learningPathRepository.findByIdAndIsActive(pathId, Boolean.TRUE)
+                .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + pathId));
+
+        for (CourseInPathDTO courseDTO : requestDTO.getCourses()) {
+            // Check if course already exists in path
+            if (learningPathCourseRepository.existsByPathIdAndCourseId(pathId, courseDTO.getCourseId())) {
+                log.warn("Course {} already exists in path {}", courseDTO.getCourseId(), pathId);
+                continue;
             }
+
+            LearningPathCourse pathCourse = new LearningPathCourse();
+            pathCourse.setPathId(pathId);
+            pathCourse.setCourseId(courseDTO.getCourseId());
+            pathCourse.setOrder(courseDTO.getOrder());
+
+            learningPathCourseRepository.save(pathCourse);
         }
 
-        // Convert to response
-        LearningPathResponse response = mapper.toResponse(saved);
-        enrichResponse(response);
+        // Refresh to get updated courses
+        learningPath = learningPathRepository.findById(pathId).orElseThrow();
 
-        log.info("Created learning path with ID: {}", saved.getId());
-        return response;
+        log.info("Courses added successfully to learning path ID: {}", pathId);
+        return learningPathMapper.toDTO(learningPath);
     }
 
     @Override
-    @Transactional
-    public LearningPathResponse updateLearningPath(UUID id, UpdateLearningPathRequest request, UUID updatedBy) {
-        log.info("Updating learning path: {}", id);
+    public LearningPathResponseDTO removeCourseFromPath(UUID pathId, UUID courseId) {
+        log.info("Removing course {} from learning path {}", courseId, pathId);
 
-        LearningPath entity = learningPathRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Learning path not found with ID: " + id));
+        LearningPath learningPath = learningPathRepository.findByIdAndIsActive(pathId, Boolean.TRUE)
+                .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + pathId));
 
-        // Update fields
-        mapper.updateEntity(request, entity);
-        entity.setUpdatedBy(updatedBy);
-        entity.setUpdated(LocalDateTime.now());
+        learningPathCourseRepository.deleteByPathIdAndCourseId(pathId, courseId);
 
-        LearningPath updated = learningPathRepository.save(entity);
+        // Refresh to get updated courses
+        learningPath = learningPathRepository.findById(pathId).orElseThrow();
 
-        LearningPathResponse response = mapper.toResponse(updated);
-        enrichResponse(response);
-
-        log.info("Updated learning path: {}", id);
-        return response;
+        log.info("Course removed successfully from learning path ID: {}", pathId);
+        return learningPathMapper.toDTO(learningPath);
     }
 
     @Override
-    @Transactional
-    public void deleteLearningPath(UUID id, UUID deletedBy) {
-        log.info("Deleting learning path: {}", id);
+    public LearningPathResponseDTO reorderCourses(UUID pathId, List<CourseInPathDTO> courses) {
+        log.info("Reordering courses in learning path ID: {}", pathId);
 
-        LearningPath entity = learningPathRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Learning path not found with ID: " + id));
+        LearningPath learningPath = learningPathRepository.findByIdAndIsActive(pathId, Boolean.TRUE)
+                .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + pathId));
 
-        // Soft delete
-        entity.setIsActive("N");
-        entity.setUpdatedBy(deletedBy);
-        entity.setUpdated(LocalDateTime.now());
+        // Delete existing courses
+        learningPathCourseRepository.deleteByPathId(pathId);
 
-        learningPathRepository.save(entity);
+        // Add courses with new order
+        for (CourseInPathDTO courseDTO : courses) {
+            LearningPathCourse pathCourse = new LearningPathCourse();
+            pathCourse.setPathId(pathId);
+            pathCourse.setCourseId(courseDTO.getCourseId());
+            pathCourse.setOrder(courseDTO.getOrder());
 
-        log.info("Deleted learning path: {}", id);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public LearningPathResponse getLearningPathById(UUID id) {
-        log.debug("Getting learning path: {}", id);
-
-        LearningPath entity = learningPathRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Learning path not found with ID: " + id));
-
-        LearningPathResponse response = mapper.toResponse(entity);
-        enrichResponse(response);
-
-        return response;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<LearningPathResponse> getAllLearningPaths() {
-        log.debug("Getting all learning paths");
-
-        List<LearningPath> entities = learningPathRepository.findAll();
-        List<LearningPathResponse> responses = mapper.toResponseList(entities);
-
-        responses.forEach(this::enrichResponse);
-
-        return responses;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<LearningPathResponse> getActiveLearningPaths() {
-        log.debug("Getting active learning paths");
-
-        List<LearningPath> entities = learningPathRepository.findByIsActive("Y");
-        List<LearningPathResponse> responses = mapper.toResponseList(entities);
-
-        responses.forEach(this::enrichResponse);
-
-        return responses;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<LearningPathResponse> searchLearningPaths(String keyword) {
-        log.debug("Searching learning paths with keyword: {}", keyword);
-
-        List<LearningPath> entities = learningPathRepository.searchByTitle(keyword);
-        List<LearningPathResponse> responses = mapper.toResponseList(entities);
-
-        responses.forEach(this::enrichResponse);
-
-        return responses;
-    }
-
-    @Override
-    @Transactional
-    public void addCourseToPath(UUID pathId, CourseOrderRequest request, UUID updatedBy) {
-        log.info("Adding course {} to path {}", request.getCourseId(), pathId);
-
-        // Verify path exists
-        LearningPath path = learningPathRepository.findById(pathId)
-                .orElseThrow(() -> new ResourceNotFoundException("Learning path not found with ID: " + pathId));
-
-        // Check if course already in path
-        if (pathCourseRepository.existsByPathIdAndCourseId(pathId, request.getCourseId())) {
-            throw new IllegalArgumentException("Course already exists in this path");
+            learningPathCourseRepository.save(pathCourse);
         }
 
-        // Add course
-        LearningPathCourse pathCourse = new LearningPathCourse();
-        pathCourse.setPathId(pathId);
-        pathCourse.setCourseId(request.getCourseId());
-        pathCourse.setOrder(request.getOrder());
+        // Refresh to get updated courses
+        learningPath = learningPathRepository.findById(pathId).orElseThrow();
 
-        pathCourseRepository.save(pathCourse);
-
-        // Update path timestamp
-        path.setUpdated(LocalDateTime.now());
-        path.setUpdatedBy(updatedBy);
-        learningPathRepository.save(path);
-
-        log.info("Added course to path successfully");
-    }
-
-    @Override
-    @Transactional
-    public void removeCourseFromPath(UUID pathId, UUID courseId, UUID updatedBy) {
-        log.info("Removing course {} from path {}", courseId, pathId);
-
-        // Verify path exists
-        LearningPath path = learningPathRepository.findById(pathId)
-                .orElseThrow(() -> new ResourceNotFoundException("Learning path not found with ID: " + pathId));
-
-        // Remove course
-        pathCourseRepository.removeFromPath(pathId, courseId);
-
-        // Update path timestamp
-        path.setUpdated(LocalDateTime.now());
-        path.setUpdatedBy(updatedBy);
-        learningPathRepository.save(path);
-
-        log.info("Removed course from path successfully");
-    }
-
-    @Override
-    @Transactional
-    public void updateCourseOrder(UUID pathId, List<CourseOrderRequest> courses, UUID updatedBy) {
-        log.info("Updating course order for path {}", pathId);
-
-        // Verify path exists
-        LearningPath path = learningPathRepository.findById(pathId)
-                .orElseThrow(() -> new ResourceNotFoundException("Learning path not found with ID: " + pathId));
-
-        // Get existing courses
-        List<LearningPathCourse> existingCourses = pathCourseRepository.findByPathIdOrderByOrderAsc(pathId);
-
-        // Update order
-        for (CourseOrderRequest request : courses) {
-            existingCourses.stream()
-                    .filter(pc -> pc.getCourseId().equals(request.getCourseId()))
-                    .findFirst()
-                    .ifPresent(pc -> pc.setOrder(request.getOrder()));
-        }
-
-        pathCourseRepository.saveAll(existingCourses);
-
-        // Update path timestamp
-        path.setUpdated(LocalDateTime.now());
-        path.setUpdatedBy(updatedBy);
-        learningPathRepository.save(path);
-
-        log.info("Updated course order successfully");
+        log.info("Courses reordered successfully in learning path ID: {}", pathId);
+        return learningPathMapper.toDTO(learningPath);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Integer getTotalEnrolled(UUID pathId) {
-        return (int) pathProgressRepository.countByPathIdAndIsActive(pathId, "Y");
-    }
+    public List<LearningPathResponseDTO> getLearningPathsByCourse(UUID courseId) {
+        log.info("Fetching learning paths containing course ID: {}", courseId);
 
-    @Override
-    @Transactional(readOnly = true)
-    public Double getAverageCompletion(UUID pathId) {
-        Double avg = pathProgressRepository.getAverageCompletion(pathId);
-        return avg != null ? avg : 0.0;
-    }
+        List<LearningPathCourse> pathCourses = learningPathCourseRepository.findByCourseId(courseId);
+        List<UUID> pathIds = pathCourses.stream()
+                .map(LearningPathCourse::getPathId)
+                .collect(Collectors.toList());
 
-    /**
-     * Enrich response with additional data
-     */
-    private void enrichResponse(LearningPathResponse response) {
-        if (response.getId() != null) {
-            // Get course count
-            long courseCount = pathCourseRepository.countByPathId(response.getId());
-            response.setTotalCourses((int) courseCount);
-
-            // Get enrollment count
-            response.setTotalEnrolled(getTotalEnrolled(response.getId()));
-
-            // Get average completion
-            response.setAverageCompletion(getAverageCompletion(response.getId()));
-
-            // TODO: Fetch course details from Course Service
-            // response.setCourses(fetchCourseDetails(response.getId()));
-        }
+        List<LearningPath> learningPaths = learningPathRepository.findAllById(pathIds);
+        return learningPathMapper.toDTOList(learningPaths);
     }
 }
