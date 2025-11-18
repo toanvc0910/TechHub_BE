@@ -54,13 +54,21 @@ public class LearningPathMapper {
             return new ArrayList<>();
         }
         return courses.stream()
-                .map(lpc -> CourseInPathDTO.builder()
-                        .courseId(lpc.getCourseId())
-                        .order(lpc.getOrder())
-                        .positionX(lpc.getPositionX())
-                        .positionY(lpc.getPositionY())
-                        .isOptional(lpc.getIsOptional())
-                        .build())
+                .map(lpc -> {
+                    CourseInPathDTO dto = CourseInPathDTO.builder()
+                            .courseId(lpc.getCourseId())
+                            .order(lpc.getOrder())
+                            .positionX(lpc.getPositionX())
+                            .positionY(lpc.getPositionY())
+                            .isOptional(lpc.getIsOptional())
+                            .build();
+                    // Debug log for mapper
+                    if (lpc.getPositionX() == null || lpc.getPositionY() == null) {
+                        System.out.println("⚠️ MAPPER WARNING: NULL positions - Entity: courseId=" + lpc.getCourseId()
+                                + ", posX=" + lpc.getPositionX() + ", posY=" + lpc.getPositionY());
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 

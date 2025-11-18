@@ -56,12 +56,43 @@ public class LearningPathServiceImpl implements LearningPathService {
     @Override
     @Transactional(readOnly = true)
     public LearningPathResponseDTO getLearningPathById(UUID id) {
+        log.info("=".repeat(80));
+        log.info("🔍 GET LEARNING PATH BY ID - START");
         log.info("Fetching learning path with ID: {}", id);
 
         LearningPath learningPath = learningPathRepository.findByIdAndIsActive(id, Boolean.TRUE)
                 .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + id));
 
-        return learningPathMapper.toDTO(learningPath);
+        log.info("📊 Learning path found: title={}, courses count={}",
+                learningPath.getTitle(),
+                learningPath.getCourses() != null ? learningPath.getCourses().size() : 0);
+
+        if (learningPath.getCourses() != null) {
+            log.info("\n📋 Courses from database:");
+            for (LearningPathCourse course : learningPath.getCourses()) {
+                log.info("   📌 Course: courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
+                        course.getCourseId(), course.getOrder(),
+                        course.getPositionX(), course.getPositionY(),
+                        course.getIsOptional());
+            }
+        }
+
+        LearningPathResponseDTO response = learningPathMapper.toDTO(learningPath);
+
+        log.info("\n📤 Response DTO:");
+        if (response.getCourses() != null) {
+            for (CourseInPathDTO courseDTO : response.getCourses()) {
+                log.info("   📦 Course DTO: courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
+                        courseDTO.getCourseId(), courseDTO.getOrder(),
+                        courseDTO.getPositionX(), courseDTO.getPositionY(),
+                        courseDTO.getIsOptional());
+            }
+        }
+
+        log.info("🔍 GET LEARNING PATH BY ID - END");
+        log.info("=".repeat(80));
+
+        return response;
     }
 
     @Override
@@ -151,16 +182,28 @@ public class LearningPathServiceImpl implements LearningPathService {
 
     @Override
     public LearningPathResponseDTO reorderCourses(UUID pathId, List<CourseInPathDTO> courses) {
+        log.info("=".repeat(80));
+        log.info("🔄 REORDER COURSES - START");
         log.info("Reordering courses in learning path ID: {}", pathId);
+        log.info("📥 Received {} courses to save", courses.size());
 
         LearningPath learningPath = learningPathRepository.findByIdAndIsActive(pathId, Boolean.TRUE)
                 .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + pathId));
 
         // Delete existing courses
+        log.info("🗑️ Deleting existing courses for pathId: {}", pathId);
         learningPathCourseRepository.deleteByPathId(pathId);
+        log.info("✅ Existing courses deleted");
 
         // Add courses with new order
-        for (CourseInPathDTO courseDTO : courses) {
+        log.info("➕ Adding {} courses with new positions", courses.size());
+        for (int i = 0; i < courses.size(); i++) {
+            CourseInPathDTO courseDTO = courses.get(i);
+            log.info("\n📋 Processing course {}/{}: courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
+                    (i + 1), courses.size(),
+                    courseDTO.getCourseId(), courseDTO.getOrder(), courseDTO.getPositionX(),
+                    courseDTO.getPositionY(), courseDTO.getIsOptional());
+
             LearningPathCourse pathCourse = new LearningPathCourse();
             pathCourse.setPathId(pathId);
             pathCourse.setCourseId(courseDTO.getCourseId());
@@ -169,14 +212,58 @@ public class LearningPathServiceImpl implements LearningPathService {
             pathCourse.setPositionY(courseDTO.getPositionY());
             pathCourse.setIsOptional(courseDTO.getIsOptional() != null ? courseDTO.getIsOptional() : "N");
 
-            learningPathCourseRepository.save(pathCourse);
+            log.info(
+                    "   ⚙️ Before save - Entity values: pathId={}, courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
+                    pathCourse.getPathId(), pathCourse.getCourseId(), pathCourse.getOrder(),
+                    pathCourse.getPositionX(), pathCourse.getPositionY(), pathCourse.getIsOptional());
+
+            LearningPathCourse saved = learningPathCourseRepository.save(pathCourse);
+
+            log.info(
+                    "   💾 After save - DB values: pathId={}, courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
+                    saved.getPathId(), saved.getCourseId(), saved.getOrder(),
+                    saved.getPositionX(), saved.getPositionY(), saved.getIsOptional());
+
+            if (saved.getPositionX() == null || saved.getPositionY() == null) {
+                log.error("   ❌ WARNING: Position values are NULL after save!");
+                log.error("      Original DTO had: positionX={}, positionY={}",
+                        courseDTO.getPositionX(), courseDTO.getPositionY());
+            } else {
+                log.info("   ✅ Position values saved successfully");
+            }
         }
 
         // Refresh to get updated courses
+        log.info("\n🔄 Refreshing learning path to get updated courses...");
         learningPath = learningPathRepository.findById(pathId).orElseThrow();
 
-        log.info("Courses reordered successfully in learning path ID: {}", pathId);
-        return learningPathMapper.toDTO(learningPath);
+        log.info("📊 Verifying courses after refresh:");
+        if (learningPath.getCourses() != null) {
+            for (LearningPathCourse course : learningPath.getCourses()) {
+                log.info("   📌 Course from DB: courseId={}, order={}, positionX={}, positionY={}",
+                        course.getCourseId(), course.getOrder(),
+                        course.getPositionX(), course.getPositionY());
+            }
+        } else {
+            log.warn("   ⚠️ Courses list is NULL after refresh!");
+        }
+
+        log.info("✅ Courses reordered successfully in learning path ID: {}", pathId);
+        log.info("🔄 REORDER COURSES - END");
+        log.info("=".repeat(80));
+
+        LearningPathResponseDTO response = learningPathMapper.toDTO(learningPath);
+
+        log.info("\n📤 Response DTO courses:");
+        if (response.getCourses() != null) {
+            for (CourseInPathDTO courseDTO : response.getCourses()) {
+                log.info("   📦 Course DTO: courseId={}, order={}, positionX={}, positionY={}",
+                        courseDTO.getCourseId(), courseDTO.getOrder(),
+                        courseDTO.getPositionX(), courseDTO.getPositionY());
+            }
+        }
+
+        return response;
     }
 
     @Override

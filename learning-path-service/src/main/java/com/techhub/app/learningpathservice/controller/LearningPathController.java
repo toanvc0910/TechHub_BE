@@ -173,9 +173,33 @@ public class LearningPathController {
     public ResponseEntity<GlobalResponse<LearningPathResponseDTO>> reorderCourses(
             @PathVariable UUID pathId,
             @Valid @RequestBody List<CourseInPathDTO> courses) {
+        log.info("=".repeat(100));
+        log.info("🌐 REST API - REORDER COURSES REQUEST");
         log.info("REST request to reorder courses in learning path: {}", pathId);
+        log.info("📥 Request body contains {} courses", courses != null ? courses.size() : 0);
+
+        if (courses != null) {
+            for (int i = 0; i < courses.size(); i++) {
+                CourseInPathDTO course = courses.get(i);
+                log.info("   Request Course {}: courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
+                        (i + 1), course.getCourseId(), course.getOrder(),
+                        course.getPositionX(), course.getPositionY(), course.getIsOptional());
+            }
+        }
 
         LearningPathResponseDTO response = learningPathService.reorderCourses(pathId, courses);
+
+        log.info("\n📤 Response contains {} courses",
+                response.getCourses() != null ? response.getCourses().size() : 0);
+        if (response.getCourses() != null) {
+            for (CourseInPathDTO course : response.getCourses()) {
+                log.info("   Response Course: courseId={}, order={}, positionX={}, positionY={}",
+                        course.getCourseId(), course.getOrder(),
+                        course.getPositionX(), course.getPositionY());
+            }
+        }
+        log.info("🌐 REST API - REORDER COURSES RESPONSE SENT");
+        log.info("=".repeat(100));
 
         return ResponseEntity.ok(GlobalResponse.success("Courses reordered successfully", response));
     }
