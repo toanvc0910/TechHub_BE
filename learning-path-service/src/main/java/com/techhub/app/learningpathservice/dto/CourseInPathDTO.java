@@ -20,6 +20,10 @@ public class CourseInPathDTO {
     @NotNull(message = "Order is required")
     private Integer order;
 
+    private Integer positionX;
+    private Integer positionY;
+    private String isOptional; // "Y" or "N"
+
     // Additional course details (fetched from course service)
     private String title;
     private String description;

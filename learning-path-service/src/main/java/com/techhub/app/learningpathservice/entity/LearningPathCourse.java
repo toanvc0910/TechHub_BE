@@ -25,6 +25,15 @@ public class LearningPathCourse {
     @Column(name = "\"order\"", nullable = false)
     private Integer order;
 
+    @Column(name = "position_x")
+    private Integer positionX;
+
+    @Column(name = "position_y")
+    private Integer positionY;
+
+    @Column(name = "is_optional", length = 1)
+    private String isOptional = "N";
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "path_id", insertable = false, updatable = false)
     private LearningPath learningPath;

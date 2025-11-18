@@ -19,6 +19,7 @@ public class LearningPathMapper {
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
         entity.setSkills(dto.getSkills() != null ? dto.getSkills() : new ArrayList<>());
+        entity.setLayoutEdges(dto.getLayoutEdges() != null ? dto.getLayoutEdges() : new ArrayList<>());
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setUpdatedBy(dto.getUpdatedBy());
         return entity;
@@ -28,6 +29,7 @@ public class LearningPathMapper {
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
         entity.setSkills(dto.getSkills() != null ? dto.getSkills() : new ArrayList<>());
+        entity.setLayoutEdges(dto.getLayoutEdges() != null ? dto.getLayoutEdges() : new ArrayList<>());
         entity.setUpdatedBy(dto.getUpdatedBy());
     }
 
@@ -37,6 +39,7 @@ public class LearningPathMapper {
                 .title(entity.getTitle())
                 .description(entity.getDescription())
                 .skills(entity.getSkills())
+                .layoutEdges(entity.getLayoutEdges())
                 .courses(mapCourses(entity.getCourses()))
                 .created(entity.getCreated())
                 .updated(entity.getUpdated())
@@ -54,6 +57,9 @@ public class LearningPathMapper {
                 .map(lpc -> CourseInPathDTO.builder()
                         .courseId(lpc.getCourseId())
                         .order(lpc.getOrder())
+                        .positionX(lpc.getPositionX())
+                        .positionY(lpc.getPositionY())
+                        .isOptional(lpc.getIsOptional())
                         .build())
                 .collect(Collectors.toList());
     }

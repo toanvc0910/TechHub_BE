@@ -1,5 +1,6 @@
 package com.techhub.app.learningpathservice.dto;
 
+import com.techhub.app.learningpathservice.entity.LearningPath;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,6 +23,8 @@ public class LearningPathResponseDTO {
     private String description;
 
     private List<String> skills;
+
+    private List<LearningPath.LayoutEdge> layoutEdges;
 
     private List<CourseInPathDTO> courses;
 

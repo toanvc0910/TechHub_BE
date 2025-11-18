@@ -634,6 +634,7 @@ CREATE TABLE learning_paths (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     skills JSONB DEFAULT '[]'::JSONB,
+    layout_edges JSONB DEFAULT '[]'::JSONB,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by UUID REFERENCES users(id),
@@ -642,6 +643,7 @@ CREATE TABLE learning_paths (
 );
 CREATE INDEX idx_learning_paths_title ON learning_paths(title);
 CREATE INDEX idx_learning_paths_skills_gin ON learning_paths USING GIN (skills);
+CREATE INDEX idx_learning_paths_layout_edges_gin ON learning_paths USING GIN (layout_edges);
 CREATE INDEX idx_learning_paths_is_active ON learning_paths(is_active);
 
 -- Learning Path Courses Join Table
@@ -649,9 +651,13 @@ CREATE TABLE learning_path_courses (
     path_id UUID NOT NULL REFERENCES learning_paths(id) ON DELETE CASCADE,
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     "order" INTEGER NOT NULL,
+    position_x INTEGER,
+    position_y INTEGER,
+    is_optional VARCHAR(1) DEFAULT 'N' CHECK (is_optional IN ('Y', 'N')),
     PRIMARY KEY (path_id, course_id)
 );
 CREATE INDEX idx_path_courses_path_id ON learning_path_courses(path_id);
+CREATE INDEX idx_path_courses_position ON learning_path_courses(position_x, position_y);
 
 -- Path Progress Table
 CREATE TABLE path_progress (

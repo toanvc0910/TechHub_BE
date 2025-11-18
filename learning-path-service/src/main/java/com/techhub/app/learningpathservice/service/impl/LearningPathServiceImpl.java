@@ -165,6 +165,9 @@ public class LearningPathServiceImpl implements LearningPathService {
             pathCourse.setPathId(pathId);
             pathCourse.setCourseId(courseDTO.getCourseId());
             pathCourse.setOrder(courseDTO.getOrder());
+            pathCourse.setPositionX(courseDTO.getPositionX());
+            pathCourse.setPositionY(courseDTO.getPositionY());
+            pathCourse.setIsOptional(courseDTO.getIsOptional() != null ? courseDTO.getIsOptional() : "N");
 
             learningPathCourseRepository.save(pathCourse);
         }

@@ -11,6 +11,7 @@ import org.hibernate.annotations.TypeDef;
 import org.hibernate.annotations.TypeDefs;
 
 import javax.persistence.*;
+import java.io.Serializable;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +42,10 @@ public class LearningPath {
     @Column(name = "skills", columnDefinition = "jsonb")
     private List<String> skills;
 
+    @Type(type = "json")
+    @Column(name = "layout_edges", columnDefinition = "jsonb")
+    private List<LayoutEdge> layoutEdges;
+
     @Column(name = "created", nullable = false)
     private OffsetDateTime created;
 
@@ -69,6 +74,9 @@ public class LearningPath {
         if (skills == null) {
             skills = new ArrayList<>();
         }
+        if (layoutEdges == null) {
+            layoutEdges = new ArrayList<>();
+        }
         if (isActive == null) {
             isActive = Boolean.TRUE;
         }
@@ -80,8 +88,29 @@ public class LearningPath {
         if (skills == null) {
             skills = new ArrayList<>();
         }
+        if (layoutEdges == null) {
+            layoutEdges = new ArrayList<>();
+        }
         if (isActive == null) {
             isActive = Boolean.TRUE;
+        }
+    }
+
+    /**
+     * Inner class to represent a visual designer edge connection
+     */
+    @Getter
+    @Setter
+    public static class LayoutEdge implements Serializable {
+        private String source;
+        private String target;
+
+        public LayoutEdge() {
+        }
+
+        public LayoutEdge(String source, String target) {
+            this.source = source;
+            this.target = target;
         }
     }
 }
