@@ -83,8 +83,8 @@ public class PayPalPaymentService {
             order.put("purchase_units", purchaseUnits);
 
             Map<String, Object> applicationContext = new HashMap<>();
-            applicationContext.put("return_url", "http://localhost:8084/api/v1/payment/paypal/success");
-            applicationContext.put("cancel_url", "http://localhost:8084/api/v1/payment/paypal/cancel");
+            applicationContext.put("return_url", config.getReturnUrl());
+            applicationContext.put("cancel_url", config.getCancelUrl());
             order.put("application_context", applicationContext);
 
             String orderJson = mapper.writeValueAsString(order);

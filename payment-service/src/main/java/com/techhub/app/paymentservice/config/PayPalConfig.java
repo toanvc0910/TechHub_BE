@@ -17,5 +17,13 @@ public class PayPalConfig {
     @Value("${paypal.api-base}")
     private String apiBase;
 
-}
+    @Value("${paypal.return-url}")
+    private String returnUrl;
 
+    @Value("${paypal.cancel-url}")
+    private String cancelUrl;
+
+    @Value("${payment.frontend-result-url}")
+    private String frontendResultUrl;
+
+}

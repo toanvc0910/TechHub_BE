@@ -17,7 +17,7 @@ spring:
 VNPAY_TMN_CODE: 0AAX2AOF
 VNPAY_HASH_SECRET: R9NG5FT0OJ944TRXM0UX6LH77TT538B7
 VNPAY_PAYMENT_URL: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-VNPAY_RETURN_URL: http://localhost:3000/vnpay-return
+VNPAY_RETURN_URL: http://localhost:8443/app/api/proxy/payments/vn-pay-callback
 VNPAY_VERSION: 2.1.0
 VNPAY_COMMAND: pay
 VNPAY_ORDER_TYPE: other

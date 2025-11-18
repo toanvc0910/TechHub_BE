@@ -24,13 +24,22 @@ public class PaymentProxyController {
     }
 
     @GetMapping("/paypal/success")
-    public ResponseEntity<String> paypalSuccess(@RequestParam String token) {
-        return paymentServiceClient.paypalSuccess(token);
+    public void paypalSuccess(@RequestParam String token,
+                             @RequestParam(required = false) String PayerID,
+                             HttpServletResponse response) throws IOException {
+        // Forward all parameters to payment service
+        String queryParams = "token=" + token;
+        if (PayerID != null) {
+            queryParams += "&PayerID=" + PayerID;
+        }
+        response.sendRedirect("http://localhost:8084/api/v1/payment/paypal/success?" + queryParams);
     }
 
     @GetMapping("/paypal/cancel")
-    public ResponseEntity<String> paypalCancel() {
-        return paymentServiceClient.paypalCancel();
+    public void paypalCancel(@RequestParam(required = false) String token,
+                            HttpServletResponse response) throws IOException {
+        String queryParams = token != null ? "token=" + token : "";
+        response.sendRedirect("http://localhost:8084/api/v1/payment/paypal/cancel?" + queryParams);
     }
 
     // ===== VNPAY ENDPOINTS =====

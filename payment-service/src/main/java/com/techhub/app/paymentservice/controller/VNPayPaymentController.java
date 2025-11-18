@@ -1,5 +1,6 @@
 package com.techhub.app.paymentservice.controller;
 
+import com.techhub.app.paymentservice.config.PayPalConfig;
 import com.techhub.app.paymentservice.config.RestResponseObject;
 import com.techhub.app.paymentservice.config.VNPAYConfig;
 import com.techhub.app.paymentservice.dto.response.VNPayPaymentDTO;
@@ -26,11 +27,13 @@ import java.util.stream.Collectors;
 public class VNPayPaymentController {
     private final VNPayPaymentService paymentService;
     private final VNPAYConfig vnpayConfig;
+    private final PayPalConfig payPalConfig;
 
     @Autowired
-    public VNPayPaymentController(VNPayPaymentService paymentService, VNPAYConfig vnpayConfig) {
+    public VNPayPaymentController(VNPayPaymentService paymentService, VNPAYConfig vnpayConfig, PayPalConfig payPalConfig) {
         this.paymentService = paymentService;
         this.vnpayConfig = vnpayConfig;
+        this.payPalConfig = payPalConfig;
     }
 
     @GetMapping("/vn-pay")
@@ -57,7 +60,7 @@ public class VNPayPaymentController {
         boolean isValid = verifySecureHash(params, vnp_SecureHash, vnpayConfig.getSecretKey());
 
         // URL trang kết quả trên frontend
-        String frontendResultUrl = "http://localhost:3000/result";
+        String frontendResultUrl = payPalConfig.getFrontendResultUrl();
 
         // Tạo URL chuyển hướng với các tham số
         String status = isValid && "00".equals(vnp_TransactionStatus) ? "success" : "failed";
