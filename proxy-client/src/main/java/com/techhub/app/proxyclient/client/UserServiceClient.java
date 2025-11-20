@@ -93,4 +93,74 @@ public interface UserServiceClient {
     ResponseEntity<String> getCurrentUserProfile(@RequestHeader("Authorization") String authHeader,
                                                 @RequestHeader("X-User-Id") String userId,
                                                 @RequestHeader("X-User-Email") String userEmail);
+
+    // ===== Admin RBAC =====
+    @GetMapping("/api/admin/permissions")
+    ResponseEntity<String> listPermissions(@RequestHeader("Authorization") String authHeader);
+
+    @PostMapping("/api/admin/permissions")
+    ResponseEntity<String> createPermission(@RequestBody Object body,
+                                            @RequestHeader("Authorization") String authHeader);
+
+    @PutMapping("/api/admin/permissions/{permissionId}")
+    ResponseEntity<String> updatePermission(@PathVariable String permissionId,
+                                            @RequestBody Object body,
+                                            @RequestHeader("Authorization") String authHeader);
+
+    @GetMapping("/api/admin/roles")
+    ResponseEntity<String> listRoles(@RequestHeader("Authorization") String authHeader);
+
+    @PostMapping("/api/admin/roles")
+    ResponseEntity<String> createRole(@RequestBody Object body,
+                                      @RequestHeader("Authorization") String authHeader);
+
+    @PutMapping("/api/admin/roles/{roleId}")
+    ResponseEntity<String> updateRole(@PathVariable String roleId,
+                                      @RequestBody Object body,
+                                      @RequestHeader("Authorization") String authHeader);
+
+    @PostMapping("/api/admin/roles/{roleId}/permissions")
+    ResponseEntity<String> assignPermissionsToRole(@PathVariable String roleId,
+                                                   @RequestBody Object body,
+                                                   @RequestHeader("Authorization") String authHeader);
+
+    @DeleteMapping("/api/admin/roles/{roleId}/permissions/{permissionId}")
+    ResponseEntity<String> removePermissionFromRole(@PathVariable String roleId,
+                                                    @PathVariable String permissionId,
+                                                    @RequestHeader("Authorization") String authHeader);
+
+    @GetMapping("/api/admin/users/{userId}/roles")
+    ResponseEntity<String> getUserRoles(@PathVariable String userId,
+                                        @RequestHeader("Authorization") String authHeader);
+
+    @PostMapping("/api/admin/users/{userId}/roles")
+    ResponseEntity<String> assignRolesToUser(@PathVariable String userId,
+                                             @RequestBody Object body,
+                                             @RequestHeader("Authorization") String authHeader);
+
+    @DeleteMapping("/api/admin/users/{userId}/roles/{roleId}")
+    ResponseEntity<String> removeRoleFromUser(@PathVariable String userId,
+                                              @PathVariable String roleId,
+                                              @RequestHeader("Authorization") String authHeader);
+
+    // User permissions endpoints
+    @GetMapping("/api/users/{userId}/permissions/effective")
+    ResponseEntity<String> getEffectivePermissions(@PathVariable String userId,
+                                                   @RequestHeader("Authorization") String authHeader);
+
+    @PostMapping("/api/users/{userId}/permissions")
+    ResponseEntity<String> upsertUserPermission(@PathVariable String userId,
+                                                @RequestBody Object body,
+                                                @RequestHeader("Authorization") String authHeader);
+
+    @DeleteMapping("/api/users/{userId}/permissions/{permissionId}")
+    ResponseEntity<String> deactivateUserPermission(@PathVariable String userId,
+                                                    @PathVariable String permissionId,
+                                                    @RequestHeader("Authorization") String authHeader);
+
+    // Permission check endpoint
+    @PostMapping("/api/users/{userId}/permissions/check")
+    ResponseEntity<String> checkPermission(@PathVariable String userId,
+                                           @RequestBody Object permissionCheckRequest,
+                                           @RequestHeader("Authorization") String authHeader);
 }

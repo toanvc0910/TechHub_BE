@@ -205,6 +205,23 @@ CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
 CREATE INDEX idx_user_roles_is_active ON user_roles(is_active);
 
+-- User Permissions Join Table (per-user overrides on top of role-based permissions)
+CREATE TABLE user_permissions (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    permission_id UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    allowed BOOLEAN NOT NULL DEFAULT TRUE, -- TRUE = explicit allow; FALSE = explicit deny
+    assigned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
+    PRIMARY KEY (user_id, permission_id)
+);
+CREATE INDEX idx_user_permissions_user_id ON user_permissions(user_id);
+CREATE INDEX idx_user_permissions_permission_id ON user_permissions(permission_id);
+CREATE INDEX idx_user_permissions_is_active ON user_permissions(is_active);
+
 -- Courses Table
 CREATE TABLE courses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

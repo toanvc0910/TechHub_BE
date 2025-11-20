@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final PermissionGatewayService permissionGatewayService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -77,6 +78,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 request.setAttribute("jwt", jwt);
 
                 log.debug("JWT authenticated user: {} for: {} {}", userId, method, requestURI);
+
+                // Authorization check for non-public endpoints (skip for profile fetch or ADMIN role)
+                if (!isPublicEndpoint(requestURI, method)
+                        && !skipPermissionCheck(requestURI)
+                        && !hasBypassRole(roles)) {
+                    String targetPath = normalizeTargetPath(requestURI);
+                    boolean allowed = permissionGatewayService.hasPermission(userId, targetPath, method, authHeader);
+                    if (!allowed) {
+                        log.warn("Access denied for user {} on {} {}", userId, method, targetPath);
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        return;
+                    }
+                }
             }
         } catch (Exception e) {
             log.error("JWT validation failed for: {} {} - Error: {}", method, requestURI, e.getMessage());
@@ -88,8 +102,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private boolean isPublicEndpoint(String uri, String method) {
         return uri.startsWith("/api/auth/") ||
                uri.startsWith("/api/proxy/auth/") ||
-               (uri.equals("/api/users") && "POST".equals(method)) ||
-               (uri.equals("/api/proxy/users") && "POST".equals(method)) ||
+               ("/api/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
+               ("/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
                uri.startsWith("/api/users/forgot-password") ||
                uri.startsWith("/api/proxy/users/forgot-password") ||
                uri.startsWith("/api/users/reset-password") ||
@@ -98,5 +112,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                uri.startsWith("/swagger-ui/") ||
                uri.startsWith("/v3/api-docs/") ||
                uri.startsWith("/oauth2/");
+    }
+
+    private String normalizeTargetPath(String uri) {
+        // Downstream permissions are stored without /api/proxy prefix
+        if (uri.startsWith("/api/proxy")) {
+            return uri.replaceFirst("/api/proxy", "/api");
+        }
+        return uri;
+    }
+
+    private boolean skipPermissionCheck(String uri) {
+        // Allow user endpoints (profile/list) without RBAC check; user-service should still validate identity
+        String normalized = normalizeTargetPath(uri);
+        return normalized.equals("/api/users/profile") || normalized.startsWith("/api/users");
+    }
+
+    private boolean hasBypassRole(List<String> roles) {
+        return roles != null && roles.stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r));
     }
 }
