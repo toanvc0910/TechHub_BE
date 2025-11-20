@@ -60,21 +60,31 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
+            redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8443/login/oauth2/code/google}
             scope:
               - email
               - profile
           facebook:
             client-id: ${FACEBOOK_CLIENT_ID}
             client-secret: ${FACEBOOK_CLIENT_SECRET}
+            redirect-uri: ${FACEBOOK_REDIRECT_URI:http://localhost:8443/login/oauth2/code/facebook}
             scope:
               - email
               - public_profile
           github:
             client-id: ${GITHUB_CLIENT_ID}
             client-secret: ${GITHUB_CLIENT_SECRET}
+            redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8443/login/oauth2/code/github}
             scope:
               - user:email
               - read:user
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+        provider:
+          facebook:
+            user-info-uri: https://graph.facebook.com/me?fields=id,name,email,picture
+          github:
+            user-info-uri: https://api.github.com/user
 
 kafka:
   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}

@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -60,12 +61,18 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         User user = userOptional.get();
 
         try {
-            // Find the provider used for this user
+            // Detect provider from current authentication token, fallback to existing provider mapping
             String providerName = "unknown";
-            for (AuthProviderEnum provider : AuthProviderEnum.values()) {
-                if (authProviderRepository.existsByUserIdAndProvider(user.getId(), provider)) {
-                    providerName = provider.name().toLowerCase();
-                    break;
+            if (authentication instanceof OAuth2AuthenticationToken) {
+                providerName = ((OAuth2AuthenticationToken) authentication)
+                        .getAuthorizedClientRegistrationId()
+                        .toLowerCase();
+            } else {
+                for (AuthProviderEnum provider : AuthProviderEnum.values()) {
+                    if (authProviderRepository.existsByUserIdAndProvider(user.getId(), provider)) {
+                        providerName = provider.name().toLowerCase();
+                        break;
+                    }
                 }
             }
 

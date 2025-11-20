@@ -37,7 +37,7 @@ public class User {
     @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "username", unique = true, length = 255)
+    @Column(name = "username", length = 255)
     private String username;
 
     @Column(name = "password_hash", length = 255)
@@ -73,6 +73,9 @@ public class User {
     // Fix: Use the correct UserRole entity for the relationship
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<UserRole> userRoles = new ArrayList<>();
+
+    @Column(name = "login_type", length = 50)
+    private String loginType = "LOCAL";
 
     @PrePersist
     protected void onCreate() {

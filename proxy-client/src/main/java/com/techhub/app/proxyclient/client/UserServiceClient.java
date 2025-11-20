@@ -36,6 +36,14 @@ public interface UserServiceClient {
     ResponseEntity<String> getUserById(@PathVariable String userId,
                                        @RequestHeader("Authorization") String authHeader);
 
+    // Internal use (for OAuth2 token exchange) - user-service endpoints are permitAll
+    @GetMapping("/api/users/{userId}")
+    ResponseEntity<String> getUserByIdInternal(@PathVariable String userId,
+                                               @RequestHeader("X-Request-Source") String requestSource,
+                                               @RequestHeader("X-User-Id") String currentUserId,
+                                               @RequestHeader("X-User-Email") String currentUserEmail,
+                                               @RequestHeader(value = "X-User-Roles", defaultValue = "") String currentUserRoles);
+
     @GetMapping("/api/users/email/{email}")
     ResponseEntity<String> getUserByEmail(@PathVariable String email,
                                           @RequestHeader("Authorization") String authHeader);

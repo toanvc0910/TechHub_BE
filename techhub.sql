@@ -35,11 +35,12 @@ CREATE TYPE permission_method AS ENUM('GET', 'POST', 'PUT', 'DELETE', 'PATCH', '
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) NOT NULL UNIQUE,
-    username VARCHAR(255) UNIQUE,
+    username VARCHAR(255),
     password_hash VARCHAR(255),
     avatar VARCHAR(500),
     role user_role NOT NULL,
     status user_status DEFAULT 'ACTIVE',
+    login_type VARCHAR(50) DEFAULT 'LOCAL',
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by UUID REFERENCES users(id),
@@ -49,6 +50,7 @@ CREATE TABLE users (
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_users_login_type ON users(login_type);
 CREATE INDEX idx_users_created ON users(created);
 CREATE INDEX idx_users_is_active ON users(is_active);
 CREATE INDEX idx_users_created_by ON users(created_by);

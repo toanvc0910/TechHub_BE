@@ -27,9 +27,29 @@ public class UserPrincipal implements OAuth2User, UserDetails {
     private Map<String, Object> attributes;
 
     public static UserPrincipal create(User user) {
-        List<GrantedAuthority> authorities = user.getUserRoles().stream()
-                .map(userRole -> new SimpleGrantedAuthority("ROLE_" + userRole.getRole().getName()))
-                .collect(Collectors.toList());
+        List<GrantedAuthority> authorities;
+        try {
+            // Try to fetch roles from userRoles relationship
+            authorities = user.getUserRoles().stream()
+                    .filter(userRole -> userRole.getRole() != null)
+                    .map(userRole -> {
+                        try {
+                            return new SimpleGrantedAuthority("ROLE_" + userRole.getRole().getName());
+                        } catch (Exception e) {
+                            // Role proxy not initialized, skip
+                            return null;
+                        }
+                    })
+                    .filter(auth -> auth != null)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            authorities = List.of();
+        }
+
+        // Fallback to user's default role if userRoles is empty or not loaded
+        if (authorities.isEmpty() && user.getRole() != null) {
+            authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+        }
 
         return new UserPrincipal(
                 user.getId(),
@@ -37,8 +57,7 @@ public class UserPrincipal implements OAuth2User, UserDetails {
                 user.getUsername(),
                 user.getPasswordHash(),
                 authorities,
-                null
-        );
+                null);
     }
 
     public static UserPrincipal create(User user, Map<String, Object> attributes) {
