@@ -1,0 +1,767 @@
+{
+	"info": {
+		"_postman_id": "58bfd542-cf76-482d-9b5e-07e596ed796b",
+		"name": "TechHUB_BE - Learning Path Service",
+		"description": "Complete API collection for TechHub Learning Path Service",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Learning Path",
+			"item": [
+				{
+					"name": "Get All Learning Paths",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths?page=0&size=10&sortBy=created&sortDirection=DESC",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "sortBy",
+									"value": "created",
+									"description": "created, title, estimatedDuration"
+								},
+								{
+									"key": "sortDirection",
+									"value": "DESC",
+									"description": "ASC or DESC"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Learning Path",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Full-Stack Web Development\",\n  \"description\": \"Complete learning path for becoming a full-stack web developer with modern technologies\",\n  \"level\": \"INTERMEDIATE\",\n  \"estimatedDuration\": 180,\n  \"skills\": [\"HTML\", \"CSS\", \"JavaScript\", \"React\", \"Node.js\", \"MongoDB\", \"REST API\"],\n  \"isActive\": \"Y\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Learning Path by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Learning Path",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Full-Stack Web Development - Advanced\",\n  \"description\": \"Updated complete learning path for becoming an advanced full-stack web developer\",\n  \"level\": \"ADVANCED\",\n  \"estimatedDuration\": 200,\n  \"skills\": [\"HTML\", \"CSS\", \"JavaScript\", \"React\", \"Node.js\", \"MongoDB\", \"Docker\", \"Kubernetes\", \"CI/CD\"],\n  \"isActive\": \"Y\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Learning Path",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Learning Paths",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/search?keyword=web&page=0&size=10",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"search"
+							],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "web",
+									"description": "Search in title, description, and skills"
+								},
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Learning Paths by Creator",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/creator/b8054308-cd00-45bf-bcd5-ec5c04385046?page=0&size=10",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"creator",
+								"b8054308-cd00-45bf-bcd5-ec5c04385046"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Learning Paths by Course",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/by-course/course-uuid-here",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"by-course",
+								"course-uuid-here"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Course Management",
+			"item": [
+				{
+					"name": "Add Courses to Path",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"courses\": [\n    {\n      \"courseId\": \"course-uuid-1\",\n      \"order\": 1,\n      \"isOptional\": \"N\"\n    },\n    {\n      \"courseId\": \"course-uuid-2\",\n      \"order\": 2,\n      \"isOptional\": \"N\"\n    },\n    {\n      \"courseId\": \"course-uuid-3\",\n      \"order\": 3,\n      \"isOptional\": \"Y\"\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/550e8400-e29b-41d4-a716-446655440000/courses",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"550e8400-e29b-41d4-a716-446655440000",
+								"courses"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Course from Path",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/550e8400-e29b-41d4-a716-446655440000/courses/course-uuid-here",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"550e8400-e29b-41d4-a716-446655440000",
+								"courses",
+								"course-uuid-here"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reorder Courses",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"courseId\": \"course-uuid-1\",\n  \"newOrder\": 3\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/550e8400-e29b-41d4-a716-446655440000/courses/reorder",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"550e8400-e29b-41d4-a716-446655440000",
+								"courses",
+								"reorder"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Progress Tracking",
+			"item": [
+				{
+					"name": "Create or Update Progress",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pathId\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"completionPercentage\": 45.5,\n  \"milestones\": {\n    \"course-1\": \"completed\",\n    \"course-2\": \"in-progress\",\n    \"quiz-1\": \"passed\",\n    \"last_accessed_module\": \"module-3\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/progress",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"progress"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Progress by User and Path",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/progress/user/b8054308-cd00-45bf-bcd5-ec5c04385046/path/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"progress",
+								"user",
+								"b8054308-cd00-45bf-bcd5-ec5c04385046",
+								"path",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Progress by User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/progress/user/b8054308-cd00-45bf-bcd5-ec5c04385046?page=0&size=10",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"progress",
+								"user",
+								"b8054308-cd00-45bf-bcd5-ec5c04385046"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Progress by Path",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/progress/path/550e8400-e29b-41d4-a716-446655440000?page=0&size=10",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"progress",
+								"path",
+								"550e8400-e29b-41d4-a716-446655440000"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Progress",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/progress/user/b8054308-cd00-45bf-bcd5-ec5c04385046/path/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"progress",
+								"user",
+								"b8054308-cd00-45bf-bcd5-ec5c04385046",
+								"path",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Statistics",
+			"item": [
+				{
+					"name": "Get Path Statistics",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{BearToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{Host}}/app/api/proxy/learning-paths/550e8400-e29b-41d4-a716-446655440000/statistics",
+							"host": [
+								"{{Host}}"
+							],
+							"path": [
+								"app",
+								"api",
+								"proxy",
+								"learning-paths",
+								"550e8400-e29b-41d4-a716-446655440000",
+								"statistics"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "Host",
+			"value": "http://localhost:8443",
+			"type": "string"
+		},
+		{
+			"key": "BearToken",
+			"value": "your-jwt-token-here",
+			"type": "string"
+		}
+	]
+}

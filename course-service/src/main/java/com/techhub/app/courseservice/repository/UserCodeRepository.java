@@ -10,3 +10,4 @@ public interface UserCodeRepository extends JpaRepository<UserCode, UUID> {
 
     Optional<UserCode> findByUserIdAndLesson_Id(UUID userId, UUID lessonId);
 }
+    
