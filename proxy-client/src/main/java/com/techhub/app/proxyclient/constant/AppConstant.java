@@ -28,5 +28,8 @@ public abstract class AppConstant {
 
         public static final String PAYMENT_SERVICE_HOST = "http://PAYMENT-SERVICE/payment-service";
         public static final String PAYMENT_SERVICE_API_URL = "http://PAYMENT-SERVICE/payment-service/api/payments";
+
+        public static final String AI_SERVICE_HOST = "http://AI-SERVICE/ai-service";
+        public static final String AI_SERVICE_API_URL = "http://AI-SERVICE/ai-service/api/ai";
     }
 }

@@ -30,6 +30,9 @@ CREATE TYPE test_case_visibility AS ENUM('PUBLIC', 'PRIVATE');
 CREATE TYPE submission_status AS ENUM('PENDING', 'RUNNING', 'PASSED', 'FAILED', 'PARTIAL', 'ERROR');
 -- Add missing permission_method ENUM type
 CREATE TYPE permission_method AS ENUM('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS');
+-- AI Service ENUM types
+CREATE TYPE ai_task_type AS ENUM('EXERCISE_GENERATION', 'LEARNING_PATH', 'RECOMMENDATION_REALTIME', 'RECOMMENDATION_SCHEDULED', 'CHAT_GENERAL', 'CHAT_ADVISOR');
+CREATE TYPE ai_task_status AS ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'DRAFT');
 
 -- Users Table
 CREATE TABLE users (
@@ -928,7 +931,7 @@ BEGIN
         'payments', 'carts', 'blogs', 'forums', 'forum_posts', 'group_chats',
         'learning_paths', 'path_progress', 'badges', 'user_points', 'leaderboards',
         'rewards', 'notifications', 'analytics', 'recommendations', 'translations',
-        'chat_sessions', 'chat_messages', 'audit_logs'
+        'chat_sessions', 'chat_messages', 'audit_logs', 'ai_generation_tasks'
     ]
     LOOP
         EXECUTE 'CREATE TRIGGER trg_update_' || t || ' BEFORE UPDATE ON ' || t || ' FOR EACH ROW EXECUTE PROCEDURE update_updated();';
@@ -1028,6 +1031,32 @@ CREATE INDEX idx_file_usage_file_id ON file_usage(file_id);
 CREATE INDEX idx_file_usage_used_in ON file_usage(used_in_type, used_in_id);
 
 -- Triggers for file tables
+
+-- ===========================
+-- AI SERVICE TABLES
+-- ===========================
+
+-- AI Generation Tasks Table
+CREATE TABLE ai_generation_tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    task_type ai_task_type NOT NULL,
+    status ai_task_status NOT NULL DEFAULT 'PENDING',
+    target_reference VARCHAR(255),
+    model_used VARCHAR(128),
+    prompt TEXT,
+    request_payload JSONB,
+    result_payload JSONB,
+    error_message TEXT,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
+);
+
+CREATE INDEX idx_ai_generation_tasks_task_type ON ai_generation_tasks(task_type);
+CREATE INDEX idx_ai_generation_tasks_status ON ai_generation_tasks(status);
+CREATE INDEX idx_ai_generation_tasks_target_reference ON ai_generation_tasks(target_reference);
+CREATE INDEX idx_ai_generation_tasks_created ON ai_generation_tasks(created);
+CREATE INDEX idx_ai_generation_tasks_is_active ON ai_generation_tasks(is_active);
 CREATE TRIGGER trg_update_file_folders 
 BEFORE UPDATE ON file_folders 
 FOR EACH ROW EXECUTE PROCEDURE update_updated();

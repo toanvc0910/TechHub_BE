@@ -123,6 +123,7 @@
 		<module>blog-service</module>
 		<module>user-service</module>
 		<module>file-service</module>
+        <module>ai-service</module>
         <module>notification-service</module>
 	</modules>
 	<build>

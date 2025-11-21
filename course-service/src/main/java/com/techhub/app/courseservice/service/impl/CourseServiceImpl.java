@@ -21,6 +21,8 @@ import com.techhub.app.courseservice.entity.Enrollment;
 import com.techhub.app.courseservice.entity.Lesson;
 import com.techhub.app.courseservice.entity.LessonAsset;
 import com.techhub.app.courseservice.entity.Progress;
+import com.techhub.app.courseservice.event.CourseEvent;
+import com.techhub.app.courseservice.event.EventPublisher;
 import com.techhub.app.courseservice.enums.CourseStatus;
 import com.techhub.app.courseservice.enums.EnrollmentStatus;
 import com.techhub.app.courseservice.enums.LessonAssetType;
@@ -68,6 +70,7 @@ public class CourseServiceImpl implements CourseService {
     private final CourseMapper courseMapper;
     private final ProgressRepository progressRepository;
     private final RatingRepository ratingRepository;
+    private final EventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -142,6 +145,10 @@ public class CourseServiceImpl implements CourseService {
         Course course = courseMapper.toEntity(request, instructorId, currentUserId);
         courseRepository.save(course);
         log.info("Course {} created by {}", course.getId(), currentUserId);
+
+        // Publish event for AI indexing
+        publishCourseCreatedEvent(course);
+
         return getCourse(course.getId());
     }
 
@@ -165,6 +172,10 @@ public class CourseServiceImpl implements CourseService {
         courseMapper.updateEntity(course, request, currentUserId);
         courseRepository.save(course);
         log.info("Course {} updated by {}", courseId, currentUserId);
+
+        // Publish event for AI re-indexing
+        publishCourseUpdatedEvent(course);
+
         return getCourse(courseId);
     }
 
@@ -180,6 +191,9 @@ public class CourseServiceImpl implements CourseService {
         course.setUpdated(OffsetDateTime.now());
         courseRepository.save(course);
         log.info("Course {} soft-deleted by {}", courseId, currentUserId);
+
+        // Publish event for AI de-indexing
+        publishCourseDeletedEvent(course);
     }
 
     @Override
@@ -870,5 +884,64 @@ public class CourseServiceImpl implements CourseService {
         }
         String trimmed = search.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    // ===== Event Publishing Helper Methods =====
+
+    private void publishCourseCreatedEvent(Course course) {
+        try {
+            CourseEvent event = CourseEvent.builder()
+                    .eventType(CourseEvent.EventType.CREATED)
+                    .courseId(course.getId())
+                    .title(course.getTitle())
+                    .description(course.getDescription())
+                    .objectives(course.getObjectives() != null ? course.getObjectives().toString() : null)
+                    .requirements(course.getRequirements() != null ? course.getRequirements().toString() : null)
+                    .categories(course.getCategories() != null ? course.getCategories().toString() : null)
+                    .tags(course.getTags() != null ? course.getTags().toString() : null)
+                    .level(course.getLevel() != null ? course.getLevel().name() : null)
+                    .language(course.getLanguage() != null ? course.getLanguage().name() : null)
+                    .instructorId(course.getInstructorId())
+                    .status(course.getStatus() != null ? course.getStatus().name() : null)
+                    .build();
+            eventPublisher.publishCourseEvent(event);
+        } catch (Exception e) {
+            log.error("Failed to publish course created event for course {}", course.getId(), e);
+        }
+    }
+
+    private void publishCourseUpdatedEvent(Course course) {
+        try {
+            CourseEvent event = CourseEvent.builder()
+                    .eventType(CourseEvent.EventType.UPDATED)
+                    .courseId(course.getId())
+                    .title(course.getTitle())
+                    .description(course.getDescription())
+                    .objectives(course.getObjectives() != null ? course.getObjectives().toString() : null)
+                    .requirements(course.getRequirements() != null ? course.getRequirements().toString() : null)
+                    .categories(course.getCategories() != null ? course.getCategories().toString() : null)
+                    .tags(course.getTags() != null ? course.getTags().toString() : null)
+                    .level(course.getLevel() != null ? course.getLevel().name() : null)
+                    .language(course.getLanguage() != null ? course.getLanguage().name() : null)
+                    .instructorId(course.getInstructorId())
+                    .status(course.getStatus() != null ? course.getStatus().name() : null)
+                    .build();
+            eventPublisher.publishCourseEvent(event);
+        } catch (Exception e) {
+            log.error("Failed to publish course updated event for course {}", course.getId(), e);
+        }
+    }
+
+    private void publishCourseDeletedEvent(Course course) {
+        try {
+            CourseEvent event = CourseEvent.builder()
+                    .eventType(CourseEvent.EventType.DELETED)
+                    .courseId(course.getId())
+                    .title(course.getTitle())
+                    .build();
+            eventPublisher.publishCourseEvent(event);
+        } catch (Exception e) {
+            log.error("Failed to publish course deleted event for course {}", course.getId(), e);
+        }
     }
 }
