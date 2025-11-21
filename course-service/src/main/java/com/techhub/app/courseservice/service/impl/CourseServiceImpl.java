@@ -15,6 +15,8 @@ import com.techhub.app.courseservice.dto.response.CourseFileResource;
 import com.techhub.app.courseservice.dto.response.CourseSummaryResponse;
 import com.techhub.app.courseservice.dto.response.LessonAssetResponse;
 import com.techhub.app.courseservice.dto.response.LessonResponse;
+import com.techhub.app.courseservice.dto.response.SkillDTO;
+import com.techhub.app.courseservice.dto.response.TagDTO;
 import com.techhub.app.courseservice.entity.Chapter;
 import com.techhub.app.courseservice.entity.Course;
 import com.techhub.app.courseservice.entity.Enrollment;
@@ -33,6 +35,8 @@ import com.techhub.app.courseservice.repository.LessonAssetRepository;
 import com.techhub.app.courseservice.repository.LessonRepository;
 import com.techhub.app.courseservice.repository.ProgressRepository;
 import com.techhub.app.courseservice.repository.RatingRepository;
+import com.techhub.app.courseservice.dto.response.SkillDTO;
+import com.techhub.app.courseservice.dto.response.TagDTO;
 import com.techhub.app.courseservice.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -488,8 +492,34 @@ public class CourseServiceImpl implements CourseService {
                 .status(course.getStatus())
                 .level(course.getLevel())
                 .language(course.getLanguage())
-                .categories(course.getCategories() != null ? List.copyOf(course.getCategories()) : List.of())
-                .tags(course.getTags() != null ? List.copyOf(course.getTags()) : List.of())
+                .skills(course.getCourseSkills() != null ? course.getCourseSkills().stream()
+                        .map(cs -> {
+                            SkillDTO dto = null;
+                            if (cs.getSkill() != null) {
+                                dto = new SkillDTO(
+                                        cs.getSkill().getId(),
+                                        cs.getSkill().getName(),
+                                        cs.getSkill().getThumbnail(),
+                                        cs.getSkill().getCategory());
+                            }
+                            return dto;
+                        })
+                        .filter(java.util.Objects::nonNull)
+                        .collect(java.util.stream.Collectors.toList())
+                        : java.util.Collections.emptyList())
+                .tags(course.getCourseTags() != null ? course.getCourseTags().stream()
+                        .map(ct -> {
+                            TagDTO dto = null;
+                            if (ct.getTag() != null) {
+                                dto = new TagDTO(
+                                        ct.getTag().getId(),
+                                        ct.getTag().getName());
+                            }
+                            return dto;
+                        })
+                        .filter(java.util.Objects::nonNull)
+                        .collect(java.util.stream.Collectors.toList())
+                        : java.util.Collections.emptyList())
                 .objectives(course.getObjectives() != null ? List.copyOf(course.getObjectives()) : List.of())
                 .requirements(course.getRequirements() != null ? List.copyOf(course.getRequirements()) : List.of())
                 .instructorId(course.getInstructorId())

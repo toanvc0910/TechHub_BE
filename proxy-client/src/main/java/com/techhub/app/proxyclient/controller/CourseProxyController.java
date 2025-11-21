@@ -2,6 +2,8 @@ package com.techhub.app.proxyclient.controller;
 
 import com.techhub.app.proxyclient.client.CourseServiceClient;
 import lombok.RequiredArgsConstructor;
+import java.util.UUID;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -278,5 +280,57 @@ public class CourseProxyController {
             @RequestBody Object request,
             @RequestHeader("Authorization") String authHeader) {
         return courseServiceClient.saveWorkspace(courseId, lessonId, request, authHeader);
+    }
+
+    //
+    @PostMapping("/skills")
+    public ResponseEntity<String> createSkill(@RequestBody Object req) {
+        // forward raw request to course-service and return wrapped response
+        return courseServiceClient.createSkill(req);
+    }
+
+    @GetMapping("/skills/{id}")
+    public ResponseEntity<String> getSkill(@PathVariable UUID id) {
+        return courseServiceClient.getSkill(id);
+    }
+
+    @GetMapping("/skills")
+    public ResponseEntity<String> getAllSkills() {
+        return courseServiceClient.getAllSkills();
+    }
+
+    @PutMapping("/skills/{id}")
+    public ResponseEntity<String> updateSkill(@PathVariable UUID id, @RequestBody Object skillDTO) {
+        return courseServiceClient.updateSkill(id, skillDTO);
+    }
+
+    @DeleteMapping("/skills/{id}")
+    public ResponseEntity<String> deleteSkill(@PathVariable UUID id) {
+        return courseServiceClient.deleteSkill(id);
+    }
+
+    @PostMapping("/tags")
+    public ResponseEntity<String> createTag(@RequestBody Object tagDTO) {
+        return courseServiceClient.createTag(tagDTO);
+    }
+
+    @GetMapping("/tags/{id}")
+    public ResponseEntity<String> getTag(@PathVariable UUID id) {
+        return courseServiceClient.getTag(id);
+    }
+
+    @GetMapping("/tags")
+    public ResponseEntity<String> getAllTags() {
+        return courseServiceClient.getAllTags();
+    }
+
+    @PutMapping("/tags/{id}")
+    public ResponseEntity<String> updateTag(@PathVariable UUID id, @RequestBody Object tagDTO) {
+        return courseServiceClient.updateTag(id, tagDTO);
+    }
+
+    @DeleteMapping("/tags/{id}")
+    public ResponseEntity<String> deleteTag(@PathVariable UUID id) {
+        return courseServiceClient.deleteTag(id);
     }
 }

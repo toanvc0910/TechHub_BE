@@ -76,13 +76,11 @@ public class Course {
     @Column(name = "language", columnDefinition = "lang")
     private Language language = Language.VI;
 
-    @Type(type = "list-array")
-    @Column(name = "categories", columnDefinition = "text[]")
-    private List<String> categories;
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CourseSkill> courseSkills = new ArrayList<>();
 
-    @Type(type = "list-array")
-    @Column(name = "tags", columnDefinition = "text[]")
-    private List<String> tags;
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CourseTag> courseTags = new ArrayList<>();
 
     @Column(name = "discount_price", precision = 10, scale = 2)
     private BigDecimal discountPrice;
@@ -128,12 +126,6 @@ public class Course {
         OffsetDateTime now = OffsetDateTime.now();
         created = now;
         updated = now;
-        if (categories == null) {
-            categories = new ArrayList<>();
-        }
-        if (tags == null) {
-            tags = new ArrayList<>();
-        }
         if (objectives == null) {
             objectives = new ArrayList<>();
         }
@@ -148,12 +140,6 @@ public class Course {
     @PreUpdate
     void beforeUpdate() {
         updated = OffsetDateTime.now();
-        if (categories == null) {
-            categories = new ArrayList<>();
-        }
-        if (tags == null) {
-            tags = new ArrayList<>();
-        }
         if (objectives == null) {
             objectives = new ArrayList<>();
         }
