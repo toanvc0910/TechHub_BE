@@ -21,6 +21,8 @@ public class SkillServiceImpl implements SkillService {
         final Skill skill = new Skill();
         skill.setName(skillDTO.getName());
         skill.setCategory(skillDTO.getCategory());
+        // set thumbnail if provided so created skill returns thumbnail URL
+        skill.setThumbnail(skillDTO.getThumbnail());
         return toDTO(skillRepository.save(skill));
     }
 
@@ -54,6 +56,7 @@ public class SkillServiceImpl implements SkillService {
         skillDTO.setId(skill.getId());
         skillDTO.setName(skill.getName());
         skillDTO.setCategory(skill.getCategory());
+        skillDTO.setThumbnail(skill.getThumbnail());
         return skillDTO;
     }
 }
