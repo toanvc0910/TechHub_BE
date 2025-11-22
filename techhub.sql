@@ -30,9 +30,10 @@ CREATE TYPE test_case_visibility AS ENUM('PUBLIC', 'PRIVATE');
 CREATE TYPE submission_status AS ENUM('PENDING', 'RUNNING', 'PASSED', 'FAILED', 'PARTIAL', 'ERROR');
 -- Add missing permission_method ENUM type
 CREATE TYPE permission_method AS ENUM('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS');
--- AI Service ENUM types
-CREATE TYPE ai_task_type AS ENUM('EXERCISE_GENERATION', 'LEARNING_PATH', 'RECOMMENDATION_REALTIME', 'RECOMMENDATION_SCHEDULED', 'CHAT_GENERAL', 'CHAT_ADVISOR');
-CREATE TYPE ai_task_status AS ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'DRAFT');
+CREATE TYPE skill_category AS ENUM('LANGUAGE', 'FRAMEWORK', 'TOOL', 'CONCEPT', 'OTHER');
+-- AI Service ENUM types (Not used - columns use VARCHAR instead)
+-- CREATE TYPE ai_task_type AS ENUM('EXERCISE_GENERATION', 'LEARNING_PATH', 'RECOMMENDATION_REALTIME', 'RECOMMENDATION_SCHEDULED', 'CHAT_GENERAL', 'CHAT_ADVISOR');
+-- CREATE TYPE ai_task_status AS ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'DRAFT');
 
 -- Users Table
 CREATE TABLE users (
@@ -235,8 +236,6 @@ CREATE TABLE courses (
     status course_status DEFAULT 'DRAFT',
     level course_level DEFAULT 'ALL_LEVELS',
     language lang DEFAULT 'VI',
-    categories TEXT[] DEFAULT '{}',
-    tags TEXT[] DEFAULT '{}',
     discount_price DECIMAL(10,2),
     promo_end_date TIMESTAMP WITH TIME ZONE,
     thumbnail VARCHAR(500),
@@ -256,8 +255,6 @@ CREATE INDEX idx_courses_language ON courses(language);
 CREATE INDEX idx_courses_title_trgm ON courses USING GIN (title gin_trgm_ops);
 CREATE INDEX idx_courses_is_active ON courses(is_active);
 CREATE INDEX idx_courses_created ON courses(created);
-CREATE INDEX idx_courses_categories_gin ON courses USING GIN (categories);
-CREATE INDEX idx_courses_tags_gin ON courses USING GIN (tags);
 CREATE INDEX idx_courses_objectives_gin ON courses USING GIN (objectives);
 CREATE INDEX idx_courses_requirements_gin ON courses USING GIN (requirements);
 
@@ -584,7 +581,6 @@ CREATE TABLE blogs (
     content TEXT NOT NULL,
     thumbnail VARCHAR(500),
     author_id UUID NOT NULL REFERENCES users(id),
-    tags TEXT[] DEFAULT '{}',
     status blog_status DEFAULT 'DRAFT',
     attachments JSONB DEFAULT '[]'::JSONB,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -595,7 +591,6 @@ CREATE TABLE blogs (
 );
 CREATE INDEX idx_blogs_author_id ON blogs(author_id);
 CREATE INDEX idx_blogs_status ON blogs(status);
-CREATE INDEX idx_blogs_tags_gin ON blogs USING GIN (tags);
 CREATE INDEX idx_blogs_title_trgm ON blogs USING GIN (title gin_trgm_ops);
 CREATE INDEX idx_blogs_is_active ON blogs(is_active);
 
@@ -655,7 +650,6 @@ CREATE TABLE learning_paths (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    skills JSONB DEFAULT '[]'::JSONB,
     layout_edges JSONB DEFAULT '[]'::JSONB,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -664,7 +658,6 @@ CREATE TABLE learning_paths (
     is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
 );
 CREATE INDEX idx_learning_paths_title ON learning_paths(title);
-CREATE INDEX idx_learning_paths_skills_gin ON learning_paths USING GIN (skills);
 CREATE INDEX idx_learning_paths_layout_edges_gin ON learning_paths USING GIN (layout_edges);
 CREATE INDEX idx_learning_paths_is_active ON learning_paths(is_active);
 
@@ -680,6 +673,81 @@ CREATE TABLE learning_path_courses (
 );
 CREATE INDEX idx_path_courses_path_id ON learning_path_courses(path_id);
 CREATE INDEX idx_path_courses_position ON learning_path_courses(position_x, position_y);
+
+-- Skills Table (Kỹ năng cho courses và learning paths)
+CREATE TABLE skills (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    thumbnail VARCHAR(500),
+    category skill_category DEFAULT 'OTHER',
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
+);
+
+CREATE INDEX idx_skills_name ON skills(name);
+CREATE INDEX idx_skills_category ON skills(category);
+CREATE INDEX idx_skills_is_active ON skills(is_active);
+
+-- Tags Table (Thẻ tag cho courses và blogs)
+CREATE TABLE tags (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(50) NOT NULL UNIQUE,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
+);
+
+CREATE INDEX idx_tags_name ON tags(name);
+CREATE INDEX idx_tags_is_active ON tags(is_active);
+
+-- Course Skills Join Table
+CREATE TABLE course_skills (
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (course_id, skill_id)
+);
+
+CREATE INDEX idx_course_skills_course_id ON course_skills(course_id);
+CREATE INDEX idx_course_skills_skill_id ON course_skills(skill_id);
+
+-- Course Tags Join Table
+CREATE TABLE course_tags (
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (course_id, tag_id)
+);
+
+CREATE INDEX idx_course_tags_course_id ON course_tags(course_id);
+CREATE INDEX idx_course_tags_tag_id ON course_tags(tag_id);
+
+-- Learning Path Skills Join Table
+CREATE TABLE learning_path_skills (
+    path_id UUID NOT NULL REFERENCES learning_paths(id) ON DELETE CASCADE,
+    skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (path_id, skill_id)
+);
+
+CREATE INDEX idx_learning_path_skills_path_id ON learning_path_skills(path_id);
+CREATE INDEX idx_learning_path_skills_skill_id ON learning_path_skills(skill_id);
+
+-- Blog Tags Join Table
+CREATE TABLE blog_tags (
+    blog_id UUID NOT NULL REFERENCES blogs(id) ON DELETE CASCADE,
+    tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (blog_id, tag_id)
+);
+
+CREATE INDEX idx_blog_tags_blog_id ON blog_tags(blog_id);
+CREATE INDEX idx_blog_tags_tag_id ON blog_tags(tag_id);
 
 -- Path Progress Table
 CREATE TABLE path_progress (
@@ -931,7 +999,8 @@ BEGIN
         'payments', 'carts', 'blogs', 'forums', 'forum_posts', 'group_chats',
         'learning_paths', 'path_progress', 'badges', 'user_points', 'leaderboards',
         'rewards', 'notifications', 'analytics', 'recommendations', 'translations',
-        'chat_sessions', 'chat_messages', 'audit_logs', 'ai_generation_tasks'
+        'chat_sessions', 'chat_messages', 'audit_logs', 'ai_generation_tasks',
+        'skills', 'tags'
     ]
     LOOP
         EXECUTE 'CREATE TRIGGER trg_update_' || t || ' BEFORE UPDATE ON ' || t || ' FOR EACH ROW EXECUTE PROCEDURE update_updated();';
@@ -1037,10 +1106,13 @@ CREATE INDEX idx_file_usage_used_in ON file_usage(used_in_type, used_in_id);
 -- ===========================
 
 -- AI Generation Tasks Table
+-- Note: Using VARCHAR instead of ENUM types for Hibernate compatibility
+-- Valid task_type values: 'EXERCISE_GENERATION', 'LEARNING_PATH', 'RECOMMENDATION_REALTIME', 'RECOMMENDATION_SCHEDULED', 'CHAT_GENERAL', 'CHAT_ADVISOR'
+-- Valid status values: 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'DRAFT'
 CREATE TABLE ai_generation_tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    task_type ai_task_type NOT NULL,
-    status ai_task_status NOT NULL DEFAULT 'PENDING',
+    task_type VARCHAR(64) NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
     target_reference VARCHAR(255),
     model_used VARCHAR(128),
     prompt TEXT,

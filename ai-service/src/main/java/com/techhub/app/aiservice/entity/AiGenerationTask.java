@@ -29,7 +29,8 @@ import java.util.UUID;
 @Getter
 @Setter
 @TypeDefs({
-        @TypeDef(name = "json", typeClass = JsonType.class)
+        @TypeDef(name = "json", typeClass = JsonType.class),
+        @TypeDef(name = "pgsql_enum", typeClass = com.vladmihalcea.hibernate.type.basic.PostgreSQLEnumType.class)
 })
 public class AiGenerationTask {
 
