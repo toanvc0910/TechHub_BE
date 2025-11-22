@@ -29,7 +29,7 @@
 	<properties>
 		<java.version>11</java.version>
 		<spring-cloud.version>2021.0.9</spring-cloud.version>
-		<hibernate-types.version>2.21.1</hibernate-types.version>
+		<hibernate-types.version>2.14.0</hibernate-types.version>
 	</properties>
 	<dependencies>
 		<dependency>

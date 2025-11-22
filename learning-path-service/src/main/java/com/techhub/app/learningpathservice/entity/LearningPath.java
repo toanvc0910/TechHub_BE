@@ -38,9 +38,8 @@ public class LearningPath {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Type(type = "json")
-    @Column(name = "skills", columnDefinition = "jsonb")
-    private List<String> skills;
+    @OneToMany(mappedBy = "learningPath", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<LearningPathSkill> pathSkills = new ArrayList<>();
 
     @Type(type = "json")
     @Column(name = "layout_edges", columnDefinition = "jsonb")
@@ -71,8 +70,8 @@ public class LearningPath {
         OffsetDateTime now = OffsetDateTime.now();
         created = now;
         updated = now;
-        if (skills == null) {
-            skills = new ArrayList<>();
+        if (pathSkills == null) {
+            pathSkills = new ArrayList<>();
         }
         if (layoutEdges == null) {
             layoutEdges = new ArrayList<>();
@@ -85,8 +84,8 @@ public class LearningPath {
     @PreUpdate
     void beforeUpdate() {
         updated = OffsetDateTime.now();
-        if (skills == null) {
-            skills = new ArrayList<>();
+        if (pathSkills == null) {
+            pathSkills = new ArrayList<>();
         }
         if (layoutEdges == null) {
             layoutEdges = new ArrayList<>();

@@ -84,7 +84,21 @@ public class CourseController {
         public ResponseEntity<GlobalResponse<CourseDetailResponse>> createCourse(
                         @Valid @RequestBody CourseRequest requestBody,
                         HttpServletRequest request) {
+                log.info("========== CREATE COURSE REQUEST RECEIVED ==========");
+                log.info("Request title: {}", requestBody.getTitle());
+                log.info("Request categories: {}", requestBody.getCategories());
+                log.info("Request categories size: {}",
+                                requestBody.getCategories() != null ? requestBody.getCategories().size() : "null");
+                log.info("Request tags: {}", requestBody.getTags());
+                log.info("Request tags size: {}",
+                                requestBody.getTags() != null ? requestBody.getTags().size() : "null");
+                if (requestBody.getCategories() != null) {
+                        for (int i = 0; i < requestBody.getCategories().size(); i++) {
+                                log.info("Category[{}]: '{}'", i, requestBody.getCategories().get(i));
+                        }
+                }
                 CourseDetailResponse response = courseService.createCourse(requestBody);
+                log.info("========== CREATE COURSE RESPONSE SENT ==========");
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(GlobalResponse.success("Course created successfully", response)
                                                 .withStatus("COURSE_CREATED")

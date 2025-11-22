@@ -3,9 +3,13 @@ package com.techhub.app.learningpathservice.service.impl;
 import com.techhub.app.learningpathservice.dto.*;
 import com.techhub.app.learningpathservice.entity.LearningPath;
 import com.techhub.app.learningpathservice.entity.LearningPathCourse;
+import com.techhub.app.learningpathservice.entity.LearningPathSkill;
+import com.techhub.app.learningpathservice.entity.Skill;
 import com.techhub.app.learningpathservice.mapper.LearningPathMapper;
 import com.techhub.app.learningpathservice.repository.LearningPathCourseRepository;
 import com.techhub.app.learningpathservice.repository.LearningPathRepository;
+import com.techhub.app.learningpathservice.repository.LearningPathSkillRepository;
+import com.techhub.app.learningpathservice.repository.SkillRepository;
 import com.techhub.app.learningpathservice.service.LearningPathService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,12 +32,20 @@ public class LearningPathServiceImpl implements LearningPathService {
     private final LearningPathRepository learningPathRepository;
     private final LearningPathCourseRepository learningPathCourseRepository;
     private final LearningPathMapper learningPathMapper;
+    private final SkillRepository skillRepository;
+    private final LearningPathSkillRepository learningPathSkillRepository;
 
     @Override
     public LearningPathResponseDTO createLearningPath(LearningPathRequestDTO requestDTO) {
         log.info("Creating new learning path with title: {}", requestDTO.getTitle());
 
         LearningPath learningPath = learningPathMapper.toEntity(requestDTO);
+
+        // Map skills to learning path
+        if (requestDTO.getSkills() != null) {
+            mapSkillsToPath(learningPath, requestDTO.getSkills());
+        }
+
         learningPath = learningPathRepository.save(learningPath);
 
         log.info("Learning path created successfully with ID: {}", learningPath.getId());
@@ -47,6 +60,12 @@ public class LearningPathServiceImpl implements LearningPathService {
                 .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + id));
 
         learningPathMapper.updateEntity(learningPath, requestDTO);
+
+        // Map skills to learning path
+        if (requestDTO.getSkills() != null) {
+            mapSkillsToPath(learningPath, requestDTO.getSkills());
+        }
+
         learningPath = learningPathRepository.save(learningPath);
 
         log.info("Learning path updated successfully with ID: {}", id);
@@ -278,5 +297,67 @@ public class LearningPathServiceImpl implements LearningPathService {
 
         List<LearningPath> learningPaths = learningPathRepository.findAllById(pathIds);
         return learningPathMapper.toDTOList(learningPaths);
+    }
+
+    private void mapSkillsToPath(LearningPath learningPath, List<String> skillNames) {
+        log.info("========== mapSkillsToPath START ==========");
+        log.info("mapSkillsToPath - Input skillNames: {}", skillNames);
+        log.info("mapSkillsToPath - LearningPath ID: {}", learningPath.getId());
+        log.info("mapSkillsToPath - Initial path skills count: {}", learningPath.getPathSkills().size());
+
+        // Build a set of skill names to add (normalized)
+        java.util.Set<String> requestedSkillNames = new java.util.HashSet<>();
+        if (skillNames != null && !skillNames.isEmpty()) {
+            for (String name : skillNames) {
+                if (name != null && !name.trim().isEmpty()) {
+                    requestedSkillNames.add(name.trim());
+                }
+            }
+        }
+        log.info("mapSkillsToPath: Requested skill names (normalized): {}", requestedSkillNames);
+
+        // Remove skills that are not in the requested list
+        java.util.Iterator<LearningPathSkill> iterator = learningPath.getPathSkills().iterator();
+        while (iterator.hasNext()) {
+            LearningPathSkill ps = iterator.next();
+            String existingSkillName = ps.getSkill() != null ? ps.getSkill().getName() : null;
+            if (existingSkillName == null || !requestedSkillNames.contains(existingSkillName)) {
+                log.info("mapSkillsToPath: Removing skill: {}", existingSkillName);
+                iterator.remove();
+            } else {
+                // Skill already exists, remove from requested set to avoid duplicate
+                log.info("mapSkillsToPath: Skill '{}' already exists, skipping", existingSkillName);
+                requestedSkillNames.remove(existingSkillName);
+            }
+        }
+        log.info("mapSkillsToPath: After cleanup, path skills count: {}", learningPath.getPathSkills().size());
+        log.info("mapSkillsToPath: Skills to add: {}", requestedSkillNames);
+
+        // Add new skills that don't exist yet
+        for (String skillName : requestedSkillNames) {
+            log.info("mapSkillsToPath: Processing new skill: '{}'", skillName);
+
+            Skill skill = skillRepository.findByName(skillName)
+                    .orElseGet(() -> {
+                        log.info("mapSkillsToPath: Skill '{}' not found, creating new", skillName);
+                        Skill newSkill = new Skill();
+                        newSkill.setName(skillName);
+                        Skill saved = skillRepository.save(newSkill);
+                        log.info("mapSkillsToPath: Created skill ID: {}, name: '{}'", saved.getId(), saved.getName());
+                        return saved;
+                    });
+
+            log.info("mapSkillsToPath: Adding skill {} (ID: {}) to path", skill.getName(), skill.getId());
+
+            LearningPathSkill pathSkill = new LearningPathSkill();
+            pathSkill.setLearningPath(learningPath);
+            pathSkill.setSkill(skill);
+            pathSkill.setAssignedAt(OffsetDateTime.now());
+            learningPath.getPathSkills().add(pathSkill);
+            log.info("mapSkillsToPath: Added LearningPathSkill for skill: {}", skill.getName());
+        }
+
+        log.info("mapSkillsToPath: Final path skills count: {}", learningPath.getPathSkills().size());
+        log.info("========== mapSkillsToPath END ==========");
     }
 }
