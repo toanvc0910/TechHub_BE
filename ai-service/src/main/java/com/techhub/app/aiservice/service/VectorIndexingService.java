@@ -27,12 +27,21 @@ public class VectorIndexingService {
     public int reindexAllCourses() {
         log.info("📊 Fetching all published courses from database...");
 
+        // Query courses with tags and skills aggregated as JSON arrays
         String sql = "SELECT " +
-                "id, title, description, objectives, requirements, categories, tags, " +
-                "level, language, instructor_id, status " +
-                "FROM courses " +
-                "WHERE status = 'PUBLISHED' AND is_active = 'Y' " +
-                "ORDER BY created DESC";
+                "c.id, c.title, c.description, c.objectives, c.requirements, " +
+                "c.level, c.language, c.instructor_id, c.status, " +
+                "COALESCE(json_agg(DISTINCT t.name) FILTER (WHERE t.name IS NOT NULL), '[]'::json) as tags, " +
+                "COALESCE(json_agg(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '[]'::json) as skills " +
+                "FROM courses c " +
+                "LEFT JOIN course_tags ct ON c.id = ct.course_id " +
+                "LEFT JOIN tags t ON ct.tag_id = t.id AND t.is_active = 'Y' " +
+                "LEFT JOIN course_skills cs ON c.id = cs.course_id " +
+                "LEFT JOIN skills s ON cs.skill_id = s.id AND s.is_active = 'Y' " +
+                "WHERE c.status = 'PUBLISHED' AND c.is_active = 'Y' " +
+                "GROUP BY c.id, c.title, c.description, c.objectives, c.requirements, " +
+                "c.level, c.language, c.instructor_id, c.status " +
+                "ORDER BY c.created DESC";
 
         List<Map<String, Object>> courses = jdbcTemplate.queryForList(sql);
 
@@ -79,9 +88,11 @@ public class VectorIndexingService {
         log.info("🔄 Starting full lesson reindexing...");
 
         try {
-            // Fetch all lessons with minimal necessary fields
-            String sql = "SELECT l.id, l.title, l.content, l.video_url, l.course_id, l.chapter_id, l.content_type " +
-                    "FROM lessons l";
+            // Fetch all lessons with course_id via JOIN with chapters table
+            String sql = "SELECT l.id, l.title, l.content, l.video_url, l.chapter_id, l.content_type, c.course_id " +
+                    "FROM lessons l " +
+                    "JOIN chapters c ON l.chapter_id = c.id " +
+                    "WHERE l.is_active = 'Y'";
 
             List<Map<String, Object>> lessons = jdbcTemplate.queryForList(sql);
             log.info("📊 Found {} lessons to reindex", lessons.size());
@@ -93,10 +104,12 @@ public class VectorIndexingService {
                     String title = (String) lesson.get("title");
                     String content = (String) lesson.get("content");
                     String videoUrl = (String) lesson.get("video_url");
-                    
+
                     Map<String, Object> metadata = new HashMap<>();
-                    metadata.put("course_id", lesson.get("course_id") != null ? lesson.get("course_id").toString() : null);
-                    metadata.put("chapter_id", lesson.get("chapter_id") != null ? lesson.get("chapter_id").toString() : null);
+                    metadata.put("course_id",
+                            lesson.get("course_id") != null ? lesson.get("course_id").toString() : null);
+                    metadata.put("chapter_id",
+                            lesson.get("chapter_id") != null ? lesson.get("chapter_id").toString() : null);
                     metadata.put("content_type", lesson.get("content_type"));
 
                     vectorService.indexLesson(lessonId, title, content, videoUrl, metadata);
@@ -122,15 +135,17 @@ public class VectorIndexingService {
         log.info("🔄 Starting full enrollment reindexing...");
 
         try {
+            // Calculate average progress per enrollment by joining through chapters and
+            // lessons
             String sql = "SELECT e.id, e.user_id, e.course_id, e.status, " +
-                    "(SELECT p.completion FROM progress p WHERE p.user_id = e.user_id AND p.lesson_id IN " +
-                    "(SELECT l.id FROM lessons l WHERE l.course_id = e.course_id) LIMIT 1) as progress " +
-                    "FROM enrollments e WHERE e.is_active = 'Y'";
+                    "COALESCE(AVG(p.completion), 0.0) as progress " +
+                    "FROM enrollments e " +
+                    "LEFT JOIN chapters ch ON ch.course_id = e.course_id " +
+                    "LEFT JOIN lessons l ON l.chapter_id = ch.id " +
+                    "LEFT JOIN progress p ON p.lesson_id = l.id AND p.user_id = e.user_id " +
+                    "WHERE e.is_active = 'Y' " +
+                    "GROUP BY e.id, e.user_id, e.course_id, e.status";
 
-            // Note: The progress calculation above is simplified. In a real scenario, 
-            // we might need to aggregate progress from the progress table properly.
-            // For now, we'll fetch basic enrollment info.
-            
             List<Map<String, Object>> enrollments = jdbcTemplate.queryForList(sql);
             log.info("📊 Found {} enrollments to reindex", enrollments.size());
 
@@ -141,9 +156,17 @@ public class VectorIndexingService {
                     UUID userId = (UUID) enrollment.get("user_id");
                     UUID courseId = (UUID) enrollment.get("course_id");
                     String status = (String) enrollment.get("status");
-                    // Double progress = ... (fetch properly if needed)
-                    
-                    vectorService.indexEnrollment(enrollmentId, userId, courseId, status, 0.0);
+
+                    // Get progress as Double, default to 0.0 if null
+                    Object progressObj = enrollment.get("progress");
+                    Double progress = 0.0;
+                    if (progressObj != null) {
+                        if (progressObj instanceof Number) {
+                            progress = ((Number) progressObj).doubleValue();
+                        }
+                    }
+
+                    vectorService.indexEnrollment(enrollmentId, userId, courseId, status, progress);
                     count++;
                 } catch (Exception e) {
                     log.error("❌ Failed to index enrollment: {}", enrollment.get("id"), e);
@@ -163,18 +186,17 @@ public class VectorIndexingService {
      */
     public Map<String, Integer> reindexAll() {
         log.info("🚀 Starting full system reindexing...");
-        
+
         int courses = reindexAllCourses();
         int lessons = reindexAllLessons();
         int enrollments = reindexAllEnrollments();
-        
+
         log.info("✨ Full system reindexing completed!");
-        
+
         return Map.of(
-            "courses", courses,
-            "lessons", lessons,
-            "enrollments", enrollments
-        );
+                "courses", courses,
+                "lessons", lessons,
+                "enrollments", enrollments);
     }
 
     /**

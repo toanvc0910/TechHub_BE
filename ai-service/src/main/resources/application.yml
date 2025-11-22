@@ -59,6 +59,7 @@ qdrant:
   host: ${QDRANT_HOST:http://localhost:6333}
   api-key: ${QDRANT_API_KEY:}
   recommendation-collection: ${QDRANT_RECOMMENDATION_COLLECTION:course_embeddings}
+  lesson-collection: ${QDRANT_LESSON_COLLECTION:lesson_embeddings}
   profile-collection: ${QDRANT_PROFILE_COLLECTION:user_embeddings}
 
 logging:

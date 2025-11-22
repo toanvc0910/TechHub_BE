@@ -32,6 +32,9 @@ public class VectorService {
                 qdrantProperties.getRecommendationCollection(),
                 dimension);
         qdrantClient.createCollectionIfNotExists(
+                qdrantProperties.getLessonCollection(),
+                dimension);
+        qdrantClient.createCollectionIfNotExists(
                 qdrantProperties.getProfileCollection(),
                 dimension);
 
@@ -259,11 +262,10 @@ public class VectorService {
                 payload.putAll(metadata);
             }
 
-            // Upsert to Qdrant (using recommendation collection for now, or a separate one if preferred)
-            // Using recommendation collection to allow searching lessons too
+            // Upsert to Qdrant lesson collection
             QdrantPoint point = new QdrantPoint(lessonId.toString(), embedding, payload);
             qdrantClient.upsertPoints(
-                    qdrantProperties.getRecommendationCollection(),
+                    qdrantProperties.getLessonCollection(),
                     Collections.singletonList(point));
 
             log.info("✅ Indexed lesson: {} - {}", lessonId, title);
@@ -299,7 +301,7 @@ public class VectorService {
     public Map<String, Object> getLesson(UUID lessonId) {
         try {
             Map<String, Object> point = qdrantClient.retrievePoint(
-                    qdrantProperties.getRecommendationCollection(),
+                    qdrantProperties.getLessonCollection(),
                     lessonId.toString());
             
             if (point != null && point.containsKey("payload")) {
