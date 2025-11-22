@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -25,8 +26,27 @@ public class PayPalPaymentController {
     }
 
     @PostMapping("/create")
-    public Map<String, Object> createOrder(@RequestParam Double amount) throws Exception {
-        return payPalService.createOrder(amount, "USD");
+    public Map<String, Object> createOrder(@RequestParam Double amount,
+                                          @RequestParam(required = false) String userId) throws Exception {
+        //log.info("Creating PayPal order with amount: {}, userId: {}", amount, userId);
+
+        UUID userUUID = null;
+        if (userId != null && !userId.isEmpty()) {
+            try {
+                userUUID = UUID.fromString(userId);
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid userId format: {}", userId);
+                throw new IllegalArgumentException("Invalid userId format: " + userId);
+            }
+        }
+
+        // Nếu không có userId, throw exception yêu cầu phải có userId
+        if (userUUID == null) {
+            log.error("PayPal payment requires userId parameter");
+            throw new IllegalArgumentException("userId parameter is required for PayPal payment");
+        }
+
+        return payPalService.createOrder(amount, "USD", userUUID);
     }
 
     @GetMapping("/success")

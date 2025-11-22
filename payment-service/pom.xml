@@ -92,6 +92,13 @@
             <artifactId>httpclient5-fluent</artifactId>
         </dependency>
 
+        <!-- Hibernate Types for JSONB support -->
+        <dependency>
+            <groupId>com.vladmihalcea</groupId>
+            <artifactId>hibernate-types-52</artifactId>
+            <version>2.16.3</version>
+        </dependency>
+
 	</dependencies>
 		<dependencyManagement>
 		<dependencies>

@@ -1,27 +1,22 @@
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/techhub}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/techhub?stringtype=unspecified}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:123456}
     driver-class-name: org.postgresql.Driver
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.PostgreSQL10Dialect
         format_sql: true
-
-# VNPay Configuration - Set directly as properties
-VNPAY_TMN_CODE: 0AAX2AOF
-VNPAY_HASH_SECRET: R9NG5FT0OJ944TRXM0UX6LH77TT538B7
-VNPAY_PAYMENT_URL: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-VNPAY_RETURN_URL: http://localhost:8443/app/api/proxy/payments/vn-pay-callback
-VNPAY_VERSION: 2.1.0
-VNPAY_COMMAND: pay
-VNPAY_ORDER_TYPE: other
+        jdbc:
+          lob:
+            non_contextual_creation: true
 
 logging:
   level:
     com.techhub.app.paymentservice: DEBUG
+

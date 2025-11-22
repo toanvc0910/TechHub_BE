@@ -1,14 +1,15 @@
 package com.techhub.app.paymentservice.controller;
 
-import com.techhub.app.paymentservice.config.PayPalConfig;
 import com.techhub.app.paymentservice.config.RestResponseObject;
 import com.techhub.app.paymentservice.config.VNPAYConfig;
 import com.techhub.app.paymentservice.dto.response.VNPayPaymentDTO;
 import com.techhub.app.paymentservice.service.VNPayPaymentService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.crypto.Mac;
@@ -20,24 +21,47 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("api/v1/payment")
 public class VNPayPaymentController {
     private final VNPayPaymentService paymentService;
     private final VNPAYConfig vnpayConfig;
-    private final PayPalConfig payPalConfig;
 
     @Autowired
-    public VNPayPaymentController(VNPayPaymentService paymentService, VNPAYConfig vnpayConfig, PayPalConfig payPalConfig) {
+    public VNPayPaymentController(VNPayPaymentService paymentService, VNPAYConfig vnpayConfig) {
         this.paymentService = paymentService;
         this.vnpayConfig = vnpayConfig;
-        this.payPalConfig = payPalConfig;
     }
 
     @GetMapping("/vn-pay")
-    public RestResponseObject<VNPayPaymentDTO.VNPayResponse> pay(HttpServletRequest request) {
+    public RestResponseObject<VNPayPaymentDTO.VNPayResponse> pay(
+            HttpServletRequest request,
+            @RequestParam(required = false) String userId) {
+
+//        log.info("Creating VNPay payment with amount: {}, userId: {}",
+//                request.getParameter("amount"), userId);
+
+        // Validate userId is provided
+        if (userId == null || userId.isEmpty()) {
+            log.error("VNPay payment requires userId parameter");
+            throw new IllegalArgumentException("userId parameter is required for VNPay payment");
+        }
+
+        // Validate userId format
+        try {
+            UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid userId format: {}", userId);
+            throw new IllegalArgumentException("Invalid userId format: " + userId);
+        }
+
+        // Add userId to request attributes for service to access
+        request.setAttribute("userId", userId);
+
         return new RestResponseObject<>(HttpStatus.OK, "Success", paymentService.createVnPayPayment(request));
     }
 
@@ -59,19 +83,26 @@ public class VNPayPaymentController {
         // Xác minh chữ ký
         boolean isValid = verifySecureHash(params, vnp_SecureHash, vnpayConfig.getSecretKey());
 
-        // URL trang kết quả trên frontend
-        String frontendResultUrl = payPalConfig.getFrontendResultUrl();
+        // Lưu lịch sử giao dịch vào database
+        try {
+            paymentService.handlePaymentCallback(params, isValid, vnp_TransactionStatus);
+        } catch (Exception e) {
+            log.error("Error saving payment history: {}", e.getMessage(), e);
+        }
+
+        // URL trang kết quả trên frontend - sử dụng VNPay frontend URL
+        String frontendResultUrl = vnpayConfig.getFrontendVnpayReturnUrl();
 
         // Tạo URL chuyển hướng với các tham số
         String status = isValid && "00".equals(vnp_TransactionStatus) ? "success" : "failed";
         String redirectUrl = frontendResultUrl + "?status=" + URLEncoder.encode(status, StandardCharsets.UTF_8) +
+                "&paymentMethod=" + URLEncoder.encode("VNPay", StandardCharsets.UTF_8) +
                 "&txnRef=" + URLEncoder.encode(vnp_TxnRef != null ? vnp_TxnRef : "N/A", StandardCharsets.UTF_8) +
                 "&amount=" + URLEncoder.encode(vnp_Amount != null ? vnp_Amount : "0", StandardCharsets.UTF_8);
 
         // Ghi log để gỡ lỗi
-        System.out.println("VNPay Callback Params: " + params);
-        System.out.println("Is Valid Signature: " + isValid);
-        System.out.println("Redirect URL: " + redirectUrl);
+//        log.info("VNPay Callback - Valid: {}, Status: {}, TxnRef: {}", isValid, status, vnp_TxnRef);
+//        log.info("Redirecting to frontend: {}", redirectUrl);
 
         // Chuyển hướng đến trang frontend
         response.sendRedirect(redirectUrl);

@@ -12,24 +12,32 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
 
+@Getter
 @Configuration
 public class VNPAYConfig {
-    @Getter
-    @Value("${VNPAY_PAYMENT_URL}")
+    @Value("${vnpay.payment-url}")
     private String vnp_PayUrl;
-    @Value("${VNPAY_RETURN_URL}")
+
+    @Value("${vnpay.return-url}")
     private String vnp_ReturnUrl;
-    @Value("${VNPAY_TMN_CODE}")
-    private String vnp_TmnCode ;
-    @Getter
-    @Value("${VNPAY_HASH_SECRET}")
+
+    @Value("${vnpay.tmn-code}")
+    private String vnp_TmnCode;
+
+    @Value("${vnpay.hash-secret}")
     private String secretKey;
-    @Value("${VNPAY_VERSION}")
+
+    @Value("${vnpay.version}")
     private String vnp_Version;
-    @Value("${VNPAY_COMMAND}")
+
+    @Value("${vnpay.command}")
     private String vnp_Command;
-    @Value("${VNPAY_ORDER_TYPE}")
+
+    @Value("${vnpay.order-type}")
     private String orderType;
+
+    @Value("${payment.frontend-vnpay-return-url}")
+    private String frontendVnpayReturnUrl;
 
     public Map<String, String> getVNPayConfig() {
         Map<String, String> vnpParamsMap = new HashMap<>();
