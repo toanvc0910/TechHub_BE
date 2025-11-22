@@ -79,7 +79,8 @@ public class PermissionServiceImpl implements PermissionService {
         return permissions.stream()
                 .filter(permission -> permission.getMethod() == method && Boolean.TRUE.equals(permission.getIsActive()))
                 .anyMatch(permission -> {
-                    boolean match = pathMatcher.match(permission.getUrl(), url) || permission.getUrl().equalsIgnoreCase(url);
+                    boolean match = pathMatcher.match(permission.getUrl(), url)
+                            || permission.getUrl().equalsIgnoreCase(url);
                     if (match) {
                         log.debug("Permission matched for user {} -> {} {}", userId, method, url);
                     }
@@ -89,7 +90,8 @@ public class PermissionServiceImpl implements PermissionService {
 
     @Override
     @Transactional
-    public PermissionResponse upsertUserPermission(UUID userId, UUID permissionId, boolean allowed, boolean active, UUID actorId) {
+    public PermissionResponse upsertUserPermission(UUID userId, UUID permissionId, boolean allowed, boolean active,
+            UUID actorId) {
         User user = findActiveUser(userId);
         Permission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() -> new NotFoundException("Permission not found: " + permissionId));
@@ -138,8 +140,17 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PermissionResponse getPermissionById(UUID permissionId) {
+        Permission permission = permissionRepository.findById(permissionId)
+                .orElseThrow(() -> new NotFoundException("Permission not found: " + permissionId));
+        return toPermissionResponse(permission, "ROLE", Boolean.TRUE);
+    }
+
+    @Override
     @Transactional
-    public PermissionResponse createPermission(String name, String description, String url, PermissionMethod method, String resource, boolean active, UUID actorId) {
+    public PermissionResponse createPermission(String name, String description, String url, PermissionMethod method,
+            String resource, boolean active, UUID actorId) {
         Permission permission = new Permission();
         permission.setName(name);
         permission.setDescription(description);
@@ -157,7 +168,8 @@ public class PermissionServiceImpl implements PermissionService {
 
     @Override
     @Transactional
-    public PermissionResponse updatePermission(UUID permissionId, String name, String description, String url, PermissionMethod method, String resource, boolean active, UUID actorId) {
+    public PermissionResponse updatePermission(UUID permissionId, String name, String description, String url,
+            PermissionMethod method, String resource, boolean active, UUID actorId) {
         Permission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() -> new NotFoundException("Permission not found: " + permissionId));
         permission.setName(name);
@@ -172,6 +184,33 @@ public class PermissionServiceImpl implements PermissionService {
         return toPermissionResponse(saved, "ROLE", Boolean.TRUE);
     }
 
+    @Override
+    @Transactional
+    public void deletePermission(UUID permissionId, UUID actorId) {
+        Permission permission = permissionRepository.findById(permissionId)
+                .orElseThrow(() -> new NotFoundException("Permission not found: " + permissionId));
+
+        // Soft delete by setting isActive to false
+        permission.setIsActive(false);
+        permission.setUpdated(LocalDateTime.now());
+        permission.setUpdatedBy(actorId);
+        permissionRepository.save(permission);
+
+        // Also deactivate all role-permission and user-permission associations
+        rolePermissionRepository.findByPermissionId(permissionId).forEach(rp -> {
+            rp.setIsActive(false);
+            rp.setUpdated(LocalDateTime.now());
+            rp.setUpdatedBy(actorId);
+            rolePermissionRepository.save(rp);
+        });
+
+        userPermissionRepository.findByPermissionId(permissionId).forEach(up -> {
+            up.setIsActive(false);
+            up.setUpdatedBy(actorId);
+            userPermissionRepository.save(up);
+        });
+    }
+
     // ===== Admin: Roles =====
     @Override
     @Transactional(readOnly = true)
@@ -179,6 +218,14 @@ public class PermissionServiceImpl implements PermissionService {
         return roleRepository.findAll().stream()
                 .map(this::toRoleResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RoleResponse getRoleById(UUID roleId) {
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new NotFoundException("Role not found: " + roleId));
+        return toRoleResponse(role);
     }
 
     @Override
@@ -208,6 +255,34 @@ public class PermissionServiceImpl implements PermissionService {
         role.setUpdatedBy(actorId);
         Role saved = roleRepository.save(role);
         return toRoleResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteRole(UUID roleId, UUID actorId) {
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new NotFoundException("Role not found: " + roleId));
+
+        // Soft delete by setting isActive to false
+        role.setIsActive(false);
+        role.setUpdated(LocalDateTime.now());
+        role.setUpdatedBy(actorId);
+        roleRepository.save(role);
+
+        // Also deactivate all role-permission and user-role associations
+        rolePermissionRepository.findByRoleIdAndIsActive(roleId, true).forEach(rp -> {
+            rp.setIsActive(false);
+            rp.setUpdated(LocalDateTime.now());
+            rp.setUpdatedBy(actorId);
+            rolePermissionRepository.save(rp);
+        });
+
+        userRoleRepository.findByRoleId(roleId).forEach(ur -> {
+            ur.setIsActive(false);
+            ur.setUpdated(LocalDateTime.now());
+            ur.setUpdatedBy(actorId);
+            userRoleRepository.save(ur);
+        });
     }
 
     @Override
@@ -251,8 +326,8 @@ public class PermissionServiceImpl implements PermissionService {
     @Transactional(readOnly = true)
     public List<RoleResponse> getUserRoles(UUID userId) {
         User user = findActiveUser(userId);
-        List<UserRole> activeUserRoles = user.getUserRoles() == null ? List.of() :
-                user.getUserRoles().stream()
+        List<UserRole> activeUserRoles = user.getUserRoles() == null ? List.of()
+                : user.getUserRoles().stream()
                         .filter(UserRole::getIsActive)
                         .collect(Collectors.toList());
 
@@ -307,8 +382,8 @@ public class PermissionServiceImpl implements PermissionService {
         Set<UUID> roleIds = new HashSet<>();
         roleRepository.findByName(user.getRole().name()).ifPresent(role -> roleIds.add(role.getId()));
 
-        List<UserRole> activeUserRoles = user.getUserRoles() == null ? List.of() :
-                user.getUserRoles().stream()
+        List<UserRole> activeUserRoles = user.getUserRoles() == null ? List.of()
+                : user.getUserRoles().stream()
                         .filter(UserRole::getIsActive)
                         .collect(Collectors.toList());
 

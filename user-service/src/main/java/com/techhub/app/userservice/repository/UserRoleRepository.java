@@ -15,6 +15,10 @@ import java.util.UUID;
 public interface UserRoleRepository extends JpaRepository<UserRole, UserRoleId> {
     @Query("SELECT ur FROM UserRole ur WHERE ur.user.id = :userId AND ur.isActive = true")
     List<UserRole> findByUserId(@Param("userId") UUID userId);
+
+    List<UserRole> findByRoleId(UUID roleId);
+
     boolean existsByUserIdAndRoleId(UUID userId, UUID roleId);
+
     Optional<UserRole> findByUserIdAndRoleId(UUID userId, UUID roleId);
 }

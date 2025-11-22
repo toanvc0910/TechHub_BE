@@ -23,5 +23,7 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
 
     List<RolePermission> findByPermissionIdAndIsActive(UUID permissionId, Boolean isActive);
 
+    List<RolePermission> findByPermissionId(UUID permissionId);
+
     Optional<RolePermission> findByRoleIdAndPermissionIdAndIsActive(UUID roleId, UUID permissionId, Boolean isActive);
 }
