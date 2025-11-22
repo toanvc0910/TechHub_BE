@@ -18,7 +18,7 @@ public class LearningPathMapper {
         LearningPath entity = new LearningPath();
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
-        entity.setSkills(dto.getSkills() != null ? dto.getSkills() : new ArrayList<>());
+        // Skills will be mapped separately in service layer via mapSkillsToPath()
         entity.setLayoutEdges(dto.getLayoutEdges() != null ? dto.getLayoutEdges() : new ArrayList<>());
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setUpdatedBy(dto.getUpdatedBy());
@@ -28,7 +28,7 @@ public class LearningPathMapper {
     public void updateEntity(LearningPath entity, LearningPathRequestDTO dto) {
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
-        entity.setSkills(dto.getSkills() != null ? dto.getSkills() : new ArrayList<>());
+        // Skills will be mapped separately in service layer via mapSkillsToPath()
         entity.setLayoutEdges(dto.getLayoutEdges() != null ? dto.getLayoutEdges() : new ArrayList<>());
         entity.setUpdatedBy(dto.getUpdatedBy());
     }
@@ -38,7 +38,7 @@ public class LearningPathMapper {
                 .id(entity.getId())
                 .title(entity.getTitle())
                 .description(entity.getDescription())
-                .skills(entity.getSkills())
+                .skills(mapSkillsToStringList(entity.getPathSkills()))
                 .layoutEdges(entity.getLayoutEdges())
                 .courses(mapCourses(entity.getCourses()))
                 .created(entity.getCreated())
@@ -47,6 +47,17 @@ public class LearningPathMapper {
                 .updatedBy(entity.getUpdatedBy())
                 .isActive(entity.getIsActive())
                 .build();
+    }
+
+    private List<String> mapSkillsToStringList(
+            List<com.techhub.app.learningpathservice.entity.LearningPathSkill> pathSkills) {
+        if (pathSkills == null) {
+            return new ArrayList<>();
+        }
+        return pathSkills.stream()
+                .map(ps -> ps.getSkill() != null ? ps.getSkill().getName() : null)
+                .filter(name -> name != null)
+                .collect(Collectors.toList());
     }
 
     private List<CourseInPathDTO> mapCourses(List<LearningPathCourse> courses) {
