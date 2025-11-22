@@ -1107,12 +1107,13 @@ CREATE INDEX idx_file_usage_used_in ON file_usage(used_in_type, used_in_id);
 
 -- AI Generation Tasks Table
 -- Note: Using VARCHAR instead of ENUM types for Hibernate compatibility
--- Valid task_type values: 'EXERCISE_GENERATION', 'LEARNING_PATH', 'RECOMMENDATION_REALTIME', 'RECOMMENDATION_SCHEDULED', 'CHAT_GENERAL', 'CHAT_ADVISOR'
--- Valid status values: 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'DRAFT'
+-- Valid task_type values: 'EXERCISE_GENERATION', 'LEARNING_PATH_GENERATION', 'RECOMMENDATION_REALTIME', 'RECOMMENDATION_SCHEDULED', 'CHAT_GENERAL', 'CHAT_ADVISOR'
+-- Valid status values: 'DRAFT', 'APPROVED', 'REJECTED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED'
+-- target_reference: For EXERCISE_GENERATION = lesson_id, for LEARNING_PATH_GENERATION = user_id or empty
 CREATE TABLE ai_generation_tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     task_type VARCHAR(64) NOT NULL,
-    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
     target_reference VARCHAR(255),
     model_used VARCHAR(128),
     prompt TEXT,
@@ -1121,6 +1122,8 @@ CREATE TABLE ai_generation_tasks (
     error_message TEXT,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
     is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
 );
 
@@ -1129,6 +1132,7 @@ CREATE INDEX idx_ai_generation_tasks_status ON ai_generation_tasks(status);
 CREATE INDEX idx_ai_generation_tasks_target_reference ON ai_generation_tasks(target_reference);
 CREATE INDEX idx_ai_generation_tasks_created ON ai_generation_tasks(created);
 CREATE INDEX idx_ai_generation_tasks_is_active ON ai_generation_tasks(is_active);
+CREATE INDEX idx_ai_generation_tasks_target_status ON ai_generation_tasks(target_reference, status, task_type);
 CREATE TRIGGER trg_update_file_folders 
 BEFORE UPDATE ON file_folders 
 FOR EACH ROW EXECUTE PROCEDURE update_updated();

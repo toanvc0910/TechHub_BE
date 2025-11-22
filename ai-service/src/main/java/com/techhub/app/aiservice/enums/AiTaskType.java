@@ -3,6 +3,7 @@ package com.techhub.app.aiservice.enums;
 public enum AiTaskType {
     EXERCISE_GENERATION,
     LEARNING_PATH,
+    LEARNING_PATH_GENERATION,
     RECOMMENDATION_REALTIME,
     RECOMMENDATION_SCHEDULED,
     CHAT_GENERAL,

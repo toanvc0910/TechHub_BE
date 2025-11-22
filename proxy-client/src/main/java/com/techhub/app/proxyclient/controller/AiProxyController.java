@@ -52,6 +52,18 @@ public class AiProxyController {
         return aiServiceClient.reindexCourses(authHeader);
     }
 
+    @PostMapping("/admin/reindex-lessons")
+    public ResponseEntity<String> reindexLessons(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.reindexLessons(authHeader);
+    }
+
+    @PostMapping("/admin/reindex-all")
+    public ResponseEntity<String> reindexAll(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.reindexAll(authHeader);
+    }
+
     @PostMapping("/admin/qdrant-stats")
     public ResponseEntity<String> getQdrantStats(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {

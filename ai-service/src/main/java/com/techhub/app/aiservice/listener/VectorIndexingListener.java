@@ -60,6 +60,62 @@ public class VectorIndexingListener {
     }
 
     /**
+     * Listen to lesson events from Kafka and index to Qdrant
+     */
+    @KafkaListener(topics = "${kafka.topics.course-events:course-events}", groupId = "ai-service-lesson-indexing", containerFactory = "courseEventKafkaListenerContainerFactory")
+    public void handleLessonEvent(com.techhub.app.commonservice.kafka.event.LessonEventPayload event) {
+        log.info("📥 Received LessonEvent from Kafka: {} for lesson {}", event.getEventType(), event.getLessonId());
+
+        try {
+            UUID lessonId = UUID.fromString(event.getLessonId());
+
+            switch (event.getEventType()) {
+                case "CREATED":
+                case "UPDATED":
+                    // Index lesson
+                    Map<String, Object> metadata = new HashMap<>();
+                    metadata.put("course_id", event.getCourseId());
+                    metadata.put("chapter_id", event.getChapterId());
+                    metadata.put("content_type", event.getContentType());
+                    
+                    vectorService.indexLesson(
+                            lessonId,
+                            event.getTitle(),
+                            event.getContent(),
+                            event.getVideoUrl(),
+                            metadata);
+                    break;
+
+                case "DELETED":
+                    // Remove lesson from Qdrant
+                    vectorService.deleteCourse(lessonId); // Reusing deleteCourse for now as they are in same collection
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("❌ Failed to process LessonEvent for lesson {}", event.getLessonId(), e);
+        }
+    }
+
+    /**
+     * Listen to enrollment events
+     */
+    @KafkaListener(topics = "${kafka.topics.course-events:course-events}", groupId = "ai-service-enrollment-indexing", containerFactory = "courseEventKafkaListenerContainerFactory")
+    public void handleEnrollmentEvent(com.techhub.app.commonservice.kafka.event.EnrollmentEventPayload event) {
+        log.info("📥 Received EnrollmentEvent from Kafka: {} for user {}", event.getEventType(), event.getUserId());
+
+        try {
+            vectorService.indexEnrollment(
+                    UUID.fromString(event.getEnrollmentId()),
+                    UUID.fromString(event.getUserId()),
+                    UUID.fromString(event.getCourseId()),
+                    event.getStatus(),
+                    event.getProgressPercentage());
+        } catch (Exception e) {
+            log.error("❌ Failed to process EnrollmentEvent", e);
+        }
+    }
+
+    /**
      * Build metadata map for course indexing
      */
     private Map<String, Object> buildCourseMetadata(CourseEventPayload event) {

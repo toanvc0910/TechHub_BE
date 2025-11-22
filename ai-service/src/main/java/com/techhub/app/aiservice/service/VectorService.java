@@ -232,4 +232,83 @@ public class VectorService {
             log.error("❌ Failed to batch index courses", e);
         }
     }
+
+    /**
+     * Index a lesson into Qdrant
+     */
+    public void indexLesson(UUID lessonId, String title, String content, String videoUrl, Map<String, Object> metadata) {
+        try {
+            // Build text representation
+            String text = title + " " + (content != null ? content : "");
+            
+            // Generate embedding
+            List<Double> embedding = embeddingService.generateEmbedding(text);
+
+            if (embedding.isEmpty()) {
+                log.warn("⚠️ Skipping lesson indexing due to empty embedding: {}", lessonId);
+                return;
+            }
+
+            // Prepare payload
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("lesson_id", lessonId.toString());
+            payload.put("title", title);
+            payload.put("content", content);
+            payload.put("video_url", videoUrl);
+            if (metadata != null) {
+                payload.putAll(metadata);
+            }
+
+            // Upsert to Qdrant (using recommendation collection for now, or a separate one if preferred)
+            // Using recommendation collection to allow searching lessons too
+            QdrantPoint point = new QdrantPoint(lessonId.toString(), embedding, payload);
+            qdrantClient.upsertPoints(
+                    qdrantProperties.getRecommendationCollection(),
+                    Collections.singletonList(point));
+
+            log.info("✅ Indexed lesson: {} - {}", lessonId, title);
+        } catch (Exception e) {
+            log.error("❌ Failed to index lesson: {}", lessonId, e);
+        }
+    }
+
+    /**
+     * Index enrollment data for recommendations
+     */
+    public void indexEnrollment(UUID enrollmentId, UUID userId, UUID courseId, String status, Double progress) {
+        try {
+            // For enrollments, we might not need embeddings if we only use them for filtering
+            // But if we want to find "users with similar enrollments", we need embeddings.
+            // For now, let's just store it as a point in profile collection or a new one.
+            // Simplified: Update user profile with this enrollment info
+            
+            // In a real system, we might append this to the user's history text and re-index the user profile.
+            // Here, we'll just log it as a placeholder for future "User Embedding Update" logic.
+            log.info("ℹ️ Enrollment indexing requested for user {} course {}. (Logic to update user profile embedding would go here)", userId, courseId);
+            
+            // Example: Fetch current user profile, append course to history, re-embed.
+            // For this task, we focus on Lesson/Course indexing.
+        } catch (Exception e) {
+            log.error("❌ Failed to index enrollment: {}", enrollmentId, e);
+        }
+    }
+
+    /**
+     * Get lesson payload from Qdrant
+     */
+    public Map<String, Object> getLesson(UUID lessonId) {
+        try {
+            Map<String, Object> point = qdrantClient.retrievePoint(
+                    qdrantProperties.getRecommendationCollection(),
+                    lessonId.toString());
+            
+            if (point != null && point.containsKey("payload")) {
+                return (Map<String, Object>) point.get("payload");
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("❌ Failed to get lesson from Qdrant: {}", lessonId, e);
+            return null;
+        }
+    }
 }

@@ -45,10 +45,10 @@ public class AiGenerationTask {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
-    private AiTaskStatus status = AiTaskStatus.PENDING;
+    private AiTaskStatus status = AiTaskStatus.DRAFT;
 
     @Column(name = "target_reference", length = 255)
-    private String targetReference;
+    private String targetReference; // For EXERCISE_GENERATION = lesson_id, for LEARNING_PATH_GENERATION = user_id
 
     @Column(name = "model_used", length = 128)
     private String modelUsed;

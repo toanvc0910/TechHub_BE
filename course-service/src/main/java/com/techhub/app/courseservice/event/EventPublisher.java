@@ -39,10 +39,46 @@ public class EventPublisher {
 
     // Keep these for future use
     public void publishEnrollmentEvent(EnrollmentEvent event) {
-        log.debug("📤 EnrollmentEvent (not yet implemented): {} for user {}", event.getEventType(), event.getUserId());
+        log.debug("📤 Publishing EnrollmentEvent via Kafka: {} for user {}", event.getEventType(), event.getUserId());
+        
+        try {
+            com.techhub.app.commonservice.kafka.event.EnrollmentEventPayload payload = com.techhub.app.commonservice.kafka.event.EnrollmentEventPayload.builder()
+                    .eventType(event.getEventType().name())
+                    .enrollmentId(event.getEnrollmentId() != null ? event.getEnrollmentId().toString() : null)
+                    .userId(event.getUserId() != null ? event.getUserId().toString() : null)
+                    .courseId(event.getCourseId() != null ? event.getCourseId().toString() : null)
+                    .status(event.getStatus())
+                    .progressPercentage(event.getProgressPercentage())
+                    .completedLessons(event.getCompletedLessons())
+                    .totalLessons(event.getTotalLessons())
+                    .build();
+
+            kafkaPublisher.publishEnrollmentEvent(payload);
+        } catch (Exception e) {
+            log.error("❌ Failed to publish EnrollmentEvent", e);
+        }
     }
 
     public void publishLessonEvent(LessonEvent event) {
-        log.debug("📤 LessonEvent (not yet implemented): {} for lesson {}", event.getEventType(), event.getLessonId());
+        log.debug("📤 Publishing LessonEvent via Kafka: {} for lesson {}", event.getEventType(), event.getLessonId());
+
+        try {
+            com.techhub.app.commonservice.kafka.event.LessonEventPayload payload = com.techhub.app.commonservice.kafka.event.LessonEventPayload.builder()
+                    .eventType(event.getEventType().name())
+                    .lessonId(event.getLessonId() != null ? event.getLessonId().toString() : null)
+                    .courseId(event.getCourseId() != null ? event.getCourseId().toString() : null)
+                    .chapterId(event.getChapterId() != null ? event.getChapterId().toString() : null)
+                    .title(event.getTitle())
+                    .content(event.getContent())
+                    .contentType(event.getContentType())
+                    .order(event.getOrder())
+                    .isFree(event.getIsFree())
+                    // videoUrl is not in LessonEvent yet, assuming it might be added later or not needed for now
+                    .build();
+
+            kafkaPublisher.publishLessonEvent(payload);
+        } catch (Exception e) {
+            log.error("❌ Failed to publish LessonEvent", e);
+        }
     }
 }

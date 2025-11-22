@@ -95,6 +95,30 @@ public class QdrantClient {
     }
 
     /**
+     * Retrieve a single point by ID
+     */
+    public Map<String, Object> retrievePoint(String collectionName, String pointId) {
+        String url = qdrantProperties.getHost() + "/collections/" + collectionName + "/points/" + pointId;
+
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    new HttpEntity<>(buildHeaders()),
+                    Map.class);
+
+            Map<String, Object> body = response.getBody();
+            if (body != null && body.containsKey("result")) {
+                return (Map<String, Object>) body.get("result");
+            }
+            return null;
+        } catch (Exception e) {
+            log.warn("⚠️ Failed to retrieve point {} from collection {}: {}", pointId, collectionName, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Create collection if not exists
      */
     public void createCollectionIfNotExists(String collectionName, int vectorSize) {

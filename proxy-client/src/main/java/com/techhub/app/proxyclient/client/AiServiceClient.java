@@ -33,6 +33,12 @@ public interface AiServiceClient {
     @PostMapping("/api/ai/admin/reindex-courses")
     ResponseEntity<String> reindexCourses(@RequestHeader(value = "Authorization", required = false) String authHeader);
 
+    @PostMapping("/api/ai/admin/reindex-lessons")
+    ResponseEntity<String> reindexLessons(@RequestHeader(value = "Authorization", required = false) String authHeader);
+
+    @PostMapping("/api/ai/admin/reindex-all")
+    ResponseEntity<String> reindexAll(@RequestHeader(value = "Authorization", required = false) String authHeader);
+
     @PostMapping("/api/ai/admin/qdrant-stats")
     ResponseEntity<String> getQdrantStats(@RequestHeader(value = "Authorization", required = false) String authHeader);
 }

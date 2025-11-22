@@ -31,4 +31,8 @@ public class LearningPathGenerateRequest {
     private List<UUID> preferredCourseIds;
     private boolean includePositions = true;
     private boolean includeProjects = true;
+
+    // Fields required by LearningPathAiServiceImpl
+    private String duration = "1 month";
+    private String level = "BEGINNER";
 }

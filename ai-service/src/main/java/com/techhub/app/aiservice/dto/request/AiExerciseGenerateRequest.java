@@ -34,5 +34,11 @@ public class AiExerciseGenerateRequest {
 
     private boolean includeExplanations = true;
     private boolean includeTestCases = true;
+
     private String customInstruction;
+
+    // Fields required by AiExerciseServiceImpl
+    private int count = 5;
+    private String type = "MCQ"; // Default to MCQ
+    private String difficulty = "BEGINNER"; // Default to BEGINNER
 }
