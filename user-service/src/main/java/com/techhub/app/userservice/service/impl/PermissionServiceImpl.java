@@ -135,6 +135,7 @@ public class PermissionServiceImpl implements PermissionService {
     @Transactional(readOnly = true)
     public List<PermissionResponse> listPermissions() {
         return permissionRepository.findAll().stream()
+                .filter(p -> Boolean.TRUE.equals(p.getIsActive()))
                 .map(p -> toPermissionResponse(p, "ROLE", Boolean.TRUE))
                 .collect(Collectors.toList());
     }
@@ -187,8 +188,12 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional
     public void deletePermission(UUID permissionId, UUID actorId) {
+
         Permission permission = permissionRepository.findById(permissionId)
-                .orElseThrow(() -> new NotFoundException("Permission not found: " + permissionId));
+                .orElseThrow(() -> {
+                    log.error("[SERVICE] Permission not found: {}", permissionId);
+                    return new NotFoundException("Permission not found: " + permissionId);
+                });
 
         // Soft delete by setting isActive to false
         permission.setIsActive(false);
@@ -197,18 +202,21 @@ public class PermissionServiceImpl implements PermissionService {
         permissionRepository.save(permission);
 
         // Also deactivate all role-permission and user-permission associations
-        rolePermissionRepository.findByPermissionId(permissionId).forEach(rp -> {
+        List<RolePermission> rolePermissions = rolePermissionRepository.findByPermissionId(permissionId);
+        rolePermissions.forEach(rp -> {
             rp.setIsActive(false);
             rp.setUpdated(LocalDateTime.now());
             rp.setUpdatedBy(actorId);
             rolePermissionRepository.save(rp);
         });
 
-        userPermissionRepository.findByPermissionId(permissionId).forEach(up -> {
+        List<UserPermission> userPermissions = userPermissionRepository.findByPermissionId(permissionId);
+        userPermissions.forEach(up -> {
             up.setIsActive(false);
             up.setUpdatedBy(actorId);
             userPermissionRepository.save(up);
         });
+
     }
 
     // ===== Admin: Roles =====
@@ -216,6 +224,7 @@ public class PermissionServiceImpl implements PermissionService {
     @Transactional(readOnly = true)
     public List<RoleResponse> listRoles() {
         return roleRepository.findAll().stream()
+                .filter(role -> Boolean.TRUE.equals(role.getIsActive()))
                 .map(this::toRoleResponse)
                 .collect(Collectors.toList());
     }
@@ -260,29 +269,43 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional
     public void deleteRole(UUID roleId, UUID actorId) {
+        log.info("[SERVICE] deleteRole - RoleId: {}, ActorId: {}", roleId, actorId);
+
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new NotFoundException("Role not found: " + roleId));
+                .orElseThrow(() -> {
+                    log.error("[SERVICE] Role not found: {}", roleId);
+                    return new NotFoundException("Role not found: " + roleId);
+                });
+
+        log.info("[SERVICE] Found role: {} (Active: {})", role.getName(), role.getIsActive());
 
         // Soft delete by setting isActive to false
         role.setIsActive(false);
         role.setUpdated(LocalDateTime.now());
         role.setUpdatedBy(actorId);
         roleRepository.save(role);
+        log.info("[SERVICE] Role marked as inactive");
 
         // Also deactivate all role-permission and user-role associations
-        rolePermissionRepository.findByRoleIdAndIsActive(roleId, true).forEach(rp -> {
+        List<RolePermission> rolePermissions = rolePermissionRepository.findByRoleIdAndIsActive(roleId, true);
+        log.info("[SERVICE] Found {} active role-permission associations to deactivate", rolePermissions.size());
+        rolePermissions.forEach(rp -> {
             rp.setIsActive(false);
             rp.setUpdated(LocalDateTime.now());
             rp.setUpdatedBy(actorId);
             rolePermissionRepository.save(rp);
         });
 
-        userRoleRepository.findByRoleId(roleId).forEach(ur -> {
+        List<UserRole> userRoles = userRoleRepository.findByRoleId(roleId);
+        log.info("[SERVICE] Found {} user-role associations to deactivate", userRoles.size());
+        userRoles.forEach(ur -> {
             ur.setIsActive(false);
             ur.setUpdated(LocalDateTime.now());
             ur.setUpdatedBy(actorId);
             userRoleRepository.save(ur);
         });
+
+        log.info("[SERVICE] deleteRole completed successfully");
     }
 
     @Override

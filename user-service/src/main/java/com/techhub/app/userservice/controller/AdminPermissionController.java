@@ -100,10 +100,18 @@ public class AdminPermissionController {
                         @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
                         HttpServletRequest request) {
                 UUID actor = parseUuid(actorHeader);
-                permissionService.deletePermission(permissionId, actor);
-                return ResponseEntity.ok(
-                                GlobalResponse.success("Permission deleted", null)
-                                                .withPath(request.getRequestURI()));
+                log.info("[DELETE PERMISSION] Starting deletion - PermissionId: {}, ActorId: {}", permissionId, actor);
+                try {
+                        permissionService.deletePermission(permissionId, actor);
+                        log.info("[DELETE PERMISSION] Successfully deleted - PermissionId: {}", permissionId);
+                        return ResponseEntity.ok(
+                                        GlobalResponse.success("Permission deleted", null)
+                                                        .withPath(request.getRequestURI()));
+                } catch (Exception e) {
+                        log.error("[DELETE PERMISSION] Failed - PermissionId: {}, Error: {}", permissionId,
+                                        e.getMessage(), e);
+                        throw e;
+                }
         }
 
         // ===== Role CRUD + assign permissions =====
@@ -165,10 +173,17 @@ public class AdminPermissionController {
                         @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
                         HttpServletRequest request) {
                 UUID actor = parseUuid(actorHeader);
-                permissionService.deleteRole(roleId, actor);
-                return ResponseEntity.ok(
-                                GlobalResponse.success("Role deleted", null)
-                                                .withPath(request.getRequestURI()));
+                log.info("[DELETE ROLE] Starting deletion - RoleId: {}, ActorId: {}", roleId, actor);
+                try {
+                        permissionService.deleteRole(roleId, actor);
+                        log.info("[DELETE ROLE] Successfully deleted - RoleId: {}", roleId);
+                        return ResponseEntity.ok(
+                                        GlobalResponse.success("Role deleted", null)
+                                                        .withPath(request.getRequestURI()));
+                } catch (Exception e) {
+                        log.error("[DELETE ROLE] Failed - RoleId: {}, Error: {}", roleId, e.getMessage(), e);
+                        throw e;
+                }
         }
 
         @PostMapping("/roles/{roleId}/permissions")

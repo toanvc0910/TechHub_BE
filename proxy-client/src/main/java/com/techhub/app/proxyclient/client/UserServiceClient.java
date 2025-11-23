@@ -112,6 +112,10 @@ public interface UserServiceClient {
             @RequestBody Object body,
             @RequestHeader("Authorization") String authHeader);
 
+    @DeleteMapping("/api/admin/permissions/{permissionId}")
+    ResponseEntity<String> deletePermission(@PathVariable String permissionId,
+            @RequestHeader("Authorization") String authHeader);
+
     @GetMapping("/api/admin/roles")
     ResponseEntity<String> listRoles(@RequestHeader("Authorization") String authHeader);
 
@@ -126,6 +130,10 @@ public interface UserServiceClient {
     @PutMapping("/api/admin/roles/{roleId}")
     ResponseEntity<String> updateRole(@PathVariable String roleId,
             @RequestBody Object body,
+            @RequestHeader("Authorization") String authHeader);
+
+    @DeleteMapping("/api/admin/roles/{roleId}")
+    ResponseEntity<String> deleteRole(@PathVariable String roleId,
             @RequestHeader("Authorization") String authHeader);
 
     @PostMapping("/api/admin/roles/{roleId}/permissions")

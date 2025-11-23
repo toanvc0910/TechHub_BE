@@ -373,8 +373,6 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public void deleteChapter(UUID courseId, UUID chapterId) {
-        log.info("🗑️ START deleteChapter: courseId={}, chapterId={}", courseId, chapterId);
-
         Course course = getActiveCourse(courseId);
         UUID currentUserId = requireCurrentUser();
         ensureCanManage(course, currentUserId);
@@ -382,18 +380,10 @@ public class CourseServiceImpl implements CourseService {
         Chapter chapter = chapterRepository.findByIdAndCourse_IdAndIsActiveTrue(chapterId, courseId)
                 .orElseThrow(() -> new NotFoundException("Chapter not found"));
 
-        log.info("🗑️ Found chapter to delete: id={}, orderIndex={}, title={}",
-                chapter.getId(), chapter.getOrderIndex(), chapter.getTitle());
-
-        // ✅ HARD DELETE - Xóa cứng luôn
         chapterRepository.delete(chapter);
-        log.info("✅ Chapter {} hard-deleted (CASCADE will delete all lessons & assets)", chapterId);
 
-        // ✅ AUTO REORDER: Update orderIndex of remaining chapters
         List<Chapter> remainingChapters = chapterRepository
                 .findByCourse_IdAndIsActiveTrueOrderByOrderIndexAsc(courseId);
-
-        log.info("🔄 Found {} remaining chapters to reorder", remainingChapters.size());
 
         if (!remainingChapters.isEmpty()) {
             int newOrder = 1;
