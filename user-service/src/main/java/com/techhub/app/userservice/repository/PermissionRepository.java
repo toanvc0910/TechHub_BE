@@ -12,7 +12,12 @@ import java.util.UUID;
 @Repository
 public interface PermissionRepository extends JpaRepository<Permission, UUID> {
     List<Permission> findByUrlAndMethod(String url, PermissionMethod method);
+
     List<Permission> findByMethodAndIsActive(PermissionMethod method, Boolean isActive);
+
     List<Permission> findByResourceAndIsActive(String resource, Boolean isActive);
+
     List<Permission> findByIdIn(Set<UUID> ids);
+
+    List<Permission> findAllByIsActive(String isActive);
 }

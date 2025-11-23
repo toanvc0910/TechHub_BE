@@ -46,11 +46,6 @@ public class UserPrincipal implements OAuth2User, UserDetails {
             authorities = List.of();
         }
 
-        // Fallback to user's default role if userRoles is empty or not loaded
-        if (authorities.isEmpty() && user.getRole() != null) {
-            authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
-        }
-
         return new UserPrincipal(
                 user.getId(),
                 user.getEmail(),

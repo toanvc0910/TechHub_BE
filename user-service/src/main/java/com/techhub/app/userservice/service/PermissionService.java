@@ -13,22 +13,33 @@ public interface PermissionService {
 
     boolean hasPermission(UUID userId, String url, PermissionMethod method);
 
-    PermissionResponse upsertUserPermission(UUID userId, UUID permissionId, boolean allowed, boolean active, UUID actorId);
+    PermissionResponse upsertUserPermission(UUID userId, UUID permissionId, boolean allowed, boolean active,
+            UUID actorId);
 
     void deactivateUserPermission(UUID userId, UUID permissionId, UUID actorId);
 
     // Admin/management
     List<PermissionResponse> listPermissions();
 
-    PermissionResponse createPermission(String name, String description, String url, PermissionMethod method, String resource, boolean active, UUID actorId);
+    PermissionResponse getPermissionById(UUID permissionId);
 
-    PermissionResponse updatePermission(UUID permissionId, String name, String description, String url, PermissionMethod method, String resource, boolean active, UUID actorId);
+    PermissionResponse createPermission(String name, String description, String url, PermissionMethod method,
+            String resource, boolean active, UUID actorId);
+
+    PermissionResponse updatePermission(UUID permissionId, String name, String description, String url,
+            PermissionMethod method, String resource, boolean active, UUID actorId);
+
+    void deletePermission(UUID permissionId, UUID actorId);
 
     List<RoleResponse> listRoles();
+
+    RoleResponse getRoleById(UUID roleId);
 
     RoleResponse createRole(String name, String description, boolean active, UUID actorId);
 
     RoleResponse updateRole(UUID roleId, String name, String description, boolean active, UUID actorId);
+
+    void deleteRole(UUID roleId, UUID actorId);
 
     void assignPermissionsToRole(UUID roleId, List<UUID> permissionIds, UUID actorId);
 

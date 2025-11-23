@@ -18,4 +18,6 @@ public interface UserPermissionRepository extends JpaRepository<UserPermission, 
     List<UserPermission> findActiveByUserId(@Param("userId") UUID userId);
 
     Optional<UserPermission> findByUserIdAndPermissionId(UUID userId, UUID permissionId);
+
+    List<UserPermission> findByPermissionId(UUID permissionId);
 }

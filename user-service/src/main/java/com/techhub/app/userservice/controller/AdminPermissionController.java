@@ -33,169 +33,229 @@ import java.util.UUID;
 @Slf4j
 public class AdminPermissionController {
 
-    private final PermissionService permissionService;
+        private final PermissionService permissionService;
 
-    // ===== Permission CRUD =====
-    @GetMapping("/permissions")
-    public ResponseEntity<GlobalResponse<List<PermissionResponse>>> listPermissions(HttpServletRequest request) {
-        List<PermissionResponse> permissions = permissionService.listPermissions();
-        return ResponseEntity.ok(
-                GlobalResponse.success("Permissions fetched", permissions)
-                        .withPath(request.getRequestURI()));
-    }
-
-    @PostMapping("/permissions")
-    public ResponseEntity<GlobalResponse<PermissionResponse>> createPermission(
-            @Valid @RequestBody PermissionUpsertRequest body,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest request) {
-        UUID actor = parseUuid(actorHeader);
-        PermissionResponse res = permissionService.createPermission(
-                body.getName(),
-                body.getDescription(),
-                body.getUrl(),
-                body.getMethod(),
-                body.getResource(),
-                Boolean.TRUE.equals(body.getActive()),
-                actor);
-        return ResponseEntity.ok(
-                GlobalResponse.success("Permission created", res)
-                        .withPath(request.getRequestURI()));
-    }
-
-    @PutMapping("/permissions/{permissionId}")
-    public ResponseEntity<GlobalResponse<PermissionResponse>> updatePermission(
-            @PathVariable UUID permissionId,
-            @Valid @RequestBody PermissionUpsertRequest body,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest request) {
-        UUID actor = parseUuid(actorHeader);
-        PermissionResponse res = permissionService.updatePermission(
-                permissionId,
-                body.getName(),
-                body.getDescription(),
-                body.getUrl(),
-                body.getMethod(),
-                body.getResource(),
-                Boolean.TRUE.equals(body.getActive()),
-                actor);
-        return ResponseEntity.ok(
-                GlobalResponse.success("Permission updated", res)
-                        .withPath(request.getRequestURI()));
-    }
-
-    // ===== Role CRUD + assign permissions =====
-    @GetMapping("/roles")
-    public ResponseEntity<GlobalResponse<List<RoleResponse>>> listRoles(HttpServletRequest request) {
-        List<RoleResponse> roles = permissionService.listRoles();
-        return ResponseEntity.ok(
-                GlobalResponse.success("Roles fetched", roles)
-                        .withPath(request.getRequestURI()));
-    }
-
-    @PostMapping("/roles")
-    public ResponseEntity<GlobalResponse<RoleResponse>> createRole(
-            @Valid @RequestBody RoleUpsertRequest body,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest request) {
-        UUID actor = parseUuid(actorHeader);
-        RoleResponse res = permissionService.createRole(
-                body.getName(),
-                body.getDescription(),
-                Boolean.TRUE.equals(body.getActive()),
-                actor);
-        return ResponseEntity.ok(
-                GlobalResponse.success("Role created", res)
-                        .withPath(request.getRequestURI()));
-    }
-
-    @PutMapping("/roles/{roleId}")
-    public ResponseEntity<GlobalResponse<RoleResponse>> updateRole(
-            @PathVariable UUID roleId,
-            @Valid @RequestBody RoleUpsertRequest body,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest request) {
-        UUID actor = parseUuid(actorHeader);
-        RoleResponse res = permissionService.updateRole(
-                roleId,
-                body.getName(),
-                body.getDescription(),
-                Boolean.TRUE.equals(body.getActive()),
-                actor);
-        return ResponseEntity.ok(
-                GlobalResponse.success("Role updated", res)
-                        .withPath(request.getRequestURI()));
-    }
-
-    @PostMapping("/roles/{roleId}/permissions")
-    public ResponseEntity<GlobalResponse<?>> assignPermissionsToRole(
-            @PathVariable UUID roleId,
-            @Valid @RequestBody RolePermissionRequest body,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest request) {
-        UUID actor = parseUuid(actorHeader);
-        permissionService.assignPermissionsToRole(roleId, body.getPermissionIds(), actor);
-        return ResponseEntity.ok(
-                GlobalResponse.success("Permissions assigned to role", null)
-                        .withPath(request.getRequestURI()));
-    }
-
-    @DeleteMapping("/roles/{roleId}/permissions/{permissionId}")
-    public ResponseEntity<GlobalResponse<?>> removePermissionFromRole(
-            @PathVariable UUID roleId,
-            @PathVariable UUID permissionId,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest request) {
-        UUID actor = parseUuid(actorHeader);
-        permissionService.removePermissionFromRole(roleId, permissionId, actor);
-        return ResponseEntity.ok(
-                GlobalResponse.success("Permission removed from role", null)
-                        .withPath(request.getRequestURI()));
-    }
-
-    // ===== User role assignments =====
-    @GetMapping("/users/{userId}/roles")
-    public ResponseEntity<GlobalResponse<List<RoleResponse>>> getUserRoles(
-            @PathVariable UUID userId,
-            HttpServletRequest request) {
-        List<RoleResponse> roles = permissionService.getUserRoles(userId);
-        return ResponseEntity.ok(
-                GlobalResponse.success("User roles fetched", roles)
-                        .withPath(request.getRequestURI()));
-    }
-
-    @PostMapping("/users/{userId}/roles")
-    public ResponseEntity<GlobalResponse<?>> assignRolesToUser(
-            @PathVariable UUID userId,
-            @Valid @RequestBody UserRoleRequest body,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest request) {
-        UUID actor = parseUuid(actorHeader);
-        permissionService.assignRolesToUser(userId, body.getRoleIds(), Boolean.TRUE.equals(body.getActive()), actor);
-        return ResponseEntity.ok(
-                GlobalResponse.success("Roles assigned to user", null)
-                        .withPath(request.getRequestURI()));
-    }
-
-    @DeleteMapping("/users/{userId}/roles/{roleId}")
-    public ResponseEntity<GlobalResponse<?>> removeRoleFromUser(
-            @PathVariable UUID userId,
-            @PathVariable UUID roleId,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest request) {
-        UUID actor = parseUuid(actorHeader);
-        permissionService.removeRoleFromUser(userId, roleId, actor);
-        return ResponseEntity.ok(
-                GlobalResponse.success("Role removed from user", null)
-                        .withPath(request.getRequestURI()));
-    }
-
-    private UUID parseUuid(String raw) {
-        try {
-            return raw != null && !raw.isBlank() ? UUID.fromString(raw) : null;
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid UUID in header: {}", raw);
-            return null;
+        // ===== Permission CRUD =====
+        @GetMapping("/permissions")
+        public ResponseEntity<GlobalResponse<List<PermissionResponse>>> listPermissions(HttpServletRequest request) {
+                List<PermissionResponse> permissions = permissionService.listPermissions();
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Permissions fetched", permissions)
+                                                .withPath(request.getRequestURI()));
         }
-    }
+
+        @GetMapping("/permissions/{permissionId}")
+        public ResponseEntity<GlobalResponse<PermissionResponse>> getPermissionById(
+                        @PathVariable UUID permissionId,
+                        HttpServletRequest request) {
+                PermissionResponse permission = permissionService.getPermissionById(permissionId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Permission fetched", permission)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @PostMapping("/permissions")
+        public ResponseEntity<GlobalResponse<PermissionResponse>> createPermission(
+                        @Valid @RequestBody PermissionUpsertRequest body,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                PermissionResponse res = permissionService.createPermission(
+                                body.getName(),
+                                body.getDescription(),
+                                body.getUrl(),
+                                body.getMethod(),
+                                body.getResource(),
+                                Boolean.TRUE.equals(body.getActive()),
+                                actor);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Permission created", res)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @PutMapping("/permissions/{permissionId}")
+        public ResponseEntity<GlobalResponse<PermissionResponse>> updatePermission(
+                        @PathVariable UUID permissionId,
+                        @Valid @RequestBody PermissionUpsertRequest body,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                PermissionResponse res = permissionService.updatePermission(
+                                permissionId,
+                                body.getName(),
+                                body.getDescription(),
+                                body.getUrl(),
+                                body.getMethod(),
+                                body.getResource(),
+                                Boolean.TRUE.equals(body.getActive()),
+                                actor);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Permission updated", res)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @DeleteMapping("/permissions/{permissionId}")
+        public ResponseEntity<GlobalResponse<?>> deletePermission(
+                        @PathVariable UUID permissionId,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                log.info("[DELETE PERMISSION] Starting deletion - PermissionId: {}, ActorId: {}", permissionId, actor);
+                try {
+                        permissionService.deletePermission(permissionId, actor);
+                        log.info("[DELETE PERMISSION] Successfully deleted - PermissionId: {}", permissionId);
+                        return ResponseEntity.ok(
+                                        GlobalResponse.success("Permission deleted", null)
+                                                        .withPath(request.getRequestURI()));
+                } catch (Exception e) {
+                        log.error("[DELETE PERMISSION] Failed - PermissionId: {}, Error: {}", permissionId,
+                                        e.getMessage(), e);
+                        throw e;
+                }
+        }
+
+        // ===== Role CRUD + assign permissions =====
+        @GetMapping("/roles")
+        public ResponseEntity<GlobalResponse<List<RoleResponse>>> listRoles(HttpServletRequest request) {
+                List<RoleResponse> roles = permissionService.listRoles();
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Roles fetched", roles)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @GetMapping("/roles/{roleId}")
+        public ResponseEntity<GlobalResponse<RoleResponse>> getRoleById(
+                        @PathVariable UUID roleId,
+                        HttpServletRequest request) {
+                RoleResponse role = permissionService.getRoleById(roleId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Role fetched", role)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @PostMapping("/roles")
+        public ResponseEntity<GlobalResponse<RoleResponse>> createRole(
+                        @Valid @RequestBody RoleUpsertRequest body,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                RoleResponse res = permissionService.createRole(
+                                body.getName(),
+                                body.getDescription(),
+                                Boolean.TRUE.equals(body.getActive()),
+                                actor);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Role created", res)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @PutMapping("/roles/{roleId}")
+        public ResponseEntity<GlobalResponse<RoleResponse>> updateRole(
+                        @PathVariable UUID roleId,
+                        @Valid @RequestBody RoleUpsertRequest body,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                RoleResponse res = permissionService.updateRole(
+                                roleId,
+                                body.getName(),
+                                body.getDescription(),
+                                Boolean.TRUE.equals(body.getActive()),
+                                actor);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Role updated", res)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @DeleteMapping("/roles/{roleId}")
+        public ResponseEntity<GlobalResponse<?>> deleteRole(
+                        @PathVariable UUID roleId,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                log.info("[DELETE ROLE] Starting deletion - RoleId: {}, ActorId: {}", roleId, actor);
+                try {
+                        permissionService.deleteRole(roleId, actor);
+                        log.info("[DELETE ROLE] Successfully deleted - RoleId: {}", roleId);
+                        return ResponseEntity.ok(
+                                        GlobalResponse.success("Role deleted", null)
+                                                        .withPath(request.getRequestURI()));
+                } catch (Exception e) {
+                        log.error("[DELETE ROLE] Failed - RoleId: {}, Error: {}", roleId, e.getMessage(), e);
+                        throw e;
+                }
+        }
+
+        @PostMapping("/roles/{roleId}/permissions")
+        public ResponseEntity<GlobalResponse<?>> assignPermissionsToRole(
+                        @PathVariable UUID roleId,
+                        @Valid @RequestBody RolePermissionRequest body,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                permissionService.assignPermissionsToRole(roleId, body.getPermissionIds(), actor);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Permissions assigned to role", null)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @DeleteMapping("/roles/{roleId}/permissions/{permissionId}")
+        public ResponseEntity<GlobalResponse<?>> removePermissionFromRole(
+                        @PathVariable UUID roleId,
+                        @PathVariable UUID permissionId,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                permissionService.removePermissionFromRole(roleId, permissionId, actor);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Permission removed from role", null)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        // ===== User role assignments =====
+        @GetMapping("/users/{userId}/roles")
+        public ResponseEntity<GlobalResponse<List<RoleResponse>>> getUserRoles(
+                        @PathVariable UUID userId,
+                        HttpServletRequest request) {
+                List<RoleResponse> roles = permissionService.getUserRoles(userId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("User roles fetched", roles)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @PostMapping("/users/{userId}/roles")
+        public ResponseEntity<GlobalResponse<?>> assignRolesToUser(
+                        @PathVariable UUID userId,
+                        @Valid @RequestBody UserRoleRequest body,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                permissionService.assignRolesToUser(userId, body.getRoleIds(), Boolean.TRUE.equals(body.getActive()),
+                                actor);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Roles assigned to user", null)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @DeleteMapping("/users/{userId}/roles/{roleId}")
+        public ResponseEntity<GlobalResponse<?>> removeRoleFromUser(
+                        @PathVariable UUID userId,
+                        @PathVariable UUID roleId,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest request) {
+                UUID actor = parseUuid(actorHeader);
+                permissionService.removeRoleFromUser(userId, roleId, actor);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Role removed from user", null)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        private UUID parseUuid(String raw) {
+                try {
+                        return raw != null && !raw.isBlank() ? UUID.fromString(raw) : null;
+                } catch (IllegalArgumentException e) {
+                        log.warn("Invalid UUID in header: {}", raw);
+                        return null;
+                }
+        }
 }

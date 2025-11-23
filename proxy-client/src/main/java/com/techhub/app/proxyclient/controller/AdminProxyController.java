@@ -25,16 +25,28 @@ public class AdminProxyController {
         return userServiceClient.listPermissions(authHeader);
     }
 
+    @GetMapping("/permissions/{permissionId}")
+    public ResponseEntity<String> getPermissionById(@PathVariable String permissionId,
+            @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getPermissionById(permissionId, authHeader);
+    }
+
+    @DeleteMapping("/permissions/{permissionId}")
+    public ResponseEntity<String> deletePermission(@PathVariable String permissionId,
+            @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.deletePermission(permissionId, authHeader);
+    }
+
     @PostMapping("/permissions")
     public ResponseEntity<String> createPermission(@RequestBody Object body,
-                                                   @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.createPermission(body, authHeader);
     }
 
     @PutMapping("/permissions/{permissionId}")
     public ResponseEntity<String> updatePermission(@PathVariable String permissionId,
-                                                   @RequestBody Object body,
-                                                   @RequestHeader("Authorization") String authHeader) {
+            @RequestBody Object body,
+            @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.updatePermission(permissionId, body, authHeader);
     }
 
@@ -43,50 +55,62 @@ public class AdminProxyController {
         return userServiceClient.listRoles(authHeader);
     }
 
+    @GetMapping("/roles/{roleId}")
+    public ResponseEntity<String> getRoleById(@PathVariable String roleId,
+            @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getRoleById(roleId, authHeader);
+    }
+
     @PostMapping("/roles")
     public ResponseEntity<String> createRole(@RequestBody Object body,
-                                             @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.createRole(body, authHeader);
     }
 
     @PutMapping("/roles/{roleId}")
     public ResponseEntity<String> updateRole(@PathVariable String roleId,
-                                             @RequestBody Object body,
-                                             @RequestHeader("Authorization") String authHeader) {
+            @RequestBody Object body,
+            @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.updateRole(roleId, body, authHeader);
+    }
+
+    @DeleteMapping("/roles/{roleId}")
+    public ResponseEntity<String> deleteRole(@PathVariable String roleId,
+            @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.deleteRole(roleId, authHeader);
     }
 
     @PostMapping("/roles/{roleId}/permissions")
     public ResponseEntity<String> assignPermissionsToRole(@PathVariable String roleId,
-                                                          @RequestBody Object body,
-                                                          @RequestHeader("Authorization") String authHeader) {
+            @RequestBody Object body,
+            @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.assignPermissionsToRole(roleId, body, authHeader);
     }
 
     @DeleteMapping("/roles/{roleId}/permissions/{permissionId}")
     public ResponseEntity<String> removePermissionFromRole(@PathVariable String roleId,
-                                                           @PathVariable String permissionId,
-                                                           @RequestHeader("Authorization") String authHeader) {
+            @PathVariable String permissionId,
+            @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.removePermissionFromRole(roleId, permissionId, authHeader);
     }
 
     @GetMapping("/users/{userId}/roles")
     public ResponseEntity<String> getUserRoles(@PathVariable String userId,
-                                               @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.getUserRoles(userId, authHeader);
     }
 
     @PostMapping("/users/{userId}/roles")
     public ResponseEntity<String> assignRolesToUser(@PathVariable String userId,
-                                                    @RequestBody Object body,
-                                                    @RequestHeader("Authorization") String authHeader) {
+            @RequestBody Object body,
+            @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.assignRolesToUser(userId, body, authHeader);
     }
 
     @DeleteMapping("/users/{userId}/roles/{roleId}")
     public ResponseEntity<String> removeRoleFromUser(@PathVariable String userId,
-                                                     @PathVariable String roleId,
-                                                     @RequestHeader("Authorization") String authHeader) {
+            @PathVariable String roleId,
+            @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.removeRoleFromUser(userId, roleId, authHeader);
     }
 }

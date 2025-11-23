@@ -6,7 +6,6 @@ import com.techhub.app.userservice.entity.Role;
 import com.techhub.app.userservice.entity.UserRole;
 import com.techhub.app.userservice.entity.AuthProvider;
 import com.techhub.app.userservice.enums.UserStatus;
-import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.enums.AuthProviderEnum;
 import com.techhub.app.userservice.repository.UserRepository;
 import com.techhub.app.userservice.repository.RoleRepository;
@@ -117,7 +116,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user = new User();
         user.setEmail(oAuth2UserInfo.getEmail());
         user.setUsername(generateUsernameFromEmail(oAuth2UserInfo.getEmail()));
-        user.setRole(UserRoleEnum.LEARNER);
         user.setStatus(UserStatus.ACTIVE);
         user.setLoginType(oAuth2UserRequest.getClientRegistration().getRegistrationId().toUpperCase());
         user.setIsActive(true);
