@@ -1,6 +1,7 @@
 package com.techhub.app.aiservice.listener;
 
 import com.techhub.app.commonservice.kafka.event.CourseEventPayload;
+import com.techhub.app.commonservice.kafka.event.LessonEventPayload;
 import com.techhub.app.aiservice.service.VectorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,7 +64,7 @@ public class VectorIndexingListener {
      * Listen to lesson events from Kafka and index to Qdrant
      */
     @KafkaListener(topics = "${kafka.topics.course-events:course-events}", groupId = "ai-service-lesson-indexing", containerFactory = "courseEventKafkaListenerContainerFactory")
-    public void handleLessonEvent(com.techhub.app.commonservice.kafka.event.LessonEventPayload event) {
+    public void handleLessonEvent(LessonEventPayload event) {
         log.info("📥 Received LessonEvent from Kafka: {} for lesson {}", event.getEventType(), event.getLessonId());
 
         try {
