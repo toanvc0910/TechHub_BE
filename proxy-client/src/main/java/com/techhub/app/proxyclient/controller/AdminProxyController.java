@@ -25,6 +25,12 @@ public class AdminProxyController {
         return userServiceClient.listPermissions(authHeader);
     }
 
+    @GetMapping("/permissions/{permissionId}")
+    public ResponseEntity<String> getPermissionById(@PathVariable String permissionId,
+                                                    @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getPermissionById(permissionId, authHeader);
+    }
+
     @PostMapping("/permissions")
     public ResponseEntity<String> createPermission(@RequestBody Object body,
                                                    @RequestHeader("Authorization") String authHeader) {
@@ -41,6 +47,12 @@ public class AdminProxyController {
     @GetMapping("/roles")
     public ResponseEntity<String> listRoles(@RequestHeader("Authorization") String authHeader) {
         return userServiceClient.listRoles(authHeader);
+    }
+
+    @GetMapping("/roles/{roleId}")
+    public ResponseEntity<String> getRoleById(@PathVariable String roleId,
+                                              @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getRoleById(roleId, authHeader);
     }
 
     @PostMapping("/roles")

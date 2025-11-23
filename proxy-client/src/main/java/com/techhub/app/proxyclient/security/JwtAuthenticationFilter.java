@@ -34,20 +34,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                  FilterChain filterChain) throws ServletException, IOException {
+            FilterChain filterChain) throws ServletException, IOException {
 
         String requestURI = request.getRequestURI();
         String method = request.getMethod();
 
+        log.info("🔍 [JwtAuthenticationFilter] Incoming request: {} {}", method, requestURI);
+
         // Skip JWT validation for public endpoints
         if (isPublicEndpoint(requestURI, method)) {
+            log.info("✅ [JwtAuthenticationFilter] Public endpoint - skipping JWT validation: {} {}", method,
+                    requestURI);
             filterChain.doFilter(request, response);
             return;
         }
 
         String authHeader = request.getHeader("Authorization");
+        log.info("🔑 [JwtAuthenticationFilter] Authorization header present: {}", authHeader != null);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.warn("⚠️ [JwtAuthenticationFilter] No valid Authorization header for protected endpoint: {} {}", method,
+                    requestURI);
             filterChain.doFilter(request, response);
             return;
         }
@@ -66,8 +73,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         .map(SimpleGrantedAuthority::new)
                         .collect(Collectors.toList());
 
-                UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(userId, null, authorities);
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userId, null,
+                        authorities);
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
 
@@ -77,41 +84,63 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 request.setAttribute("userRoles", roles);
                 request.setAttribute("jwt", jwt);
 
-                log.debug("JWT authenticated user: {} for: {} {}", userId, method, requestURI);
+                log.info("✅ [JwtAuthenticationFilter] JWT authenticated user: {} for: {} {}", userId, method,
+                        requestURI);
 
-                // Authorization check for non-public endpoints (skip for profile fetch or ADMIN role)
+                // Authorization check for non-public endpoints (skip for profile fetch or ADMIN
+                // role)
                 if (!isPublicEndpoint(requestURI, method)
                         && !skipPermissionCheck(requestURI)
                         && !hasBypassRole(roles)) {
                     String targetPath = normalizeTargetPath(requestURI);
+                    log.info("🔐 [JwtAuthenticationFilter] Checking permission for user {} on {} {}", userId, method,
+                            targetPath);
+
                     boolean allowed = permissionGatewayService.hasPermission(userId, targetPath, method, authHeader);
+
                     if (!allowed) {
-                        log.warn("Access denied for user {} on {} {}", userId, method, targetPath);
+                        log.warn("❌ [JwtAuthenticationFilter] Access denied for user {} on {} {}", userId, method,
+                                targetPath);
                         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.getWriter().write(
+                                "{\"error\":\"Access denied\",\"message\":\"You don't have permission to access this resource\"}");
+                        response.setContentType("application/json");
                         return;
                     }
+                    log.info("✅ [JwtAuthenticationFilter] Permission granted for user {} on {} {}", userId, method,
+                            targetPath);
+                } else {
+                    log.info("⏭️ [JwtAuthenticationFilter] Skipping permission check (public/bypass) for: {} {}",
+                            method, requestURI);
                 }
+
+                log.info("➡️ [JwtAuthenticationFilter] Forwarding request to downstream service: {} {}", method,
+                        requestURI);
+            } else {
+                log.warn("⚠️ [JwtAuthenticationFilter] JWT token validation failed for: {} {}", method, requestURI);
             }
         } catch (Exception e) {
-            log.error("JWT validation failed for: {} {} - Error: {}", method, requestURI, e.getMessage());
+            log.error("❌ [JwtAuthenticationFilter] JWT validation exception for: {} {} - Error: {}", method, requestURI,
+                    e.getMessage(), e);
         }
 
+        log.info("🏁 [JwtAuthenticationFilter] Completing filter chain for: {} {}", method, requestURI);
         filterChain.doFilter(request, response);
     }
 
     private boolean isPublicEndpoint(String uri, String method) {
         return uri.startsWith("/api/auth/") ||
-               uri.startsWith("/api/proxy/auth/") ||
-               ("/api/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
-               ("/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
-               uri.startsWith("/api/users/forgot-password") ||
-               uri.startsWith("/api/proxy/users/forgot-password") ||
-               uri.startsWith("/api/users/reset-password") ||
-               uri.startsWith("/api/proxy/users/reset-password") ||
-               uri.startsWith("/actuator/") ||
-               uri.startsWith("/swagger-ui/") ||
-               uri.startsWith("/v3/api-docs/") ||
-               uri.startsWith("/oauth2/");
+                uri.startsWith("/api/proxy/auth/") ||
+                ("/api/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
+                ("/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
+                uri.startsWith("/api/users/forgot-password") ||
+                uri.startsWith("/api/proxy/users/forgot-password") ||
+                uri.startsWith("/api/users/reset-password") ||
+                uri.startsWith("/api/proxy/users/reset-password") ||
+                uri.startsWith("/actuator/") ||
+                uri.startsWith("/swagger-ui/") ||
+                uri.startsWith("/v3/api-docs/") ||
+                uri.startsWith("/oauth2/");
     }
 
     private String normalizeTargetPath(String uri) {
@@ -123,7 +152,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean skipPermissionCheck(String uri) {
-        // Allow user endpoints (profile/list) without RBAC check; user-service should still validate identity
+        // Allow user endpoints (profile/list) without RBAC check; user-service should
+        // still validate identity
         String normalized = normalizeTargetPath(uri);
         return normalized.equals("/api/users/profile") || normalized.startsWith("/api/users");
     }

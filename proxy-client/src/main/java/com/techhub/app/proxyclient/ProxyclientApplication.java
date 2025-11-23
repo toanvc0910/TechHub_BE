@@ -9,11 +9,12 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
+@SpringBootApplication(exclude = { DataSourceAutoConfiguration.class })
 @EnableEurekaClient
 @EnableFeignClients
 @ComponentScan(basePackages = {
-    "com.techhub.app.proxyclient"  // Only scan proxy-client package
+        "com.techhub.app.proxyclient", // Scan proxy-client package
+        "com.techhub.app.commonservice.kafka" // Scan common-service Kafka config
 })
 public class ProxyclientApplication {
 
