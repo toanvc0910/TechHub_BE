@@ -401,9 +401,8 @@ public class PermissionServiceImpl implements PermissionService {
     private EffectivePermissionState buildEffectivePermissionState(UUID userId) {
         User user = findActiveUser(userId);
 
-        // Collect all role IDs from enum role + dynamic role assignments
+        // Collect all role IDs from dynamic role assignments only
         Set<UUID> roleIds = new HashSet<>();
-        roleRepository.findByName(user.getRole().name()).ifPresent(role -> roleIds.add(role.getId()));
 
         List<UserRole> activeUserRoles = user.getUserRoles() == null ? List.of()
                 : user.getUserRoles().stream()

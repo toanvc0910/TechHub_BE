@@ -116,9 +116,6 @@ public class AuthServiceImpl implements AuthService {
                 .map(userRole -> userRole.getRole().getName())
                 .collect(Collectors.toList());
 
-        if (roles.isEmpty()) {
-            roles = List.of(user.getRole().name());
-        }
         return roles;
     }
 

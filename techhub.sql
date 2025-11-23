@@ -3,7 +3,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Define ENUM types
-CREATE TYPE user_role AS ENUM('LEARNER', 'INSTRUCTOR', 'ADMIN');
 CREATE TYPE user_status AS ENUM('ACTIVE', 'INACTIVE', 'BANNED');
 CREATE TYPE lang AS ENUM('VI', 'EN', 'JA');
 CREATE TYPE auth_provider AS ENUM('GOOGLE', 'FACEBOOK', 'GITHUB');
@@ -36,13 +35,13 @@ CREATE TYPE skill_category AS ENUM('LANGUAGE', 'FRAMEWORK', 'TOOL', 'CONCEPT', '
 -- CREATE TYPE ai_task_status AS ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'DRAFT');
 
 -- Users Table
+-- Note: Roles are now managed through roles and user_roles tables only
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) NOT NULL UNIQUE,
     username VARCHAR(255),
     password_hash VARCHAR(255),
     avatar VARCHAR(500),
-    role user_role NOT NULL,
     status user_status DEFAULT 'ACTIVE',
     login_type VARCHAR(50) DEFAULT 'LOCAL',
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -52,7 +51,6 @@ CREATE TABLE users (
     is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
 );
 CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_status ON users(status);
 CREATE INDEX idx_users_login_type ON users(login_type);
 CREATE INDEX idx_users_created ON users(created);

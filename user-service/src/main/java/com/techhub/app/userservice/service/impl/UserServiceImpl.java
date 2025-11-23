@@ -16,7 +16,6 @@ import com.techhub.app.userservice.entity.Role;
 import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.entity.UserRole;
 import com.techhub.app.userservice.enums.OTPTypeEnum;
-import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.enums.UserStatus;
 import com.techhub.app.userservice.repository.RoleRepository;
 import com.techhub.app.userservice.repository.UserRepository;
@@ -311,7 +310,6 @@ public class UserServiceImpl implements UserService {
             }
             existing.setUsername(username);
             existing.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-            existing.setRole(UserRoleEnum.LEARNER);
             existing.setStatus(status);
             existing.setIsActive(true);
             existing.setUpdated(LocalDateTime.now());
@@ -323,7 +321,6 @@ public class UserServiceImpl implements UserService {
         user.setEmail(email);
         user.setUsername(username);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole(UserRoleEnum.LEARNER);
         user.setStatus(status);
         user.setIsActive(true);
         user.setCreated(now);
@@ -387,10 +384,6 @@ public class UserServiceImpl implements UserService {
                 .filter(UserRole::getIsActive)
                 .map(userRole -> userRole.getRole().getName())
                 .collect(Collectors.toList());
-
-        if (roles.isEmpty()) {
-            roles = List.of(user.getRole().name());
-        }
 
         return UserResponse.builder()
                 .id(user.getId())

@@ -2,7 +2,6 @@ package com.techhub.app.userservice.entity;
 
 import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
 import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
-import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.enums.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -45,10 +44,6 @@ public class User {
 
     @Column(name = "avatar", length = 500)
     private String avatar;
-
-    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.UserRoleEnum"))
-    @Column(name = "role", nullable = false, columnDefinition = "user_role")
-    private UserRoleEnum role;
 
     @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.UserStatus"))
     @Column(name = "status", columnDefinition = "user_status")
