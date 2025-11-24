@@ -3,6 +3,7 @@ package com.techhub.app.proxyclient.controller;
 import com.techhub.app.proxyclient.client.AiServiceClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -124,5 +125,31 @@ public class AiProxyController {
             @RequestParam(required = false, defaultValue = "No reason provided") String reason,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         return aiServiceClient.rejectDraft(taskId, reason, authHeader);
+    }
+
+    // ============================================
+    // CHAT SESSION HISTORY
+    // ============================================
+
+    @GetMapping("/chat/sessions")
+    public ResponseEntity<String> getUserSessions(
+            @RequestParam java.util.UUID userId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getUserSessions(userId, authHeader);
+    }
+
+    @GetMapping("/chat/sessions/{sessionId}/messages")
+    public ResponseEntity<String> getSessionMessages(
+            @PathVariable java.util.UUID sessionId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getSessionMessages(sessionId, authHeader);
+    }
+
+    @DeleteMapping("/chat/sessions/{sessionId}")
+    public ResponseEntity<String> deleteSession(
+            @PathVariable java.util.UUID sessionId,
+            @RequestParam java.util.UUID userId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.deleteSession(sessionId, userId, authHeader);
     }
 }
