@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.validation.constraints.Size;
+import java.util.List;
 
 @Data
 @Builder
@@ -21,4 +22,5 @@ public class UpdateUserRequest {
 
     private String firstName;
     private String lastName;
+    private List<String> roles; // Role names to assign to the user
 }

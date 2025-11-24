@@ -239,7 +239,8 @@ public class PermissionServiceImpl implements PermissionService {
 
     @Override
     @Transactional
-    public RoleResponse createRole(String name, String description, boolean active, UUID actorId) {
+    public RoleResponse createRole(String name, String description, boolean active, UUID actorId,
+            List<UUID> permissionIds) {
         Role role = new Role();
         role.setName(name);
         role.setDescription(description);
@@ -249,12 +250,19 @@ public class PermissionServiceImpl implements PermissionService {
         role.setCreatedBy(actorId);
         role.setUpdatedBy(actorId);
         Role saved = roleRepository.save(role);
+
+        // Assign permissions if provided
+        if (permissionIds != null && !permissionIds.isEmpty()) {
+            assignPermissionsToRole(saved.getId(), permissionIds, actorId);
+        }
+
         return toRoleResponse(saved);
     }
 
     @Override
     @Transactional
-    public RoleResponse updateRole(UUID roleId, String name, String description, boolean active, UUID actorId) {
+    public RoleResponse updateRole(UUID roleId, String name, String description, boolean active, UUID actorId,
+            List<UUID> permissionIds) {
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new NotFoundException("Role not found: " + roleId));
         role.setName(name);
@@ -263,6 +271,24 @@ public class PermissionServiceImpl implements PermissionService {
         role.setUpdated(LocalDateTime.now());
         role.setUpdatedBy(actorId);
         Role saved = roleRepository.save(role);
+
+        // Update permissions if provided
+        if (permissionIds != null) {
+            // First, deactivate all existing permissions
+            List<RolePermission> existingPermissions = rolePermissionRepository.findByRoleIdAndIsActive(roleId, true);
+            existingPermissions.forEach(rp -> {
+                rp.setIsActive(false);
+                rp.setUpdated(LocalDateTime.now());
+                rp.setUpdatedBy(actorId);
+            });
+            rolePermissionRepository.saveAll(existingPermissions);
+
+            // Then assign new permissions if any
+            if (!permissionIds.isEmpty()) {
+                assignPermissionsToRole(saved.getId(), permissionIds, actorId);
+            }
+        }
+
         return toRoleResponse(saved);
     }
 

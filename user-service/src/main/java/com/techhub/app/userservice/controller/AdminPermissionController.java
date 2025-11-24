@@ -139,11 +139,14 @@ public class AdminPermissionController {
                         @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
                         HttpServletRequest request) {
                 UUID actor = parseUuid(actorHeader);
+                log.info("asdasdasdasdasd asd asd asd", body.getDescription());
+
                 RoleResponse res = permissionService.createRole(
                                 body.getName(),
                                 body.getDescription(),
                                 Boolean.TRUE.equals(body.getActive()),
-                                actor);
+                                actor,
+                                body.getPermissionIds());
                 return ResponseEntity.ok(
                                 GlobalResponse.success("Role created", res)
                                                 .withPath(request.getRequestURI()));
@@ -161,7 +164,8 @@ public class AdminPermissionController {
                                 body.getName(),
                                 body.getDescription(),
                                 Boolean.TRUE.equals(body.getActive()),
-                                actor);
+                                actor,
+                                body.getPermissionIds());
                 return ResponseEntity.ok(
                                 GlobalResponse.success("Role updated", res)
                                                 .withPath(request.getRequestURI()));

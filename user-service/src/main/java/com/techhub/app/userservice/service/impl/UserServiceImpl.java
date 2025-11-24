@@ -108,7 +108,13 @@ public class UserServiceImpl implements UserService {
         boolean reactivated = user.getId() != null && userRepository.existsById(user.getId());
 
         user = userRepository.save(user);
-        assignDefaultRole(user);
+
+        // Assign roles from request, or default role if none provided
+        if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+            assignRoles(user, request.getRoles());
+        } else {
+            assignDefaultRole(user);
+        }
 
         emailService.sendWelcomeEmail(user.getEmail(), user.getUsername());
         log.info("User {} {} by administrator", user.getEmail(), reactivated ? "reactivated" : "created");
@@ -155,6 +161,12 @@ public class UserServiceImpl implements UserService {
 
         user.setUpdated(LocalDateTime.now());
         User saved = userRepository.save(user);
+
+        // Update roles if provided
+        if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+            assignRoles(saved, request.getRoles());
+        }
+
         log.info("User {} updated", saved.getId());
         return convertToUserResponse(saved);
     }
@@ -371,6 +383,39 @@ public class UserServiceImpl implements UserService {
                     userRole.setIsActive(Boolean.TRUE);
                     userRoleRepository.save(userRole);
                 });
+    }
+
+    private void assignRoles(User user, List<String> roleNames) {
+        // First, deactivate all existing roles for this user
+        List<UserRole> existingUserRoles = userRoleRepository.findByUserId(user.getId());
+        for (UserRole existingUserRole : existingUserRoles) {
+            existingUserRole.setIsActive(false);
+            existingUserRole.setUpdated(LocalDateTime.now());
+        }
+        userRoleRepository.saveAll(existingUserRoles);
+
+        // Then assign the new roles
+        for (String roleName : roleNames) {
+            Role role = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new NotFoundException("Role not found: " + roleName));
+
+            userRoleRepository.findByUserIdAndRoleId(user.getId(), role.getId())
+                    .ifPresentOrElse(existing -> {
+                        existing.setIsActive(true);
+                        existing.setUpdated(LocalDateTime.now());
+                        userRoleRepository.save(existing);
+                    }, () -> {
+                        UserRole userRole = new UserRole();
+                        userRole.setUserId(user.getId());
+                        userRole.setRoleId(role.getId());
+                        userRole.setUser(user);
+                        userRole.setRole(role);
+                        userRole.setAssignedAt(LocalDateTime.now());
+                        userRole.setIsActive(Boolean.TRUE);
+                        userRoleRepository.save(userRole);
+                    });
+        }
+        log.info("Assigned roles {} to user {}", roleNames, user.getId());
     }
 
     private User findActiveUserById(UUID userId) {
