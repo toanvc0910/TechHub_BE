@@ -93,14 +93,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         && !skipPermissionCheck(requestURI)
                         && !hasBypassRole(roles)) {
                     String targetPath = normalizeTargetPath(requestURI);
-                    log.info("🔐 [JwtAuthenticationFilter] Checking permission for user {} on {} {}", userId, method,
-                            targetPath);
+                    log.info("🔐 [JwtAuthenticationFilter] ========== PERMISSION CHECK START ==========");
+                    log.info("🔐 [JwtAuthenticationFilter] User: {}, Email: {}, Roles: {}", userId, email, roles);
+                    log.info("🔐 [JwtAuthenticationFilter] Original URI: {}", requestURI);
+                    log.info("🔐 [JwtAuthenticationFilter] Target Path: {}", targetPath);
+                    log.info("🔐 [JwtAuthenticationFilter] Method: {}", method);
+                    log.info("🔐 [JwtAuthenticationFilter] Calling PermissionGatewayService...");
 
                     boolean allowed = permissionGatewayService.hasPermission(userId, targetPath, method, authHeader);
+
+                    log.info("🔐 [JwtAuthenticationFilter] Permission check result: {}",
+                            allowed ? "ALLOWED ✅" : "DENIED ❌");
+                    log.info("🔐 [JwtAuthenticationFilter] ========== PERMISSION CHECK END ==========");
 
                     if (!allowed) {
                         log.warn("❌ [JwtAuthenticationFilter] Access denied for user {} on {} {}", userId, method,
                                 targetPath);
+                        log.warn("❌ [JwtAuthenticationFilter] User roles: {}, Required permission: {} {}", roles,
+                                method, targetPath);
                         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                         response.getWriter().write(
                                 "{\"error\":\"Access denied\",\"message\":\"You don't have permission to access this resource\"}");
@@ -110,8 +120,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     log.info("✅ [JwtAuthenticationFilter] Permission granted for user {} on {} {}", userId, method,
                             targetPath);
                 } else {
-                    log.info("⏭️ [JwtAuthenticationFilter] Skipping permission check (public/bypass) for: {} {}",
-                            method, requestURI);
+                    log.info("⏭️ [JwtAuthenticationFilter] Skipping permission check for: {} {}", method, requestURI);
+                    log.info("⏭️ [JwtAuthenticationFilter] Reason - IsPublic: {}, SkipCheck: {}, HasBypassRole: {}",
+                            isPublicEndpoint(requestURI, method), skipPermissionCheck(requestURI),
+                            hasBypassRole(roles));
                 }
 
                 log.info("➡️ [JwtAuthenticationFilter] Forwarding request to downstream service: {} {}", method,
@@ -131,12 +143,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private boolean isPublicEndpoint(String uri, String method) {
         return uri.startsWith("/api/auth/") ||
                 uri.startsWith("/api/proxy/auth/") ||
+                uri.startsWith("/app/api/proxy/auth/") || // API Gateway prefix
                 ("/api/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
                 ("/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
+                ("/app/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
                 uri.startsWith("/api/users/forgot-password") ||
                 uri.startsWith("/api/proxy/users/forgot-password") ||
+                uri.startsWith("/app/api/proxy/users/forgot-password") ||
                 uri.startsWith("/api/users/reset-password") ||
                 uri.startsWith("/api/proxy/users/reset-password") ||
+                uri.startsWith("/app/api/proxy/users/reset-password") ||
                 uri.startsWith("/actuator/") ||
                 uri.startsWith("/swagger-ui/") ||
                 uri.startsWith("/v3/api-docs/") ||
@@ -144,7 +160,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String normalizeTargetPath(String uri) {
-        // Downstream permissions are stored without /api/proxy prefix
+        // Downstream permissions are stored without /app/api/proxy or /api/proxy prefix
+        if (uri.startsWith("/app/api/proxy")) {
+            return uri.replaceFirst("/app/api/proxy", "/api");
+        }
         if (uri.startsWith("/api/proxy")) {
             return uri.replaceFirst("/api/proxy", "/api");
         }

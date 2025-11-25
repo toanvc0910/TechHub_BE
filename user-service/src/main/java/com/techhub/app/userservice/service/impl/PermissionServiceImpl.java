@@ -68,24 +68,50 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional(readOnly = true)
     public boolean hasPermission(UUID userId, String url, PermissionMethod method) {
+        log.info("🔐 [PermissionService] ========== CHECKING USER PERMISSIONS ==========");
+        log.info("🔐 [PermissionService] UserId: {}", userId);
+        log.info("🔐 [PermissionService] Checking for: {} {}", method, url);
+
         EffectivePermissionState state = buildEffectivePermissionState(userId);
 
+        log.info("👤 [PermissionService] User permission state:");
+        log.info("   - Allowed Permission IDs count: {}", state.allowedPermissionIds.size());
+        log.info("   - Allowed Permission IDs: {}", state.allowedPermissionIds);
+
         if (state.allowedPermissionIds.isEmpty()) {
+            log.warn("❌ [PermissionService] No allowed permissions for user {}", userId);
+            log.info("🔐 [PermissionService] ========== PERMISSION CHECK END (NO PERMISSIONS) ==========");
             return false;
         }
 
         List<Permission> permissions = permissionRepository.findByIdIn(state.allowedPermissionIds);
 
-        return permissions.stream()
+        log.info("📋 [PermissionService] User's effective permissions ({} total):", permissions.size());
+        permissions.forEach(p -> {
+            log.info("   ✓ {} {} - {}", p.getMethod(), p.getUrl(), p.getName());
+        });
+
+        boolean hasPermission = permissions.stream()
                 .filter(permission -> permission.getMethod() == method && Boolean.TRUE.equals(permission.getIsActive()))
                 .anyMatch(permission -> {
                     boolean match = pathMatcher.match(permission.getUrl(), url)
                             || permission.getUrl().equalsIgnoreCase(url);
                     if (match) {
-                        log.debug("Permission matched for user {} -> {} {}", userId, method, url);
+                        log.info("✅ [PermissionService] Permission MATCHED: {} {} -> {}",
+                                method, url, permission.getName());
                     }
                     return match;
                 });
+
+        if (!hasPermission) {
+            log.warn("❌ [PermissionService] NO MATCHING PERMISSION found for {} {}", method, url);
+            log.warn("❌ [PermissionService] User has permissions for method {} but not for this URL", method);
+        }
+
+        log.info("🔐 [PermissionService] ========== PERMISSION CHECK END (Result: {}) ==========",
+                hasPermission ? "ALLOWED ✅" : "DENIED ❌");
+
+        return hasPermission;
     }
 
     @Override

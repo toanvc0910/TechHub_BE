@@ -60,7 +60,8 @@ public class BlogServiceImpl implements BlogService {
                     : blogRepository.findByIsActiveTrueOrderByCreatedDesc(pageable);
         } else {
             blogs = hasFilters
-                    ? blogRepository.searchPublished(BlogStatus.PUBLISHED.name(), normalizedKeyword, normalizedTags, pageable)
+                    ? blogRepository.searchPublished(BlogStatus.PUBLISHED.name(), normalizedKeyword, normalizedTags,
+                            pageable)
                     : blogRepository.findByStatusAndIsActiveTrueOrderByCreatedDesc(BlogStatus.PUBLISHED, pageable);
         }
 
@@ -73,8 +74,12 @@ public class BlogServiceImpl implements BlogService {
         Blog blog = blogRepository.findByIdAndIsActiveTrue(blogId)
                 .orElseThrow(() -> new NotFoundException("Blog not found"));
 
-        if (blog.getStatus() != BlogStatus.PUBLISHED && !isAuthorOrPrivileged(blog.getAuthorId())) {
-            throw new NotFoundException("Blog not found");
+        // Nếu blog chưa publish, chỉ author mới xem được
+        if (blog.getStatus() != BlogStatus.PUBLISHED) {
+            UUID currentUserId = UserContext.getCurrentUserId();
+            if (currentUserId == null || !currentUserId.equals(blog.getAuthorId())) {
+                throw new NotFoundException("Blog not found");
+            }
         }
 
         return blogMapper.toResponse(blog);
@@ -82,7 +87,6 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     public BlogResponse createBlog(BlogRequest request) {
-        ensureInstructorOrAdmin();
         UUID currentUserId = requireUser();
 
         Blog blog = blogMapper.toEntity(request);
@@ -135,23 +139,14 @@ public class BlogServiceImpl implements BlogService {
     }
 
     private void ensureCanModify(Blog blog) {
-        if (!isAuthorOrPrivileged(blog.getAuthorId())) {
-            throw new ForbiddenException("You are not allowed to modify this blog");
-        }
-    }
-
-    private void ensureInstructorOrAdmin() {
-        if (!UserContext.hasAnyRole(ROLE_ADMIN, ROLE_INSTRUCTOR)) {
-            throw new ForbiddenException("Only instructors or admins can manage blogs");
-        }
-    }
-
-    private boolean isAuthorOrPrivileged(UUID authorId) {
+        // Permission đã được check ở proxy-client
+        // Chỉ check ownership nếu cần business logic
         UUID currentUserId = UserContext.getCurrentUserId();
         if (currentUserId == null) {
-            return false;
+            throw new ForbiddenException("Authentication required");
         }
-        return currentUserId.equals(authorId) || UserContext.hasAnyRole(ROLE_ADMIN, ROLE_INSTRUCTOR);
+        // Cho phép modify nếu là author
+        // Nếu không phải author, proxy-client sẽ check permission BLOG_UPDATE/DELETE
     }
 
     private UUID requireUser() {
@@ -206,8 +201,7 @@ public class BlogServiceImpl implements BlogService {
                 .metadata(Map.of(
                         "blogId", blog.getId(),
                         "blogTitle", blog.getTitle(),
-                        "authorId", blog.getAuthorId()
-                ))
+                        "authorId", blog.getAuthorId()))
                 .build();
 
         notificationCommandPublisher.publish(command);

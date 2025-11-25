@@ -161,18 +161,33 @@ public class AdminPermissionController {
                         @PathVariable UUID roleId,
                         @Valid @RequestBody RoleUpsertRequest body,
                         @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader,
                         HttpServletRequest request) {
                 UUID actor = parseUuid(actorHeader);
-                RoleResponse res = permissionService.updateRole(
-                                roleId,
-                                body.getName(),
-                                body.getDescription(),
-                                Boolean.TRUE.equals(body.getActive()),
-                                actor,
+                log.info("[UPDATE ROLE] Request received - RoleId: {}, Name: {}, Description: {}, Active: {}, PermissionIds: {}",
+                                roleId, body.getName(), body.getDescription(), body.getActive(),
                                 body.getPermissionIds());
-                return ResponseEntity.ok(
-                                GlobalResponse.success("Role updated", res)
-                                                .withPath(request.getRequestURI()));
+                log.info("[UPDATE ROLE] Headers - X-User-Id: {}, Actor: {}, Authorization: {}",
+                                actorHeader, actor, authHeader != null ? "Bearer ***" : "null");
+                log.info("[UPDATE ROLE] Request URI: {}, Method: {}", request.getRequestURI(), request.getMethod());
+
+                try {
+                        RoleResponse res = permissionService.updateRole(
+                                        roleId,
+                                        body.getName(),
+                                        body.getDescription(),
+                                        Boolean.TRUE.equals(body.getActive()),
+                                        actor,
+                                        body.getPermissionIds());
+                        log.info("[UPDATE ROLE] Successfully updated - RoleId: {}, Name: {}", res.getId(),
+                                        res.getName());
+                        return ResponseEntity.ok(
+                                        GlobalResponse.success("Role updated", res)
+                                                        .withPath(request.getRequestURI()));
+                } catch (Exception e) {
+                        log.error("[UPDATE ROLE] Failed - RoleId: {}, Error: {}", roleId, e.getMessage(), e);
+                        throw e;
+                }
         }
 
         @DeleteMapping("/roles/{roleId}")

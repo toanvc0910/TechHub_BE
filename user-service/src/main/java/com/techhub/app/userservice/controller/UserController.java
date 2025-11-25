@@ -9,6 +9,7 @@ import com.techhub.app.userservice.dto.request.ResetPasswordRequest;
 import com.techhub.app.userservice.dto.request.UpdateUserRequest;
 import com.techhub.app.userservice.dto.response.UserResponse;
 import com.techhub.app.userservice.enums.UserStatus;
+import com.techhub.app.userservice.service.PermissionService;
 import com.techhub.app.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final PermissionService permissionService;
 
     @PostMapping
     public ResponseEntity<GlobalResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request,
@@ -275,6 +277,19 @@ public class UserController {
             }
 
             UserResponse userResponse = userService.getUserById(userId);
+
+            // Log user's effective permissions
+            try {
+                log.info("🔍 [UserController] Getting effective permissions for user: {}", userId);
+                var permissions = permissionService.getEffectivePermissions(userId);
+                log.info("📋 [UserController] User {} has {} effective permissions:", userId, permissions.size());
+                permissions.forEach(p -> {
+                    log.info("   ✓ {} {} - {} (source: {}, allowed: {})",
+                            p.getMethod(), p.getUrl(), p.getName(), p.getSource(), p.getAllowed());
+                });
+            } catch (Exception e) {
+                log.warn("⚠️ [UserController] Failed to log user permissions: {}", e.getMessage());
+            }
 
             return ResponseEntity.ok(
                     GlobalResponse.success("Profile retrieved successfully", userResponse)

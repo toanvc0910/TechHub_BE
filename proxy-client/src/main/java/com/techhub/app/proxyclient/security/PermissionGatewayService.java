@@ -1,7 +1,6 @@
 package com.techhub.app.proxyclient.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.techhub.app.proxyclient.cache.PermissionCacheService;
 import com.techhub.app.proxyclient.client.UserServiceClient;
 import com.techhub.app.proxyclient.dto.PermissionCheckRequest;
 import lombok.RequiredArgsConstructor;
@@ -18,59 +17,54 @@ import java.util.UUID;
 public class PermissionGatewayService {
 
     private final UserServiceClient userServiceClient;
-    private final PermissionCacheService permissionCacheService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * Check if user has permission to access URL with method
+     * Real-time permission check without caching for security
      * Flow:
-     * 1. Check Redis cache first
-     * 2. If cache miss, call User Service via REST
-     * 3. Cache the result for 5 minutes
-     * 4. Return result
+     * 1. Call User Service directly via REST
+     * 2. Return result immediately
      */
     public boolean hasPermission(UUID userId, String url, String method, String authHeader) {
-        log.info("🔍 [PermissionGatewayService] Checking permission for user {} on {} {}", userId, method, url);
+        log.info("🔍 [PermissionGatewayService] ========== PERMISSION CHECK START ==========");
+        log.info("🔍 [PermissionGatewayService] UserId: {}, Method: {}, URL: {}", userId, method, url);
 
         try {
-            // Step 1: Check cache first
-            log.info("📦 [PermissionGatewayService] Checking Redis cache...");
-            Boolean cachedResult = permissionCacheService.getPermission(userId, url, method);
-            if (cachedResult != null) {
-                log.info("✅ [PermissionGatewayService] Cache HIT - Permission: {}", cachedResult);
-                return cachedResult;
-            }
-            log.info("❌ [PermissionGatewayService] Cache MISS - Calling User Service...");
-
-            // Step 2: Cache miss - call User Service
+            // Call User Service directly - no cache for real-time permission enforcement
+            log.info("🌐 [PermissionGatewayService] Calling User Service REST API...");
             PermissionCheckRequest req = new PermissionCheckRequest(url, method);
-            log.info("🌐 [PermissionGatewayService] Calling User Service REST API for permission check...");
+            log.info("🌐 [PermissionGatewayService] Request: POST /api/users/{}/permissions/check", userId);
+
             ResponseEntity<String> response = userServiceClient.checkPermission(userId.toString(), req, authHeader);
-            log.info("📥 [PermissionGatewayService] User Service response status: {}", response.getStatusCode());
+
+            log.info("📥 [PermissionGatewayService] Response: {} - {}", response.getStatusCode(), response.getBody());
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.info("📄 [PermissionGatewayService] Response body: {}", response.getBody());
                 Map<?, ?> body = objectMapper.readValue(response.getBody(), Map.class);
                 Object data = body.get("data");
 
                 if (data instanceof Boolean) {
                     boolean allowed = (Boolean) data;
-                    log.info("✅ [PermissionGatewayService] Permission result: {}", allowed);
-
-                    // Step 3: Cache the result
-                    log.info("💾 [PermissionGatewayService] Caching permission result...");
-                    permissionCacheService.cachePermission(userId, url, method, allowed);
-
+                    log.info("✅ [PermissionGatewayService] Result: {} ({})",
+                            allowed, allowed ? "ALLOWED ✅" : "DENIED ❌");
+                    log.info("🔍 [PermissionGatewayService] ========== PERMISSION CHECK END ==========");
                     return allowed;
+                } else {
+                    log.error("❌ [PermissionGatewayService] Invalid data type: expected Boolean, got {}",
+                            data != null ? data.getClass().getName() : "null");
                 }
+            } else {
+                log.error("❌ [PermissionGatewayService] Invalid response - Status: {}, Body: {}",
+                        response.getStatusCode(), response.getBody());
             }
 
-            log.warn("⚠️ [PermissionGatewayService] Permission check unexpected response for user {} on {} {}: {}",
-                    userId, method, url, response);
+            log.warn("⚠️ [PermissionGatewayService] Unexpected response, denying access");
+            log.info("🔍 [PermissionGatewayService] ========== PERMISSION CHECK END ==========");
             return false;
         } catch (Exception e) {
-            log.error("❌ [PermissionGatewayService] Permission check failed for user {} on {} {} - Error: {}", userId,
-                    method, url, e.getMessage(), e);
+            log.error("❌ [PermissionGatewayService] Exception during permission check: {}", e.getMessage(), e);
+            log.info("🔍 [PermissionGatewayService] ========== PERMISSION CHECK END ==========");
             return false;
         }
     }

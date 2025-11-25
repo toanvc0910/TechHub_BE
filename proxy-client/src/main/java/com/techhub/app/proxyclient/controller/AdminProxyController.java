@@ -1,7 +1,9 @@
 package com.techhub.app.proxyclient.controller;
 
+import com.techhub.app.proxyclient.cache.PermissionCacheService;
 import com.techhub.app.proxyclient.client.UserServiceClient;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,12 +15,16 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/proxy/admin")
 @RequiredArgsConstructor
+@Slf4j
 public class AdminProxyController {
 
     private final UserServiceClient userServiceClient;
+    private final PermissionCacheService permissionCacheService;
 
     @GetMapping("/permissions")
     public ResponseEntity<String> listPermissions(@RequestHeader("Authorization") String authHeader) {
@@ -112,5 +118,33 @@ public class AdminProxyController {
             @PathVariable String roleId,
             @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.removeRoleFromUser(userId, roleId, authHeader);
+    }
+
+    // ===== Cache Management (Debug) =====
+
+    @DeleteMapping("/cache/permissions/{userId}")
+    public ResponseEntity<String> clearUserPermissionsCache(@PathVariable String userId) {
+        try {
+            log.info("🗑️ [AdminProxyController] Clearing permission cache for user: {}", userId);
+            permissionCacheService.clearUserPermissions(UUID.fromString(userId));
+            return ResponseEntity.ok("{\"message\": \"Cache cleared for user: " + userId + "\"}");
+        } catch (Exception e) {
+            log.error("❌ [AdminProxyController] Error clearing cache for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body("{\"error\": \"Failed to clear cache: " + e.getMessage() + "\"}");
+        }
+    }
+
+    @DeleteMapping("/cache/permissions")
+    public ResponseEntity<String> clearAllPermissionsCache() {
+        try {
+            log.info("🗑️ [AdminProxyController] Clearing ALL permission caches");
+            permissionCacheService.clearAllPermissions();
+            return ResponseEntity.ok("{\"message\": \"All permission caches cleared\"}");
+        } catch (Exception e) {
+            log.error("❌ [AdminProxyController] Error clearing all caches: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body("{\"error\": \"Failed to clear caches: " + e.getMessage() + "\"}");
+        }
     }
 }

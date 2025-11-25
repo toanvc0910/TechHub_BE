@@ -51,14 +51,31 @@ public class PermissionController {
     public ResponseEntity<GlobalResponse<Boolean>> checkPermission(
             @PathVariable UUID userId,
             @Valid @RequestBody PermissionCheckRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             HttpServletRequest httpRequest) {
+        log.info("🔐 [PermissionController] ========== PERMISSION CHECK REQUEST ==========");
+        log.info("🔐 [PermissionController] UserId: {}", userId);
+        log.info("🔐 [PermissionController] URL: {}", request.getUrl());
+        log.info("🔐 [PermissionController] Method: {}", request.getMethod());
+        log.info("🔐 [PermissionController] Request URI: {}", httpRequest.getRequestURI());
+        log.info("🔐 [PermissionController] Auth Header: {}", authHeader != null ? "Bearer ***" : "null");
+
         try {
+            log.info("🔐 [PermissionController] Calling PermissionService.hasPermission...");
             boolean allowed = permissionService.hasPermission(userId, request.getUrl(), request.getMethod());
+
+            log.info("🔐 [PermissionController] Permission check result: {} ({})",
+                    allowed, allowed ? "ALLOWED ✅" : "DENIED ❌");
+            log.info("🔐 [PermissionController] ========== PERMISSION CHECK RESPONSE ==========");
+
             return ResponseEntity.ok(
                     GlobalResponse.success("Permission evaluated", allowed)
                             .withPath(httpRequest.getRequestURI()));
         } catch (Exception e) {
-            log.error("Failed to check permission for {} on {} {}", userId, request.getMethod(), request.getUrl(), e);
+            log.error("❌ [PermissionController] Failed to check permission for {} on {} {}",
+                    userId, request.getMethod(), request.getUrl(), e);
+            log.info("🔐 [PermissionController] ========== PERMISSION CHECK ERROR ==========");
+
             return ResponseEntity.badRequest()
                     .body(GlobalResponse.<Boolean>error(e.getMessage(), 400)
                             .withPath(httpRequest.getRequestURI()));
