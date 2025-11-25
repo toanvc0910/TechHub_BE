@@ -27,8 +27,9 @@ public class PayPalPaymentController {
 
     @PostMapping("/create")
     public Map<String, Object> createOrder(@RequestParam Double amount,
-                                          @RequestParam(required = false) String userId) throws Exception {
-        //log.info("Creating PayPal order with amount: {}, userId: {}", amount, userId);
+                                          @RequestParam(required = false) String userId,
+                                          @RequestParam(required = false) String courseId) throws Exception {
+        log.info("Creating PayPal order with amount: {}, userId: {}, courseId: {}", amount, userId, courseId);
 
         UUID userUUID = null;
         if (userId != null && !userId.isEmpty()) {
@@ -46,7 +47,24 @@ public class PayPalPaymentController {
             throw new IllegalArgumentException("userId parameter is required for PayPal payment");
         }
 
-        return payPalService.createOrder(amount, "USD", userUUID);
+        // Validate courseId
+        UUID courseUUID = null;
+        if (courseId != null && !courseId.isEmpty()) {
+            try {
+                courseUUID = UUID.fromString(courseId);
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid courseId format: {}", courseId);
+                throw new IllegalArgumentException("Invalid courseId format: " + courseId);
+            }
+        }
+
+        // Nếu không có courseId, throw exception yêu cầu phải có courseId
+        if (courseUUID == null) {
+            log.error("PayPal payment requires courseId parameter");
+            throw new IllegalArgumentException("courseId parameter is required for PayPal payment");
+        }
+
+        return payPalService.createOrder(amount, "USD", userUUID, courseUUID);
     }
 
     @GetMapping("/success")

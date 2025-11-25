@@ -5,12 +5,14 @@ import com.techhub.app.paymentservice.config.PayPalConfig;
 import com.techhub.app.paymentservice.entity.Payment;
 import com.techhub.app.paymentservice.entity.PaymentGatewayMapping;
 import com.techhub.app.paymentservice.entity.Transaction;
+import com.techhub.app.paymentservice.entity.TransactionItem;
 import com.techhub.app.paymentservice.entity.enums.PaymentMethod;
 import com.techhub.app.paymentservice.entity.enums.PaymentStatus;
 import com.techhub.app.paymentservice.entity.enums.TransactionStatus;
 import com.techhub.app.paymentservice.repository.PaymentGatewayMappingRepository;
 import com.techhub.app.paymentservice.repository.PaymentRepository;
 import com.techhub.app.paymentservice.repository.TransactionRepository;
+import com.techhub.app.paymentservice.repository.TransactionItemRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,16 +33,22 @@ public class PayPalPaymentService {
     private final TransactionRepository transactionRepository;
     private final PaymentRepository paymentRepository;
     private final PaymentGatewayMappingRepository gatewayMappingRepository;
+    private final EnrollmentService enrollmentService;
+    private final TransactionItemRepository transactionItemRepository;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public PayPalPaymentService(PayPalConfig config,
                                 TransactionRepository transactionRepository,
                                 PaymentRepository paymentRepository,
-                                PaymentGatewayMappingRepository gatewayMappingRepository) {
+                                PaymentGatewayMappingRepository gatewayMappingRepository,
+                                EnrollmentService enrollmentService,
+                                TransactionItemRepository transactionItemRepository) {
         this.config = config;
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
         this.gatewayMappingRepository = gatewayMappingRepository;
+        this.enrollmentService = enrollmentService;
+        this.transactionItemRepository = transactionItemRepository;
     }
 
     // Lấy access token
@@ -79,8 +87,11 @@ public class PayPalPaymentService {
 
     // Tạo order với transaction tracking
     @Transactional
-    public Map<String, Object> createOrder(Double amount, String currency, UUID userId) throws Exception {
+    public Map<String, Object> createOrder(Double amount, String currency, UUID userId, UUID courseId) throws Exception {
         try {
+            log.info("=== Creating PayPal Order ===");
+            log.info("Amount: {}, Currency: {}, userId: {}, courseId: {}", amount, currency, userId, courseId);
+
             // Tạo transaction PENDING trước khi tạo PayPal order
             Transaction transaction = Transaction.builder()
                     .userId(userId)
@@ -88,8 +99,25 @@ public class PayPalPaymentService {
                     .status(TransactionStatus.PENDING)
                     .isActive("Y")
                     .build();
-            transaction = transactionRepository.save(transaction);
-            log.info("Created pending transaction with ID: {} for PayPal payment", transaction.getId());
+            Transaction savedTransaction = transactionRepository.saveAndFlush(transaction);
+            log.info("Created pending transaction with ID: {} for PayPal payment", savedTransaction.getId());
+
+            // Tạo TransactionItem với courseId
+            if (courseId != null) {
+                log.info("Creating TransactionItem for courseId: {}", courseId);
+                TransactionItem transactionItem = TransactionItem.builder()
+                        .transaction(savedTransaction)
+                        .courseId(courseId)
+                        .priceAtPurchase(BigDecimal.valueOf(amount))
+                        .quantity(1)
+                        .isActive("Y")
+                        .build();
+
+                TransactionItem savedItem = transactionItemRepository.saveAndFlush(transactionItem);
+                log.info("TransactionItem saved successfully with ID: {} for course: {}", savedItem.getId(), courseId);
+            } else {
+                log.warn("No courseId provided, skipping TransactionItem creation");
+            }
 
             String accessToken = getAccessToken();
 
@@ -161,9 +189,9 @@ public class PayPalPaymentService {
         }
     }
 
-    // Backward compatibility - createOrder without userId
+    // Backward compatibility - createOrder without userId and courseId (DEPRECATED)
     public Map<String, Object> createOrder(Double amount, String currency) throws Exception {
-        return createOrder(amount, currency, null);
+        throw new IllegalArgumentException("userId and courseId parameters are required for PayPal payment");
     }
 
     // Xác nhận thanh toán (capture) và lưu lịch sử
@@ -265,6 +293,18 @@ public class PayPalPaymentService {
             Payment savedPayment = paymentRepository.saveAndFlush(payment);
             log.info("Saved payment record: {} for transaction: {} with status: {}",
                     savedPayment.getId(), finalTransactionId, paymentStatus);
+
+            // Tạo enrollment khi thanh toán thành công
+            if (paymentStatus == PaymentStatus.SUCCESS) {
+                try {
+                    log.info("PayPal payment successful, creating enrollments for transaction: {}", finalTransactionId);
+                    enrollmentService.createEnrollmentForTransaction(savedTransaction);
+                } catch (Exception e) {
+                    log.error("Failed to create enrollment for transaction: {}. Error: {}", finalTransactionId, e.getMessage(), e);
+                    // Không throw exception ở đây để không ảnh hưởng đến flow thanh toán
+                    // Enrollment có thể được tạo lại sau bằng cách khác
+                }
+            }
 
         } catch (Exception e) {
             log.error("Error handling PayPal payment capture for orderId: {}", orderId, e);

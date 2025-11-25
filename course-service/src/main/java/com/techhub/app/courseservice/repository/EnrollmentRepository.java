@@ -14,6 +14,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
     Optional<Enrollment> findByUserIdAndCourse_IdAndIsActiveTrue(UUID userId, UUID courseId);
 
+    Optional<Enrollment> findByUserIdAndCourse_IdAndIsActive(UUID userId, UUID courseId, Boolean isActive);
+
     long countByCourseAndIsActiveTrue(Course course);
 
     long countByCourseAndStatus(Course course, EnrollmentStatus status);

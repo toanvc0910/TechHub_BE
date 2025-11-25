@@ -4,11 +4,13 @@ import com.techhub.app.paymentservice.config.VNPAYConfig;
 import com.techhub.app.paymentservice.dto.response.VNPayPaymentDTO;
 import com.techhub.app.paymentservice.entity.Payment;
 import com.techhub.app.paymentservice.entity.Transaction;
+import com.techhub.app.paymentservice.entity.TransactionItem;
 import com.techhub.app.paymentservice.entity.enums.PaymentMethod;
 import com.techhub.app.paymentservice.entity.enums.PaymentStatus;
 import com.techhub.app.paymentservice.entity.enums.TransactionStatus;
 import com.techhub.app.paymentservice.repository.PaymentRepository;
 import com.techhub.app.paymentservice.repository.TransactionRepository;
+import com.techhub.app.paymentservice.repository.TransactionItemRepository;
 import com.techhub.app.paymentservice.util.VNPayUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,13 +29,19 @@ public class VNPayPaymentService {
     private final VNPAYConfig vnPayConfig;
     private final TransactionRepository transactionRepository;
     private final PaymentRepository paymentRepository;
+    private final EnrollmentService enrollmentService;
+    private final TransactionItemRepository transactionItemRepository;
 
     public VNPayPaymentService(VNPAYConfig vnPayConfig,
                                TransactionRepository transactionRepository,
-                               PaymentRepository paymentRepository) {
+                               PaymentRepository paymentRepository,
+                               EnrollmentService enrollmentService,
+                               TransactionItemRepository transactionItemRepository) {
         this.vnPayConfig = vnPayConfig;
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
+        this.enrollmentService = enrollmentService;
+        this.transactionItemRepository = transactionItemRepository;
     }
 
     @Transactional
@@ -46,6 +54,15 @@ public class VNPayPaymentService {
         if (userIdStr == null || userIdStr.isEmpty()) {
             userIdStr = (String) request.getAttribute("userId");
         }
+
+        // Lấy courseId từ request parameter hoặc attribute
+        String courseIdStr = request.getParameter("courseId");
+        if (courseIdStr == null || courseIdStr.isEmpty()) {
+            courseIdStr = (String) request.getAttribute("courseId");
+        }
+
+        log.info("=== Creating VNPay Payment ===");
+        log.info("Amount: {}, userId: {}, courseId: {}", amount, userIdStr, courseIdStr);
 
         // Tạo transaction pending trước khi chuyển hướng đến VNPay
         UUID userId = null;
@@ -64,13 +81,47 @@ public class VNPayPaymentService {
             log.warn("No userId provided, using guest user ID for anonymous transaction");
         }
 
+        // Parse courseId
+        UUID courseId = null;
+        if (courseIdStr != null && !courseIdStr.isEmpty()) {
+            try {
+                courseId = UUID.fromString(courseIdStr);
+                log.info("Processing payment for course: {}", courseId);
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid courseId format: {}", courseIdStr);
+                throw new IllegalArgumentException("Invalid courseId format: " + courseIdStr);
+            }
+        }
+
+        // Create and save transaction
+        log.info("Creating transaction with userId: {}, amount: {}", userId, amount / 100.0);
         Transaction transaction = Transaction.builder()
                 .userId(userId)
                 .amount(BigDecimal.valueOf(amount / 100.0))
                 .status(TransactionStatus.PENDING)
                 .isActive("Y")
                 .build();
-        transaction = transactionRepository.save(transaction);
+
+        Transaction savedTransaction = transactionRepository.saveAndFlush(transaction);
+        log.info("Transaction saved with ID: {}", savedTransaction.getId());
+
+        // Tạo TransactionItem với courseId
+        if (courseId != null) {
+            log.info("Creating TransactionItem for courseId: {}", courseId);
+            TransactionItem transactionItem = TransactionItem.builder()
+                    .transaction(savedTransaction)
+                    .courseId(courseId)
+                    .priceAtPurchase(BigDecimal.valueOf(amount / 100.0))
+                    .quantity(1)
+                    .isActive("Y")
+                    .build();
+
+            // Save transaction item directly using repository
+            TransactionItem savedItem = transactionItemRepository.saveAndFlush(transactionItem);
+            log.info("TransactionItem saved successfully with ID: {} for course: {}", savedItem.getId(), courseId);
+        } else {
+            log.warn("No courseId provided, skipping TransactionItem creation");
+        }
 
         Map<String, String> vnpParamsMap = vnPayConfig.getVNPayConfig();
         vnpParamsMap.put("vnp_Amount", String.valueOf(amount));
@@ -158,6 +209,18 @@ public class VNPayPaymentService {
             Payment savedPayment = paymentRepository.saveAndFlush(payment);
             log.info("Saved payment record: {} for transaction: {} with status: {}",
                     savedPayment.getId(), transactionId, paymentStatus);
+
+            // Tạo enrollment khi thanh toán thành công
+            if (paymentStatus == PaymentStatus.SUCCESS) {
+                try {
+                    log.info("Payment successful, creating enrollments for transaction: {}", transactionId);
+                    enrollmentService.createEnrollmentForTransaction(savedTransaction);
+                } catch (Exception e) {
+                    log.error("Failed to create enrollment for transaction: {}. Error: {}", transactionId, e.getMessage(), e);
+                    // Không throw exception ở đây để không ảnh hưởng đến flow thanh toán
+                    // Enrollment có thể được tạo lại sau bằng cách khác
+                }
+            }
 
         } catch (Exception e) {
             log.error("Error handling payment callback for txnRef: {}", vnp_TxnRef, e);

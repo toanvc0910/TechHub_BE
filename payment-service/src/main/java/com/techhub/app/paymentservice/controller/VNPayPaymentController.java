@@ -40,7 +40,8 @@ public class VNPayPaymentController {
     @GetMapping("/vn-pay")
     public RestResponseObject<VNPayPaymentDTO.VNPayResponse> pay(
             HttpServletRequest request,
-            @RequestParam(required = false) String userId) {
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String courseId) {
 
 //        log.info("Creating VNPay payment with amount: {}, userId: {}",
 //                request.getParameter("amount"), userId);
@@ -51,6 +52,12 @@ public class VNPayPaymentController {
             throw new IllegalArgumentException("userId parameter is required for VNPay payment");
         }
 
+        // Validate courseId is provided
+        if (courseId == null || courseId.isEmpty()) {
+            log.error("VNPay payment requires courseId parameter");
+            throw new IllegalArgumentException("courseId parameter is required for VNPay payment");
+        }
+
         // Validate userId format
         try {
             UUID.fromString(userId);
@@ -59,8 +66,17 @@ public class VNPayPaymentController {
             throw new IllegalArgumentException("Invalid userId format: " + userId);
         }
 
-        // Add userId to request attributes for service to access
+        // Validate courseId format
+        try {
+            UUID.fromString(courseId);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid courseId format: {}", courseId);
+            throw new IllegalArgumentException("Invalid courseId format: " + courseId);
+        }
+
+        // Add userId and courseId to request attributes for service to access
         request.setAttribute("userId", userId);
+        request.setAttribute("courseId", courseId);
 
         return new RestResponseObject<>(HttpStatus.OK, "Success", paymentService.createVnPayPayment(request));
     }

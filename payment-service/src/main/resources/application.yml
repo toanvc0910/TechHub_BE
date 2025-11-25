@@ -62,3 +62,6 @@ payment:
   frontend-result-url: ${PAYMENT_FRONTEND_RESULT_URL}
   frontend-vnpay-return-url: ${PAYMENT_FRONTEND_VNPAY_RETURN_URL}
 
+# Course Service URL for enrollment creation
+course-service:
+  url: ${COURSE_SERVICE_URL:http://localhost:8082}

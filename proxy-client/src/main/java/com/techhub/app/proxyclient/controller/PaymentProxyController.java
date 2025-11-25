@@ -21,8 +21,9 @@ public class PaymentProxyController {
     @PostMapping("/paypal/create")
     public ResponseEntity<String> createPayPalOrder(
             @RequestParam Double amount,
-            @RequestParam(required = false) String userId) {
-        return paymentServiceClient.createPayPalOrder(amount, userId);
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String courseId) {
+        return paymentServiceClient.createPayPalOrder(amount, userId, courseId);
     }
 
     @GetMapping("/paypal/success")
@@ -51,8 +52,9 @@ public class PaymentProxyController {
             @RequestParam(value = "amount", required = false) String amount,
             @RequestParam(value = "bankCode", required = false) String bankCode,
             @RequestParam(value = "orderInfo", required = false) String orderInfo,
-            @RequestParam(value = "userId", required = false) String userId) {
-        return paymentServiceClient.createVnPayPayment(amount, bankCode, orderInfo, userId);
+            @RequestParam(value = "userId", required = false) String userId,
+            @RequestParam(value = "courseId", required = false) String courseId) {
+        return paymentServiceClient.createVnPayPayment(amount, bankCode, orderInfo, userId, courseId);
     }
 
     @GetMapping("/vn-pay-callback")

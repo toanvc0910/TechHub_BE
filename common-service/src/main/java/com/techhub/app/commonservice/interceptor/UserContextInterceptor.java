@@ -39,9 +39,9 @@ public class UserContextInterceptor implements HandlerInterceptor {
         String userRoles = request.getHeader(USER_ROLES_HEADER);
         String requestSource = request.getHeader(REQUEST_SOURCE_HEADER);
 
-        // Validate that request comes from proxy-client
-        if (!"proxy-client".equals(requestSource)) {
-            log.warn("Request not from proxy-client - URI: {} {}, Source: {}", method, requestURI, requestSource);
+        // Validate that request comes from proxy-client or other internal services
+        if (!"proxy-client".equals(requestSource) && !isInternalService(requestSource)) {
+            log.warn("Request not from proxy-client or internal service - URI: {} {}, Source: {}", method, requestURI, requestSource);
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return false;
         }
@@ -90,5 +90,18 @@ public class UserContextInterceptor implements HandlerInterceptor {
                uri.startsWith("/api/users/reset-password/") ||
                // OAuth2 endpoints
                uri.startsWith("/oauth2/");
+    }
+
+    private boolean isInternalService(String requestSource) {
+        // Allow requests from internal microservices
+        return requestSource != null && (
+            requestSource.equals("payment-service") ||
+            requestSource.equals("course-service") ||
+            requestSource.equals("user-service") ||
+            requestSource.equals("notification-service") ||
+            requestSource.equals("learning-path-service") ||
+            requestSource.equals("blog-service") ||
+            requestSource.equals("file-service")
+        );
     }
 }
