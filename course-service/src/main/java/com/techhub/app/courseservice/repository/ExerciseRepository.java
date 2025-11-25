@@ -10,6 +10,6 @@ import java.util.UUID;
 public interface ExerciseRepository extends JpaRepository<Exercise, UUID> {
 
     Optional<Exercise> findByLesson_IdAndIsActiveTrue(UUID lessonId);
-    
+
     List<Exercise> findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(UUID lessonId);
 }

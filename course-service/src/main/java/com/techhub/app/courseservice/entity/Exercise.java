@@ -32,8 +32,8 @@ import java.util.UUID;
 @Getter
 @Setter
 @TypeDefs({
-    @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class),
-    @TypeDef(name = "json", typeClass = JsonType.class)
+        @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class),
+        @TypeDef(name = "json", typeClass = JsonType.class)
 })
 public class Exercise {
 
