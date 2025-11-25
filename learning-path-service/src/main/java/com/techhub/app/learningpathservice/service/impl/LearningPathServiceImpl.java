@@ -161,25 +161,42 @@ public class LearningPathServiceImpl implements LearningPathService {
         LearningPath learningPath = learningPathRepository.findByIdAndIsActive(pathId, Boolean.TRUE)
                 .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + pathId));
 
+        int successCount = 0;
+        int skippedCount = 0;
+
         for (CourseInPathDTO courseDTO : requestDTO.getCourses()) {
-            // Check if course already exists in path
-            if (learningPathCourseRepository.existsByPathIdAndCourseId(pathId, courseDTO.getCourseId())) {
-                log.warn("Course {} already exists in path {}", courseDTO.getCourseId(), pathId);
-                continue;
+            try {
+                // Check if course already exists in path
+                if (learningPathCourseRepository.existsByPathIdAndCourseId(pathId, courseDTO.getCourseId())) {
+                    log.warn("Course {} already exists in path {}", courseDTO.getCourseId(), pathId);
+                    skippedCount++;
+                    continue;
+                }
+
+                LearningPathCourse pathCourse = new LearningPathCourse();
+                pathCourse.setPathId(pathId);
+                pathCourse.setCourseId(courseDTO.getCourseId());
+                pathCourse.setOrder(courseDTO.getOrder());
+                pathCourse.setPositionX(courseDTO.getPositionX());
+                pathCourse.setPositionY(courseDTO.getPositionY());
+                pathCourse.setIsOptional(courseDTO.getIsOptional() != null ? courseDTO.getIsOptional() : "N");
+
+                learningPathCourseRepository.save(pathCourse);
+                successCount++;
+                log.info("✅ Successfully added course {} to path {}", courseDTO.getCourseId(), pathId);
+            } catch (Exception e) {
+                log.error("❌ Failed to add course {} to path {}: {}",
+                        courseDTO.getCourseId(), pathId, e.getMessage());
+                skippedCount++;
+                // Continue processing other courses instead of failing the entire operation
             }
-
-            LearningPathCourse pathCourse = new LearningPathCourse();
-            pathCourse.setPathId(pathId);
-            pathCourse.setCourseId(courseDTO.getCourseId());
-            pathCourse.setOrder(courseDTO.getOrder());
-
-            learningPathCourseRepository.save(pathCourse);
         }
 
         // Refresh to get updated courses
         learningPath = learningPathRepository.findById(pathId).orElseThrow();
 
-        log.info("Courses added successfully to learning path ID: {}", pathId);
+        log.info("Courses operation completed for learning path ID: {} - Success: {}, Skipped: {}",
+                pathId, successCount, skippedCount);
         return learningPathMapper.toDTO(learningPath);
     }
 

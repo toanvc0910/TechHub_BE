@@ -81,13 +81,13 @@ public class AiDraftApprovalServiceImpl implements AiDraftApprovalService {
         aiGenerationTaskRepository.save(task);
 
         log.info("✅ Learning path draft approved. TaskId: {}", taskId);
-        log.info("📝 Admin can now use resultPayload to create learning path");
-        log.info("📝 API: POST /api/v1/learning-paths");
+        log.info("📝 Frontend will create learning path via proxy-client API");
 
         return ApproveLearningPathDraftResponse.builder()
                 .taskId(taskId)
                 .success(true)
-                .message("Draft approved. Result payload is ready for Learning Path Service API.")
+                .message("Draft approved. Frontend can now create learning path via proxy API.")
+                .learningPathData(task.getResultPayload()) // Return data for FE to use
                 .build();
     }
 

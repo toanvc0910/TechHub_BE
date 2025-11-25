@@ -55,15 +55,24 @@ public class LearningPathAiServiceImpl implements LearningPathAiService {
             // 3. Call OpenAI
             Object aiResponse = openAiGateway.generateStructuredJson(prompt, request);
 
-            // 4. Save result as DRAFT - chờ admin approve
-            task.setResultPayload(aiResponse);
+            // 4. Extract and enrich response data
+            Map<String, Object> responseMap = (Map<String, Object>) aiResponse;
+
+            // Add metadata for approval process
+            responseMap.put("userId", request.getUserId());
+            responseMap.put("goal", request.getGoal());
+            responseMap.put("duration", request.getDuration());
+            responseMap.put("level", request.getLevel());
+
+            // 5. Save enriched result as DRAFT - chờ admin approve
+            task.setResultPayload(responseMap);
             task.setStatus(AiTaskStatus.DRAFT);
             aiGenerationTaskRepository.save(task);
 
-            // Extract title from request
-            String title = "Learning Path: " + request.getGoal();
-
-            Map<String, Object> responseMap = (Map<String, Object>) aiResponse;
+            // Extract title from response or generate from goal
+            String title = responseMap.containsKey("title")
+                    ? (String) responseMap.get("title")
+                    : "Learning Path: " + request.getGoal();
 
             return LearningPathDraftResponse.builder()
                     .taskId(task.getId())
@@ -85,10 +94,16 @@ public class LearningPathAiServiceImpl implements LearningPathAiService {
     private String buildPrompt(LearningPathGenerateRequest request, List<Map<String, Object>> courses) {
         StringBuilder coursesInfo = new StringBuilder();
         for (Map<String, Object> course : courses) {
-            coursesInfo.append(String.format("- ID: %s, Title: %s, Level: %s\n",
+            @SuppressWarnings("unchecked")
+            Map<String, Object> payload = course.get("payload") != null ? (Map<String, Object>) course.get("payload")
+                    : Map.of();
+            coursesInfo.append(String.format(
+                    "- ID: %s\n  Title: %s\n  Description: %s\n  Level: %s\n  Thumbnail: %s\n\n",
                     course.get("id"),
-                    course.get("payload") != null ? ((Map) course.get("payload")).get("title") : "N/A",
-                    course.get("payload") != null ? ((Map) course.get("payload")).get("level") : "N/A"));
+                    payload.getOrDefault("title", "N/A"),
+                    payload.getOrDefault("description", ""),
+                    payload.getOrDefault("level", "N/A"),
+                    payload.getOrDefault("thumbnail", "")));
         }
 
         return String.format(
@@ -96,11 +111,26 @@ public class LearningPathAiServiceImpl implements LearningPathAiService {
                         "Duration: %s, Level: %s\n\n" +
                         "Available Courses (Select the most relevant ones and order them logically):\n%s\n\n" +
                         "Requirements:\n" +
-                        "1. Return a JSON object with two keys: 'nodes' and 'edges'.\n" +
-                        "2. 'nodes': Array of objects matching 'LearningPathNode' structure (id, type='courseNode', data={label, courseId}, position={x,y}).\n"
+                        "1. Return a JSON object with these keys:\n" +
+                        "   - 'title': String - A catchy title for the learning path\n" +
+                        "   - 'description': String - Detailed description of what learner will achieve\n" +
+                        "   - 'skills': Array of strings - Key skills learner will gain\n" +
+                        "   - 'courses': Array of objects with {courseId: UUID, title: String, description: String, thumbnail: String, order: number, positionX: number, positionY: number, isOptional: 'Y'/'N'}\n"
                         +
-                        "3. 'edges': Array of objects matching 'LearningPathEdge' structure (id, source, target).\n" +
-                        "4. Arrange nodes visually using x,y coordinates to form a clear path (e.g., left to right or top to bottom).\n",
+                        "   - 'layoutEdges': Array of objects with {source: courseId, target: courseId} for prerequisites\n"
+                        +
+                        "   - 'nodes': Array of objects (for UI visualization) with {id, type='courseNode', data={label, courseId}, position={x,y}}\n"
+                        +
+                        "   - 'edges': Array of objects (for UI) with {id, source, target}\n" +
+                        "2. CRITICAL: You MUST ONLY use courseId values from the 'Available Courses' list above (the 'ID' field). DO NOT generate new UUIDs.\n"
+                        +
+                        "3. Order courses from beginner to advanced logically\n" +
+                        "4. Position nodes visually (x: 50-800, y: 200-1000, space them 350px horizontally, 250px vertically) for flow diagram\n"
+                        +
+                        "5. Mark advanced/optional courses with isOptional='Y'\n" +
+                        "6. IMPORTANT: In courses array, include title, description, and thumbnail from the course data provided above\n"
+                        +
+                        "7. Ensure all courseId values in 'courses', 'layoutEdges', 'nodes', and 'edges' arrays match exactly with IDs from Available Courses\n",
                 request.getGoal(),
                 request.getDuration(),
                 request.getLevel(),

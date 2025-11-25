@@ -334,7 +334,8 @@ CREATE TABLE exercises (
     type exercise_type NOT NULL,
     question TEXT NOT NULL,
     test_cases JSONB,
-    lesson_id UUID UNIQUE NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    order_index INTEGER NOT NULL DEFAULT 1,
     options JSONB DEFAULT '[]'::JSONB,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -343,6 +344,7 @@ CREATE TABLE exercises (
     is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
 );
 CREATE INDEX idx_exercises_lesson_id ON exercises(lesson_id);
+CREATE INDEX idx_exercises_lesson_order ON exercises(lesson_id, order_index) WHERE is_active = 'Y';
 CREATE INDEX idx_exercises_type ON exercises(type);
 CREATE INDEX idx_exercises_test_cases_gin ON exercises USING GIN (test_cases);
 CREATE INDEX idx_exercises_is_active ON exercises(is_active);

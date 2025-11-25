@@ -69,7 +69,8 @@ public class ExerciseServiceImpl implements ExerciseService {
                 .orElseThrow(() -> new NotFoundException("Exercise not found for lesson"));
 
         boolean manager = canManageCourse(lesson.getChapter().getCourse());
-        List<ExerciseTestCase> testCases = testCaseRepository.findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+        List<ExerciseTestCase> testCases = testCaseRepository
+                .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
 
         return mapToResponse(exercise, testCases, manager);
     }
@@ -83,6 +84,7 @@ public class ExerciseServiceImpl implements ExerciseService {
                 .orElseGet(() -> {
                     Exercise entity = new Exercise();
                     entity.setLesson(lesson);
+                    entity.setOrderIndex(1);
                     entity.setCreatedBy(UserContext.getCurrentUserId());
                     entity.setIsActive(true);
                     return entity;
@@ -96,8 +98,57 @@ public class ExerciseServiceImpl implements ExerciseService {
 
         syncTestCases(exercise, request.getTestCases());
 
-        List<ExerciseTestCase> testCases = testCaseRepository.findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+        List<ExerciseTestCase> testCases = testCaseRepository
+                .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
         return mapToResponse(exercise, testCases, true);
+    }
+
+    @Override
+    public List<ExerciseResponse> getLessonExercises(UUID courseId, UUID lessonId) {
+        Lesson lesson = resolveLesson(courseId, lessonId);
+        List<Exercise> exercises = exerciseRepository
+                .findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId());
+
+        return exercises.stream()
+                .map(exercise -> {
+                    List<ExerciseTestCase> testCases = testCaseRepository
+                            .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+                    return mapToResponse(exercise, testCases, true);
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public List<ExerciseResponse> createExercises(UUID courseId, UUID lessonId, List<ExerciseRequest> requests) {
+        Lesson lesson = resolveLesson(courseId, lessonId);
+        ensureManagePermission(lesson.getChapter().getCourse());
+
+        List<ExerciseResponse> responses = new ArrayList<>();
+        UUID currentUserId = UserContext.getCurrentUserId();
+
+        for (int i = 0; i < requests.size(); i++) {
+            ExerciseRequest request = requests.get(i);
+
+            Exercise exercise = new Exercise();
+            exercise.setLesson(lesson);
+            exercise.setType(request.getType());
+            exercise.setQuestion(request.getQuestion());
+            exercise.setOptions(request.getOptions());
+            exercise.setOrderIndex(i + 1);
+            exercise.setCreatedBy(currentUserId);
+            exercise.setUpdatedBy(currentUserId);
+            exercise.setIsActive(true);
+
+            exerciseRepository.save(exercise);
+            syncTestCases(exercise, request.getTestCases());
+
+            List<ExerciseTestCase> testCases = testCaseRepository
+                    .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+            responses.add(mapToResponse(exercise, testCases, true));
+        }
+
+        return responses;
     }
 
     @Override
@@ -117,13 +168,15 @@ public class ExerciseServiceImpl implements ExerciseService {
         submission.setCreatedBy(userId);
         submission.setUpdatedBy(userId);
 
-        List<ExerciseTestCase> testCases = testCaseRepository.findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+        List<ExerciseTestCase> testCases = testCaseRepository
+                .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
         ExerciseEvaluationResult evaluation = evaluateSubmission(exercise, testCases, request);
 
         submission.setStatus(evaluation.status());
         submission.setGrade(evaluation.grade());
-        submission.setGradedAt(evaluation.status() == SubmissionStatus.PASSED || evaluation.status() == SubmissionStatus.FAILED
-                || evaluation.status() == SubmissionStatus.PARTIAL ? OffsetDateTime.now() : null);
+        submission.setGradedAt(
+                evaluation.status() == SubmissionStatus.PASSED || evaluation.status() == SubmissionStatus.FAILED
+                        || evaluation.status() == SubmissionStatus.PARTIAL ? OffsetDateTime.now() : null);
 
         submissionRepository.save(submission);
         log.debug("Submission {} stored with status {}", submission.getId(), submission.getStatus());
@@ -149,8 +202,8 @@ public class ExerciseServiceImpl implements ExerciseService {
     }
 
     private ExerciseEvaluationResult evaluateSubmission(Exercise exercise,
-                                                        List<ExerciseTestCase> testCases,
-                                                        ExerciseSubmissionRequest request) {
+            List<ExerciseTestCase> testCases,
+            ExerciseSubmissionRequest request) {
         ExerciseType type = exercise.getType();
         switch (type) {
             case MULTIPLE_CHOICE:
@@ -158,7 +211,7 @@ public class ExerciseServiceImpl implements ExerciseService {
             case CODING:
                 return evaluateCoding(testCases, request);
             case OPEN_ENDED:
-            return new ExerciseEvaluationResult(null, SubmissionStatus.PENDING, List.of());
+                return new ExerciseEvaluationResult(null, SubmissionStatus.PENDING, List.of());
             default:
                 throw new BadRequestException("Unsupported exercise type");
         }
@@ -168,15 +221,18 @@ public class ExerciseServiceImpl implements ExerciseService {
         try {
             Map<String, Object> optionPayload = objectMapper.convertValue(
                     exercise.getOptions() != null ? exercise.getOptions() : Map.of(),
-                    new TypeReference<Map<String, Object>>() {});
-            List<Map<String, Object>> choices = (List<Map<String, Object>>) optionPayload.getOrDefault("choices", List.of());
+                    new TypeReference<Map<String, Object>>() {
+                    });
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) optionPayload.getOrDefault("choices",
+                    List.of());
 
             Set<String> correctIds = choices.stream()
                     .filter(choice -> Boolean.TRUE.equals(choice.get("correct")))
                     .map(choice -> String.valueOf(choice.get("id")))
                     .collect(Collectors.toSet());
 
-            List<String> answers = objectMapper.readValue(request.getAnswer(), new TypeReference<List<String>>() {});
+            List<String> answers = objectMapper.readValue(request.getAnswer(), new TypeReference<List<String>>() {
+            });
             Set<String> submitted = new HashSet<>(answers);
 
             boolean passed = submitted.equals(correctIds);
@@ -199,14 +255,17 @@ public class ExerciseServiceImpl implements ExerciseService {
         }
     }
 
-    private ExerciseEvaluationResult evaluateCoding(List<ExerciseTestCase> testCases, ExerciseSubmissionRequest request) {
+    private ExerciseEvaluationResult evaluateCoding(List<ExerciseTestCase> testCases,
+            ExerciseSubmissionRequest request) {
         Map<String, Object> payload;
         Map<String, String> outputs;
         try {
-            payload = objectMapper.convertValue(request.getSubmissionData(), new TypeReference<Map<String, Object>>() {});
+            payload = objectMapper.convertValue(request.getSubmissionData(), new TypeReference<Map<String, Object>>() {
+            });
             outputs = objectMapper.convertValue(
                     payload.getOrDefault("outputs", Map.of()),
-                    new TypeReference<Map<String, String>>() {});
+                    new TypeReference<Map<String, String>>() {
+                    });
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException("Invalid submission data for coding exercise");
         }
@@ -219,7 +278,8 @@ public class ExerciseServiceImpl implements ExerciseService {
             float weight = testCase.getWeight() != null ? testCase.getWeight() : 1f;
             totalWeight += weight;
 
-            String key = testCase.getId() != null ? testCase.getId().toString() : String.valueOf(testCase.getOrderIndex());
+            String key = testCase.getId() != null ? testCase.getId().toString()
+                    : String.valueOf(testCase.getOrderIndex());
             String actual = outputs.getOrDefault(key, null);
             String expected = testCase.getExpectedOutput();
 
@@ -252,7 +312,8 @@ public class ExerciseServiceImpl implements ExerciseService {
         return new ExerciseEvaluationResult(grade, status, results);
     }
 
-    private ExerciseResponse mapToResponse(Exercise exercise, List<ExerciseTestCase> testCases, boolean includeAllTestCases) {
+    private ExerciseResponse mapToResponse(Exercise exercise, List<ExerciseTestCase> testCases,
+            boolean includeAllTestCases) {
         List<ExerciseTestCaseDto> testCaseDtos = testCases.stream()
                 .filter(testCase -> includeAllTestCases || testCase.getVisibility() == TestCaseVisibility.PUBLIC)
                 .map(testCase -> ExerciseTestCaseDto.builder()
@@ -277,8 +338,9 @@ public class ExerciseServiceImpl implements ExerciseService {
 
         Float bestScore = null;
         if (currentUser != null) {
-            List<Submission> submissions = submissionRepository.findByExercise_IdAndUserIdAndIsActiveTrueOrderByCreatedDesc(
-                    exercise.getId(), currentUser);
+            List<Submission> submissions = submissionRepository
+                    .findByExercise_IdAndUserIdAndIsActiveTrueOrderByCreatedDesc(
+                            exercise.getId(), currentUser);
             bestScore = submissions.stream()
                     .map(Submission::getGrade)
                     .filter(grade -> grade != null)
@@ -351,7 +413,8 @@ public class ExerciseServiceImpl implements ExerciseService {
     }
 
     private void syncTestCases(Exercise exercise, List<ExerciseTestCaseDto> testCaseDtos) {
-        List<ExerciseTestCase> existing = testCaseRepository.findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+        List<ExerciseTestCase> existing = testCaseRepository
+                .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
         Map<UUID, ExerciseTestCase> existingMap = existing.stream()
                 .filter(tc -> tc.getId() != null)
                 .collect(Collectors.toMap(ExerciseTestCase::getId, tc -> tc));

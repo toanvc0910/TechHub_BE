@@ -11,5 +11,6 @@ public class QdrantProperties {
     private String host;
     private String apiKey;
     private String recommendationCollection;
+    private String lessonCollection;
     private String profileCollection;
 }
