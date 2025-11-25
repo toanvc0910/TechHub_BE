@@ -83,6 +83,7 @@ public class ExerciseServiceImpl implements ExerciseService {
                 .orElseGet(() -> {
                     Exercise entity = new Exercise();
                     entity.setLesson(lesson);
+                    entity.setOrderIndex(1);
                     entity.setCreatedBy(UserContext.getCurrentUserId());
                     entity.setIsActive(true);
                     return entity;
@@ -98,6 +99,51 @@ public class ExerciseServiceImpl implements ExerciseService {
 
         List<ExerciseTestCase> testCases = testCaseRepository.findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
         return mapToResponse(exercise, testCases, true);
+    }
+    
+    @Override
+    public List<ExerciseResponse> getLessonExercises(UUID courseId, UUID lessonId) {
+        Lesson lesson = resolveLesson(courseId, lessonId);
+        List<Exercise> exercises = exerciseRepository.findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId());
+        
+        return exercises.stream()
+                .map(exercise -> {
+                    List<ExerciseTestCase> testCases = testCaseRepository.findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+                    return mapToResponse(exercise, testCases, true);
+                })
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    @Transactional
+    public List<ExerciseResponse> createExercises(UUID courseId, UUID lessonId, List<ExerciseRequest> requests) {
+        Lesson lesson = resolveLesson(courseId, lessonId);
+        ensureManagePermission(lesson.getChapter().getCourse());
+        
+        List<ExerciseResponse> responses = new ArrayList<>();
+        UUID currentUserId = UserContext.getCurrentUserId();
+        
+        for (int i = 0; i < requests.size(); i++) {
+            ExerciseRequest request = requests.get(i);
+            
+            Exercise exercise = new Exercise();
+            exercise.setLesson(lesson);
+            exercise.setType(request.getType());
+            exercise.setQuestion(request.getQuestion());
+            exercise.setOptions(request.getOptions());
+            exercise.setOrderIndex(i + 1);
+            exercise.setCreatedBy(currentUserId);
+            exercise.setUpdatedBy(currentUserId);
+            exercise.setIsActive(true);
+            
+            exerciseRepository.save(exercise);
+            syncTestCases(exercise, request.getTestCases());
+            
+            List<ExerciseTestCase> testCases = testCaseRepository.findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+            responses.add(mapToResponse(exercise, testCases, true));
+        }
+        
+        return responses;
     }
 
     @Override

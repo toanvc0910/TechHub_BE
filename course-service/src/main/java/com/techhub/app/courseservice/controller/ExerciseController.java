@@ -20,10 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/courses/{courseId}/lessons/{lessonId}/exercise")
+@RequestMapping("/api/courses/{courseId}/lessons/{lessonId}")
 @RequiredArgsConstructor
 @Slf4j
 @Validated
@@ -31,7 +32,8 @@ public class ExerciseController {
 
     private final ExerciseService exerciseService;
 
-    @GetMapping
+    // Legacy single exercise endpoint
+    @GetMapping("/exercise")
     public ResponseEntity<GlobalResponse<ExerciseResponse>> getLessonExercise(@PathVariable UUID courseId,
                                                                               @PathVariable UUID lessonId,
                                                                               HttpServletRequest request) {
@@ -41,8 +43,20 @@ public class ExerciseController {
                         .withPath(request.getRequestURI())
         );
     }
+    
+    // New multiple exercises endpoint
+    @GetMapping("/exercises")
+    public ResponseEntity<GlobalResponse<List<ExerciseResponse>>> getLessonExercises(@PathVariable UUID courseId,
+                                                                                     @PathVariable UUID lessonId,
+                                                                                     HttpServletRequest request) {
+        List<ExerciseResponse> responses = exerciseService.getLessonExercises(courseId, lessonId);
+        return ResponseEntity.ok(
+                GlobalResponse.success("Exercises retrieved", responses)
+                        .withPath(request.getRequestURI())
+        );
+    }
 
-    @PutMapping
+    @PutMapping("/exercise")
     public ResponseEntity<GlobalResponse<ExerciseResponse>> upsertExercise(@PathVariable UUID courseId,
                                                                            @PathVariable UUID lessonId,
                                                                            @Valid @RequestBody ExerciseRequest exerciseRequest,
@@ -54,8 +68,22 @@ public class ExerciseController {
                         .withPath(request.getRequestURI())
         );
     }
+    
+    // New endpoint to create multiple exercises at once
+    @PostMapping("/exercises")
+    public ResponseEntity<GlobalResponse<List<ExerciseResponse>>> createExercises(@PathVariable UUID courseId,
+                                                                                  @PathVariable UUID lessonId,
+                                                                                  @Valid @RequestBody List<ExerciseRequest> exerciseRequests,
+                                                                                  HttpServletRequest request) {
+        List<ExerciseResponse> responses = exerciseService.createExercises(courseId, lessonId, exerciseRequests);
+        return ResponseEntity.ok(
+                GlobalResponse.success("Exercises created", responses)
+                        .withStatus("EXERCISES_CREATED")
+                        .withPath(request.getRequestURI())
+        );
+    }
 
-    @PostMapping("/submissions")
+    @PostMapping("/exercise/submissions")
     public ResponseEntity<GlobalResponse<ExerciseSubmissionResponse>> submitExercise(@PathVariable UUID courseId,
                                                                                       @PathVariable UUID lessonId,
                                                                                       @Valid @RequestBody ExerciseSubmissionRequest submissionRequest,

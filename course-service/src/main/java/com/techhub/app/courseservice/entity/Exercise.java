@@ -20,7 +20,7 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
-import javax.persistence.OneToOne;
+import javax.persistence.ManyToOne;
 import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
 import javax.persistence.Table;
@@ -54,9 +54,12 @@ public class Exercise {
     @Column(name = "test_cases", columnDefinition = "jsonb")
     private Object testCases;
 
-    @OneToOne
-    @JoinColumn(name = "lesson_id", nullable = false, unique = true)
+    @ManyToOne
+    @JoinColumn(name = "lesson_id", nullable = false)
     private Lesson lesson;
+
+    @Column(name = "order_index", nullable = false)
+    private Integer orderIndex = 1;
 
     @Type(type = "json")
     @Column(name = "options", columnDefinition = "jsonb")
