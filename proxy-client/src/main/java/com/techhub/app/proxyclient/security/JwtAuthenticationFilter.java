@@ -38,23 +38,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String requestURI = request.getRequestURI();
         String method = request.getMethod();
-
-        log.info("🔍 [JwtAuthenticationFilter] Incoming request: {} {}", method, requestURI);
-
         // Skip JWT validation for public endpoints
         if (isPublicEndpoint(requestURI, method)) {
-            log.info("✅ [JwtAuthenticationFilter] Public endpoint - skipping JWT validation: {} {}", method,
-                    requestURI);
             filterChain.doFilter(request, response);
             return;
         }
 
         String authHeader = request.getHeader("Authorization");
-        log.info("🔑 [JwtAuthenticationFilter] Authorization header present: {}", authHeader != null);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("⚠️ [JwtAuthenticationFilter] No valid Authorization header for protected endpoint: {} {}", method,
-                    requestURI);
             filterChain.doFilter(request, response);
             return;
         }
@@ -93,32 +85,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         && !skipPermissionCheck(requestURI)
                         && !hasBypassRole(roles)) {
                     String targetPath = normalizeTargetPath(requestURI);
-                    log.info("🔐 [JwtAuthenticationFilter] ========== PERMISSION CHECK START ==========");
-                    log.info("🔐 [JwtAuthenticationFilter] User: {}, Email: {}, Roles: {}", userId, email, roles);
-                    log.info("🔐 [JwtAuthenticationFilter] Original URI: {}", requestURI);
-                    log.info("🔐 [JwtAuthenticationFilter] Target Path: {}", targetPath);
-                    log.info("🔐 [JwtAuthenticationFilter] Method: {}", method);
-                    log.info("🔐 [JwtAuthenticationFilter] Calling PermissionGatewayService...");
 
                     boolean allowed = permissionGatewayService.hasPermission(userId, targetPath, method, authHeader);
 
-                    log.info("🔐 [JwtAuthenticationFilter] Permission check result: {}",
-                            allowed ? "ALLOWED ✅" : "DENIED ❌");
-                    log.info("🔐 [JwtAuthenticationFilter] ========== PERMISSION CHECK END ==========");
-
                     if (!allowed) {
-                        log.warn("❌ [JwtAuthenticationFilter] Access denied for user {} on {} {}", userId, method,
-                                targetPath);
-                        log.warn("❌ [JwtAuthenticationFilter] User roles: {}, Required permission: {} {}", roles,
-                                method, targetPath);
                         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                         response.getWriter().write(
                                 "{\"error\":\"Access denied\",\"message\":\"You don't have permission to access this resource\"}");
                         response.setContentType("application/json");
                         return;
                     }
-                    log.info("✅ [JwtAuthenticationFilter] Permission granted for user {} on {} {}", userId, method,
-                            targetPath);
                 } else {
                     log.info("⏭️ [JwtAuthenticationFilter] Skipping permission check for: {} {}", method, requestURI);
                     log.info("⏭️ [JwtAuthenticationFilter] Reason - IsPublic: {}, SkipCheck: {}, HasBypassRole: {}",
@@ -126,8 +102,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             hasBypassRole(roles));
                 }
 
-                log.info("➡️ [JwtAuthenticationFilter] Forwarding request to downstream service: {} {}", method,
-                        requestURI);
             } else {
                 log.warn("⚠️ [JwtAuthenticationFilter] JWT token validation failed for: {} {}", method, requestURI);
             }
@@ -136,29 +110,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     e.getMessage(), e);
         }
 
-        log.info("🏁 [JwtAuthenticationFilter] Completing filter chain for: {} {}", method, requestURI);
         filterChain.doFilter(request, response);
     }
 
     private boolean isPublicEndpoint(String uri, String method) {
         return uri.startsWith("/api/auth/") ||
-               uri.startsWith("/api/proxy/auth/") ||
-               (uri.equals("/api/users") && "POST".equals(method)) ||
-               (uri.equals("/api/proxy/users") && "POST".equals(method)) ||
-               uri.startsWith("/api/users/forgot-password") ||
-               uri.startsWith("/api/proxy/users/forgot-password") ||
-               uri.startsWith("/api/users/reset-password") ||
-               uri.startsWith("/api/proxy/users/reset-password") ||
-               uri.startsWith("/actuator/") ||
-               uri.startsWith("/swagger-ui/") ||
-               uri.startsWith("/v3/api-docs/") ||
-               uri.startsWith("/oauth2/") ||
-               uri.startsWith("/api/proxy/files/") ||
-               uri.startsWith("/api/proxy/folders/") ||
-               uri.startsWith("/api/proxy/file-usage/") ||
-               uri.startsWith("/api/proxy/payments/");
                 uri.startsWith("/api/proxy/auth/") ||
-                uri.startsWith("/app/api/proxy/auth/") || // API Gateway prefix
+                (uri.equals("/api/users") && "POST".equals(method)) ||
+                (uri.equals("/api/proxy/users") && "POST".equals(method)) ||
+                uri.startsWith("/api/users/forgot-password") ||
+                uri.startsWith("/api/proxy/users/forgot-password") ||
+                uri.startsWith("/api/users/reset-password") ||
+                uri.startsWith("/api/proxy/users/reset-password") ||
+                uri.startsWith("/actuator/") ||
+                uri.startsWith("/swagger-ui/") ||
+                uri.startsWith("/v3/api-docs/") ||
+                uri.startsWith("/oauth2/") ||
+                uri.startsWith("/api/proxy/files/") ||
+                uri.startsWith("/api/proxy/folders/") ||
+                uri.startsWith("/api/proxy/file-usage/") ||
+                uri.startsWith("/api/proxy/payments/") ||
+                uri.startsWith("/app/api/proxy/auth/") ||
                 ("/api/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
                 ("/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
                 ("/app/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
