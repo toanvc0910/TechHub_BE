@@ -2,6 +2,7 @@ package com.techhub.app.aiservice.service.impl;
 
 import com.techhub.app.aiservice.dto.request.ChatMessageRequest;
 import com.techhub.app.aiservice.dto.response.ChatMessageResponse;
+import com.techhub.app.aiservice.dto.response.ChatSessionResponse;
 import com.techhub.app.aiservice.entity.ChatMessage;
 import com.techhub.app.aiservice.entity.ChatSession;
 import com.techhub.app.aiservice.enums.ChatMode;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -346,6 +348,32 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
 
         log.debug("Built prompt for mode {}: {}", request.getMode(), prompt.toString());
         return prompt.toString();
+    }
+
+    @Override
+    @Transactional
+    public ChatSessionResponse createSession(UUID userId, ChatMode mode) {
+        ChatSession session = new ChatSession();
+        session.setUserId(userId);
+        session.setStartedAt(OffsetDateTime.now());
+
+        // Set context with mode if provided
+        if (mode != null) {
+            Map<String, Object> context = new HashMap<>();
+            context.put("mode", mode.toString());
+            session.setContext(context);
+        }
+
+        ChatSession savedSession = chatSessionRepository.save(session);
+        log.info("✅ Created new empty session: {} for user: {}", savedSession.getId(), userId);
+
+        return ChatSessionResponse.builder()
+                .id(savedSession.getId())
+                .userId(savedSession.getUserId())
+                .startedAt(savedSession.getStartedAt())
+                .endedAt(savedSession.getEndedAt())
+                .context(savedSession.getContext())
+                .build();
     }
 
     @Override

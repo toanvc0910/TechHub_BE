@@ -93,6 +93,12 @@ public interface AiServiceClient {
         // CHAT SESSION HISTORY ENDPOINTS
         // ============================================
 
+        @PostMapping("/api/ai/chat/sessions")
+        ResponseEntity<String> createSession(
+                        @RequestParam UUID userId,
+                        @RequestParam(required = false) String mode,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
         @GetMapping("/api/ai/chat/sessions")
         ResponseEntity<String> getUserSessions(
                         @RequestParam UUID userId,

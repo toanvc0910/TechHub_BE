@@ -131,6 +131,14 @@ public class AiProxyController {
     // CHAT SESSION HISTORY
     // ============================================
 
+    @PostMapping("/chat/sessions")
+    public ResponseEntity<String> createSession(
+            @RequestParam java.util.UUID userId,
+            @RequestParam(required = false) String mode,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.createSession(userId, mode, authHeader);
+    }
+
     @GetMapping("/chat/sessions")
     public ResponseEntity<String> getUserSessions(
             @RequestParam java.util.UUID userId,

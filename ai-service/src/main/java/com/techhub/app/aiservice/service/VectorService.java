@@ -211,17 +211,40 @@ public class VectorService {
             List<QdrantPoint> points = new ArrayList<>();
 
             for (Map<String, Object> course : courses) {
-                String courseId = (String) course.get("id");
-                String title = (String) course.get("title");
-                String description = (String) course.get("description");
-                String objectives = (String) course.get("objectives");
-                String requirements = (String) course.get("requirements");
+                // Convert UUID to String properly
+                Object idObj = course.get("id");
+                String courseId = idObj != null ? idObj.toString() : null;
+
+                if (courseId == null) {
+                    log.warn("⚠️ Skipping course with null ID");
+                    continue;
+                }
+
+                // Safely extract String fields, handling PGobject
+                String title = getStringValue(course.get("title"));
+                String description = getStringValue(course.get("description"));
+                String objectives = getStringValue(course.get("objectives"));
+                String requirements = getStringValue(course.get("requirements"));
 
                 String text = embeddingService.buildCourseText(title, description, objectives, requirements);
                 List<Double> embedding = embeddingService.generateEmbedding(text);
 
                 if (!embedding.isEmpty()) {
-                    points.add(new QdrantPoint(courseId, embedding, course));
+                    // Update course map to have String ID for payload
+                    Map<String, Object> coursePayload = new HashMap<>(course);
+                    coursePayload.put("id", courseId);
+
+                    // Convert any non-primitive objects to String representation
+                    // PostgreSQL json_agg returns PGobject which needs to be converted
+                    for (Map.Entry<String, Object> entry : coursePayload.entrySet()) {
+                        Object value = entry.getValue();
+                        if (value != null && !isPrimitiveOrString(value)) {
+                            coursePayload.put(entry.getKey(), value.toString());
+                        }
+                    }
+
+                    points.add(new QdrantPoint(courseId, embedding, coursePayload));
+                    log.debug("📦 Prepared course for indexing: {} - {}", courseId, title);
                 }
             }
 
@@ -239,11 +262,12 @@ public class VectorService {
     /**
      * Index a lesson into Qdrant
      */
-    public void indexLesson(UUID lessonId, String title, String content, String videoUrl, Map<String, Object> metadata) {
+    public void indexLesson(UUID lessonId, String title, String content, String videoUrl,
+            Map<String, Object> metadata) {
         try {
             // Build text representation
             String text = title + " " + (content != null ? content : "");
-            
+
             // Generate embedding
             List<Double> embedding = embeddingService.generateEmbedding(text);
 
@@ -279,15 +303,20 @@ public class VectorService {
      */
     public void indexEnrollment(UUID enrollmentId, UUID userId, UUID courseId, String status, Double progress) {
         try {
-            // For enrollments, we might not need embeddings if we only use them for filtering
+            // For enrollments, we might not need embeddings if we only use them for
+            // filtering
             // But if we want to find "users with similar enrollments", we need embeddings.
             // For now, let's just store it as a point in profile collection or a new one.
             // Simplified: Update user profile with this enrollment info
-            
-            // In a real system, we might append this to the user's history text and re-index the user profile.
-            // Here, we'll just log it as a placeholder for future "User Embedding Update" logic.
-            log.info("ℹ️ Enrollment indexing requested for user {} course {}. (Logic to update user profile embedding would go here)", userId, courseId);
-            
+
+            // In a real system, we might append this to the user's history text and
+            // re-index the user profile.
+            // Here, we'll just log it as a placeholder for future "User Embedding Update"
+            // logic.
+            log.info(
+                    "ℹ️ Enrollment indexing requested for user {} course {}. (Logic to update user profile embedding would go here)",
+                    userId, courseId);
+
             // Example: Fetch current user profile, append course to history, re-embed.
             // For this task, we focus on Lesson/Course indexing.
         } catch (Exception e) {
@@ -303,7 +332,7 @@ public class VectorService {
             Map<String, Object> point = qdrantClient.retrievePoint(
                     qdrantProperties.getLessonCollection(),
                     lessonId.toString());
-            
+
             if (point != null && point.containsKey("payload")) {
                 return (Map<String, Object>) point.get("payload");
             }
@@ -312,5 +341,34 @@ public class VectorService {
             log.error("❌ Failed to get lesson from Qdrant: {}", lessonId, e);
             return null;
         }
+    }
+
+    /**
+     * Check if object is a primitive type or String
+     */
+    private boolean isPrimitiveOrString(Object obj) {
+        return obj instanceof String ||
+                obj instanceof Number ||
+                obj instanceof Boolean ||
+                obj instanceof Character ||
+                obj instanceof java.util.Date ||
+                obj instanceof java.time.LocalDate ||
+                obj instanceof java.time.LocalDateTime ||
+                obj instanceof java.time.OffsetDateTime ||
+                obj instanceof java.util.UUID;
+    }
+
+    /**
+     * Safely extract String value from object (handles PGobject)
+     */
+    private String getStringValue(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        if (obj instanceof String) {
+            return (String) obj;
+        }
+        // Handle PGobject or any other object type
+        return obj.toString();
     }
 }
