@@ -37,3 +37,31 @@ logging:
     com.techhub.app.paymentservice: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# PayPal Configuration
+paypal:
+  mode: ${PAYPAL_MODE:sandbox}
+  client-id: ${PAYPAL_CLIENT_ID}
+  client-secret: ${PAYPAL_CLIENT_SECRET}
+  api-base: ${PAYPAL_API_BASE}
+  return-url: ${PAYPAL_RETURN_URL}
+  cancel-url: ${PAYPAL_CANCEL_URL}
+
+# VNPay Configuration
+vnpay:
+  tmn-code: ${VNPAY_TMN_CODE}
+  hash-secret: ${VNPAY_HASH_SECRET}
+  payment-url: ${VNPAY_PAYMENT_URL}
+  return-url: ${VNPAY_RETURN_URL}
+  version: ${VNPAY_VERSION}
+  command: ${VNPAY_COMMAND}
+  order-type: ${VNPAY_ORDER_TYPE}
+
+# Payment Frontend URLs
+payment:
+  frontend-result-url: ${PAYMENT_FRONTEND_RESULT_URL}
+  frontend-vnpay-return-url: ${PAYMENT_FRONTEND_VNPAY_RETURN_URL}
+
+# Course Service URL for enrollment creation
+course-service:
+  url: ${COURSE_SERVICE_URL:http://localhost:8082}

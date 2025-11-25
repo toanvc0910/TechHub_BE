@@ -5,12 +5,67 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/api/proxy/payments")
 @RequiredArgsConstructor
 public class PaymentProxyController {
 
     private final PaymentServiceClient paymentServiceClient;
+
+    // ===== PAYPAL ENDPOINTS =====
+
+    @PostMapping("/paypal/create")
+    public ResponseEntity<String> createPayPalOrder(
+            @RequestParam Double amount,
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String courseId) {
+        return paymentServiceClient.createPayPalOrder(amount, userId, courseId);
+    }
+
+    @GetMapping("/paypal/success")
+    public void paypalSuccess(@RequestParam String token,
+                             @RequestParam(required = false) String PayerID,
+                             HttpServletResponse response) throws IOException {
+        // Forward all parameters to payment service
+        String queryParams = "token=" + token;
+        if (PayerID != null) {
+            queryParams += "&PayerID=" + PayerID;
+        }
+        response.sendRedirect("http://localhost:8084/api/v1/payment/paypal/success?" + queryParams);
+    }
+
+    @GetMapping("/paypal/cancel")
+    public void paypalCancel(@RequestParam(required = false) String token,
+                            HttpServletResponse response) throws IOException {
+        String queryParams = token != null ? "token=" + token : "";
+        response.sendRedirect("http://localhost:8084/api/v1/payment/paypal/cancel?" + queryParams);
+    }
+
+    // ===== VNPAY ENDPOINTS =====
+
+    @GetMapping("/vn-pay")
+    public ResponseEntity<String> createVnPayPayment(
+            @RequestParam(value = "amount", required = false) String amount,
+            @RequestParam(value = "bankCode", required = false) String bankCode,
+            @RequestParam(value = "orderInfo", required = false) String orderInfo,
+            @RequestParam(value = "userId", required = false) String userId,
+            @RequestParam(value = "courseId", required = false) String courseId) {
+        return paymentServiceClient.createVnPayPayment(amount, bankCode, orderInfo, userId, courseId);
+    }
+
+    @GetMapping("/vn-pay-callback")
+    public void vnPayCallback(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        // VNPay callback redirects directly - we forward to the payment service callback URL
+        // This is handled by VNPayPaymentController in payment-service
+        String queryString = request.getQueryString();
+        response.sendRedirect("http://localhost:8084/api/v1/payment/vn-pay-callback?" + queryString);
+    }
+
+    // ===== GENERIC PAYMENT ENDPOINTS =====
 
     @PostMapping("/create")
     public ResponseEntity<String> createPayment(@RequestBody Object paymentRequest,

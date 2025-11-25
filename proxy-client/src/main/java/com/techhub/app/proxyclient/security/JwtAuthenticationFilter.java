@@ -142,6 +142,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private boolean isPublicEndpoint(String uri, String method) {
         return uri.startsWith("/api/auth/") ||
+               uri.startsWith("/api/proxy/auth/") ||
+               (uri.equals("/api/users") && "POST".equals(method)) ||
+               (uri.equals("/api/proxy/users") && "POST".equals(method)) ||
+               uri.startsWith("/api/users/forgot-password") ||
+               uri.startsWith("/api/proxy/users/forgot-password") ||
+               uri.startsWith("/api/users/reset-password") ||
+               uri.startsWith("/api/proxy/users/reset-password") ||
+               uri.startsWith("/actuator/") ||
+               uri.startsWith("/swagger-ui/") ||
+               uri.startsWith("/v3/api-docs/") ||
+               uri.startsWith("/oauth2/") ||
+               uri.startsWith("/api/proxy/files/") ||
+               uri.startsWith("/api/proxy/folders/") ||
+               uri.startsWith("/api/proxy/file-usage/") ||
+               uri.startsWith("/api/proxy/payments/");
                 uri.startsWith("/api/proxy/auth/") ||
                 uri.startsWith("/app/api/proxy/auth/") || // API Gateway prefix
                 ("/api/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||

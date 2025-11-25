@@ -33,6 +33,8 @@ public class SecurityConfig {
                 .antMatchers("/api/proxy/files/**").permitAll()
                 .antMatchers("/api/proxy/folders/**").permitAll()
                 .antMatchers("/api/proxy/file-usage/**").permitAll()
+                // Payment endpoints - permitAll for payment callbacks and public payment operations
+                .antMatchers("/api/proxy/payments/**").permitAll()
                 // All other endpoints require JWT authentication
                 .anyRequest().authenticated()
                 .and()

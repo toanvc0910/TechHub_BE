@@ -1,0 +1,138 @@
+package com.techhub.app.paymentservice.controller;
+
+import com.techhub.app.paymentservice.config.PayPalConfig;
+import com.techhub.app.paymentservice.service.PayPalPaymentService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.UUID;
+
+@Slf4j
+@RestController
+@RequestMapping("api/v1/payment/paypal")
+public class PayPalPaymentController {
+
+    private final PayPalPaymentService payPalService;
+    private final PayPalConfig payPalConfig;
+
+    public PayPalPaymentController(PayPalPaymentService payPalService, PayPalConfig payPalConfig) {
+        this.payPalService = payPalService;
+        this.payPalConfig = payPalConfig;
+    }
+
+    @PostMapping("/create")
+    public Map<String, Object> createOrder(@RequestParam Double amount,
+                                          @RequestParam(required = false) String userId,
+                                          @RequestParam(required = false) String courseId) throws Exception {
+        log.info("Creating PayPal order with amount: {}, userId: {}, courseId: {}", amount, userId, courseId);
+
+        UUID userUUID = null;
+        if (userId != null && !userId.isEmpty()) {
+            try {
+                userUUID = UUID.fromString(userId);
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid userId format: {}", userId);
+                throw new IllegalArgumentException("Invalid userId format: " + userId);
+            }
+        }
+
+        // Nếu không có userId, throw exception yêu cầu phải có userId
+        if (userUUID == null) {
+            log.error("PayPal payment requires userId parameter");
+            throw new IllegalArgumentException("userId parameter is required for PayPal payment");
+        }
+
+        // Validate courseId
+        UUID courseUUID = null;
+        if (courseId != null && !courseId.isEmpty()) {
+            try {
+                courseUUID = UUID.fromString(courseId);
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid courseId format: {}", courseId);
+                throw new IllegalArgumentException("Invalid courseId format: " + courseId);
+            }
+        }
+
+        // Nếu không có courseId, throw exception yêu cầu phải có courseId
+        if (courseUUID == null) {
+            log.error("PayPal payment requires courseId parameter");
+            throw new IllegalArgumentException("courseId parameter is required for PayPal payment");
+        }
+
+        return payPalService.createOrder(amount, "USD", userUUID, courseUUID);
+    }
+
+    @GetMapping("/success")
+    public void success(@RequestParam String token,
+                       @RequestParam(required = false) String PayerID,
+                       HttpServletResponse response) throws IOException {
+        try {
+            // Capture payment from PayPal
+            Map<String, Object> result = payPalService.captureOrder(token);
+
+            log.info("PayPal payment captured successfully. Token: {}, PayerID: {}", token, PayerID);
+
+            // Extract payment information
+            String status = "success";
+            String orderId = token;
+            String amount = "N/A";
+
+            // Try to extract amount from result
+            if (result.containsKey("purchase_units") && result.get("purchase_units") instanceof java.util.List) {
+                java.util.List<?> purchaseUnits = (java.util.List<?>) result.get("purchase_units");
+                if (!purchaseUnits.isEmpty() && purchaseUnits.get(0) instanceof Map) {
+                    Map<?, ?> unit = (Map<?, ?>) purchaseUnits.get(0);
+                    if (unit.containsKey("amount") && unit.get("amount") instanceof Map) {
+                        Map<?, ?> amountMap = (Map<?, ?>) unit.get("amount");
+                        if (amountMap.containsKey("value")) {
+                            amount = amountMap.get("value").toString();
+                        }
+                    }
+                }
+            }
+
+            // Redirect to frontend with success status
+            String redirectUrl = payPalConfig.getFrontendResultUrl() +
+                    "?status=" + URLEncoder.encode(status, StandardCharsets.UTF_8) +
+                    "&paymentMethod=" + URLEncoder.encode("PayPal", StandardCharsets.UTF_8) +
+                    "&txnRef=" + URLEncoder.encode(orderId, StandardCharsets.UTF_8) +
+                    "&amount=" + URLEncoder.encode(amount, StandardCharsets.UTF_8);
+
+            log.info("Redirecting to frontend: {}", redirectUrl);
+            response.sendRedirect(redirectUrl);
+
+        } catch (Exception e) {
+            log.error("Error processing PayPal success callback", e);
+
+            // Redirect to frontend with error status
+            String redirectUrl = payPalConfig.getFrontendResultUrl() +
+                    "?status=" + URLEncoder.encode("failed", StandardCharsets.UTF_8) +
+                    "&paymentMethod=" + URLEncoder.encode("PayPal", StandardCharsets.UTF_8) +
+                    "&txnRef=" + URLEncoder.encode(token, StandardCharsets.UTF_8) +
+                    "&message=" + URLEncoder.encode("Payment processing failed", StandardCharsets.UTF_8);
+
+            response.sendRedirect(redirectUrl);
+        }
+    }
+
+    @GetMapping("/cancel")
+    public void cancel(@RequestParam(required = false) String token,
+                      HttpServletResponse response) throws IOException {
+        log.info("PayPal payment cancelled. Token: {}", token);
+
+        // Redirect to frontend with cancelled status
+        String redirectUrl = payPalConfig.getFrontendResultUrl() +
+                "?status=" + URLEncoder.encode("cancelled", StandardCharsets.UTF_8) +
+                "&paymentMethod=" + URLEncoder.encode("PayPal", StandardCharsets.UTF_8) +
+                "&txnRef=" + URLEncoder.encode(token != null ? token : "N/A", StandardCharsets.UTF_8) +
+                "&message=" + URLEncoder.encode("Payment was cancelled by user", StandardCharsets.UTF_8);
+
+        log.info("Redirecting to frontend: {}", redirectUrl);
+        response.sendRedirect(redirectUrl);
+    }
+}

@@ -13,7 +13,7 @@
 ```bash
 curl -X GET "http://localhost:8443/app/api/proxy/courses?page=0&size=10&search=javascript" \
   -H "accept: application/json"
-```
+````
 
 ### 1.2 Get Course by ID (Public)
 ```bash
