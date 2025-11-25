@@ -350,6 +350,7 @@ public class PermissionServiceImpl implements PermissionService {
                 RolePermission rp = new RolePermission();
                 rp.setRoleId(role.getId());
                 rp.setPermissionId(pid);
+                rp.setGrantedAt(now); // Set grantedAt to avoid constraint violation
                 rp.setIsActive(true);
                 rp.setCreated(now);
                 rp.setUpdated(now);
