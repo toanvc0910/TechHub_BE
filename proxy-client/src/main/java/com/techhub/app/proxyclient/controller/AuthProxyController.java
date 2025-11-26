@@ -28,6 +28,11 @@ public class AuthProxyController {
         return userServiceClient.register(registerRequest);
     }
 
+    @PostMapping("/verify-email")
+    public ResponseEntity<String> verifyEmail(@RequestBody Object verifyEmailRequest) {
+        return userServiceClient.verifyEmail(verifyEmailRequest);
+    }
+
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody Object loginRequest) {
         return userServiceClient.login(loginRequest);

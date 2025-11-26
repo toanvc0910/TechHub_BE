@@ -20,6 +20,8 @@ public interface UserService {
 
     UserResponse verifyUserRegistration(VerifyEmailRequest request);
 
+    void resendVerificationCode(String email);
+
     UserResponse createUser(CreateUserRequest request);
 
     UserResponse getUserById(UUID userId);

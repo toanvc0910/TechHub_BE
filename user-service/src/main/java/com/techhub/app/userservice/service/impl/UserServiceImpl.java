@@ -103,6 +103,30 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public void resendVerificationCode(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
+
+        if (Boolean.FALSE.equals(user.getIsActive())) {
+            throw new ForbiddenException("Account has been deactivated");
+        }
+        if (user.getStatus() == UserStatus.BANNED) {
+            throw new ForbiddenException("Account has been banned");
+        }
+        if (user.getStatus() == UserStatus.ACTIVE) {
+            throw new ConflictException("Account already verified");
+        }
+
+        // Generate new OTP and send email
+        String otp = otpService.generateOTP();
+        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.REGISTER);
+        emailService.sendOTPEmail(user.getEmail(), otp, OTPTypeEnum.REGISTER.name());
+
+        log.info("Verification code resent to user {}", user.getEmail());
+    }
+
+    @Override
+    @Transactional
     public UserResponse createUser(CreateUserRequest request) {
         User user = prepareUserForCreation(request, UserStatus.ACTIVE);
         boolean reactivated = user.getId() != null && userRepository.existsById(user.getId());
