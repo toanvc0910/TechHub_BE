@@ -51,11 +51,15 @@ public class CourseRatingServiceImpl implements CourseRatingService {
                     .orElse(null);
         }
 
+        // Calculate rating distribution
+        java.util.Map<Integer, Long> distribution = calculateRatingDistribution(courseId);
+
         return CourseRatingResponse.builder()
                 .courseId(courseId)
                 .averageRating(average != null ? Math.round(average * 100d) / 100d : null)
                 .ratingCount(count)
                 .userScore(userScore)
+                .ratingDistribution(distribution)
                 .build();
     }
 
@@ -116,5 +120,29 @@ public class CourseRatingServiceImpl implements CourseRatingService {
             throw new UnauthorizedException("Authentication required");
         }
         return userId;
+    }
+
+    private java.util.Map<Integer, Long> calculateRatingDistribution(UUID courseId) {
+        // Initialize distribution map with all star ratings (1-5)
+        java.util.Map<Integer, Long> distribution = new java.util.HashMap<>();
+        distribution.put(1, 0L);
+        distribution.put(2, 0L);
+        distribution.put(3, 0L);
+        distribution.put(4, 0L);
+        distribution.put(5, 0L);
+
+        // Get all ratings for this course
+        java.util.List<Rating> ratings = ratingRepository
+                .findByTargetIdAndTargetTypeAndIsActiveTrue(courseId, RatingTarget.COURSE);
+
+        // Count ratings by score
+        for (Rating rating : ratings) {
+            Integer score = rating.getScore();
+            if (score != null && score >= 1 && score <= 5) {
+                distribution.put(score, distribution.get(score) + 1);
+            }
+        }
+
+        return distribution;
     }
 }

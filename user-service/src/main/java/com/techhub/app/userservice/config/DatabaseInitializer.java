@@ -484,6 +484,38 @@ public class DatabaseInitializer implements CommandLineRunner {
                         Permission qdrantStatsPerm = createPermission("AI_QDRANT_STATS", "Qdrant stats",
                                         "/api/ai/admin/qdrant-stats", PermissionMethod.POST, "AI");
 
+                        // ==================== PAYMENT SERVICES ====================
+                        Permission createVnPayPaymentPerm = createPermission("PAYMENT_VNPAY_CREATE",
+                                        "Create VNPay payment",
+                                        "/api/v1/payment/vn-pay", PermissionMethod.GET, "PAYMENT");
+                        Permission vnPayCallbackPerm = createPermission("PAYMENT_VNPAY_CALLBACK",
+                                        "VNPay payment callback",
+                                        "/api/v1/payment/vn-pay-callback", PermissionMethod.GET, "PAYMENT");
+                        Permission createPayPalPaymentPerm = createPermission("PAYMENT_PAYPAL_CREATE",
+                                        "Create PayPal payment",
+                                        "/api/v1/payment/paypal/create", PermissionMethod.POST, "PAYMENT");
+                        Permission payPalSuccessPerm = createPermission("PAYMENT_PAYPAL_SUCCESS",
+                                        "PayPal payment success",
+                                        "/api/v1/payment/paypal/success", PermissionMethod.GET, "PAYMENT");
+                        Permission payPalCancelPerm = createPermission("PAYMENT_PAYPAL_CANCEL",
+                                        "PayPal payment cancel",
+                                        "/api/v1/payment/paypal/cancel", PermissionMethod.GET, "PAYMENT");
+
+                        // ==================== TRANSACTION MANAGEMENT ====================
+                        Permission getUserTransactionsPerm = createPermission("TRANSACTION_READ_BY_USER",
+                                        "Get user transactions",
+                                        "/api/v1/transactions/user/{userId}", PermissionMethod.GET, "PAYMENT");
+                        Permission getTransactionByIdPerm = createPermission("TRANSACTION_READ",
+                                        "Get transaction by ID",
+                                        "/api/v1/transactions/{transactionId}", PermissionMethod.GET, "PAYMENT");
+                        Permission getTransactionsByStatusPerm = createPermission("TRANSACTION_READ_BY_STATUS",
+                                        "Get transactions by status",
+                                        "/api/v1/transactions/status/{status}", PermissionMethod.GET, "PAYMENT");
+                        Permission getTransactionPaymentsPerm = createPermission("TRANSACTION_PAYMENTS_READ",
+                                        "Get transaction payments",
+                                        "/api/v1/transactions/{transactionId}/payments", PermissionMethod.GET,
+                                        "PAYMENT");
+
                         permissions = Arrays.asList(
                                         // User Management
                                         createUserPerm, getUsersPerm, getUserByIdPerm, getUserByEmailPerm,
@@ -556,7 +588,13 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         generateExercisesPerm, generateLearningPathPerm, recommendRealtimePerm,
                                         recommendScheduledPerm,
                                         aiChatPerm, reindexCoursesPerm, reindexLessonsPerm, reindexAllPerm,
-                                        qdrantStatsPerm);
+                                        qdrantStatsPerm,
+                                        // Payment Services
+                                        createVnPayPaymentPerm, vnPayCallbackPerm, createPayPalPaymentPerm,
+                                        payPalSuccessPerm, payPalCancelPerm,
+                                        // Transaction Management
+                                        getUserTransactionsPerm, getTransactionByIdPerm, getTransactionsByStatusPerm,
+                                        getTransactionPaymentsPerm);
 
                         permissionRepository.saveAll(permissions);
                         System.out.println("=== " + permissions.size() + " PERMISSIONS CREATED ===");

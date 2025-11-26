@@ -121,6 +121,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 uri.startsWith("/api/users/forgot-password") ||
                 uri.startsWith("/api/proxy/users/forgot-password") ||
                 uri.startsWith("/api/users/reset-password") ||
+                uri.startsWith("/api/enrollments/my-enrollments") ||
+                uri.startsWith("/api/proxy/enrollments/my-enrollments") ||
+                uri.startsWith("/app/api/proxy/enrollments/my-enrollments") ||
                 uri.startsWith("/api/proxy/users/reset-password") ||
                 uri.startsWith("/actuator/") ||
                 uri.startsWith("/swagger-ui/") ||
@@ -129,7 +132,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 uri.startsWith("/api/proxy/files/") ||
                 uri.startsWith("/api/proxy/folders/") ||
                 uri.startsWith("/api/proxy/file-usage/") ||
+                uri.startsWith("/api/payment/") ||
+                uri.startsWith("/api/payments/") ||
+                uri.startsWith("/api/transactions/") ||
+                uri.startsWith("/api/proxy/payment/") ||
                 uri.startsWith("/api/proxy/payments/") ||
+                uri.startsWith("/api/proxy/transactions/") ||
+                uri.startsWith("/app/api/proxy/payment/") ||
+                uri.startsWith("/app/api/proxy/payments/") ||
+                uri.startsWith("/app/api/proxy/transactions/") ||
                 uri.startsWith("/app/api/proxy/auth/") ||
                 ("/api/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
                 ("/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
