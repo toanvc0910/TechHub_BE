@@ -56,6 +56,17 @@ payment:
   frontend-result-url: ${PAYMENT_FRONTEND_RESULT_URL}
   frontend-vnpay-return-url: ${PAYMENT_FRONTEND_VNPAY_RETURN_URL}
 
-# Course Service URL for enrollment creation
+# Eureka Configuration
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:https://eureka.tonynyan.id.vn/eureka/}
+  instance:
+    prefer-ip-address: true
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+
+# Course Service - sử dụng service name thay vì hardcode URL
 course-service:
-  url: ${COURSE_SERVICE_URL:http://localhost:8082}
+  name: COURSE-SERVICE  # Service name registered in Eureka

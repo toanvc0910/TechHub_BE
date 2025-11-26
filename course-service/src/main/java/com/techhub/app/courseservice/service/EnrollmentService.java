@@ -11,8 +11,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -22,22 +24,23 @@ public class EnrollmentService {
     private final CourseRepository courseRepository;
 
     public EnrollmentService(EnrollmentRepository enrollmentRepository,
-                           CourseRepository courseRepository) {
+            CourseRepository courseRepository) {
         this.enrollmentRepository = enrollmentRepository;
         this.courseRepository = courseRepository;
     }
 
     @Transactional
     public EnrollmentResponse createEnrollment(CreateEnrollmentRequest request) {
-        log.info("Creating enrollment for user: {} and course: {}", request.getUserId(), request.getCourseId());
+        log.info("📚 Creating enrollment for user: {} and course: {}", request.getUserId(), request.getCourseId());
 
         // Kiểm tra xem user đã enroll course này chưa
         Optional<Enrollment> existingEnrollment = enrollmentRepository
                 .findByUserIdAndCourse_IdAndIsActive(request.getUserId(), request.getCourseId(), true);
 
         if (existingEnrollment.isPresent()) {
-            log.warn("User {} already enrolled in course {}", request.getUserId(), request.getCourseId());
-            // Trả về enrollment hiện có thay vì tạo mới
+            log.info("ℹ️ User {} already enrolled in course {} - returning existing enrollment",
+                    request.getUserId(), request.getCourseId());
+            // Trả về enrollment hiện có - không throw exception
             return mapToResponse(existingEnrollment.get());
         }
 
@@ -55,7 +58,7 @@ public class EnrollmentService {
             try {
                 enrollment.setStatus(EnrollmentStatus.valueOf(request.getStatus().toUpperCase()));
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid status: {}, using default ENROLLED", request.getStatus());
+                log.warn("⚠️ Invalid status: {}, using default ENROLLED", request.getStatus());
                 enrollment.setStatus(EnrollmentStatus.ENROLLED);
             }
         } else {
@@ -66,10 +69,35 @@ public class EnrollmentService {
         enrollment.setUpdatedBy(request.getUserId());
 
         Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
-        log.info("Successfully created enrollment with ID: {} for user: {} and course: {}",
+        log.info("✅ Successfully created enrollment with ID: {} for user: {} and course: {}",
                 savedEnrollment.getId(), request.getUserId(), request.getCourseId());
 
         return mapToResponse(savedEnrollment);
+    }
+
+    /**
+     * Get all enrollments for a user
+     */
+    public List<EnrollmentResponse> getUserEnrollments(UUID userId) {
+        log.info("📖 Getting all enrollments for user: {}", userId);
+        List<Enrollment> enrollments = enrollmentRepository.findAllByUserIdAndIsActiveTrue(userId);
+        log.info("Found {} enrollments for user: {}", enrollments.size(), userId);
+
+        return enrollments.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get enrollments by user and status
+     */
+    public List<EnrollmentResponse> getUserEnrollmentsByStatus(UUID userId, EnrollmentStatus status) {
+        log.info("📖 Getting enrollments for user: {} with status: {}", userId, status);
+        List<Enrollment> enrollments = enrollmentRepository.findAllByUserIdAndStatusAndIsActiveTrue(userId, status);
+
+        return enrollments.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     private EnrollmentResponse mapToResponse(Enrollment enrollment) {

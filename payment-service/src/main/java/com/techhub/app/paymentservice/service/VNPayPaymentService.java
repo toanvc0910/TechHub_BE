@@ -33,10 +33,10 @@ public class VNPayPaymentService {
     private final TransactionItemRepository transactionItemRepository;
 
     public VNPayPaymentService(VNPAYConfig vnPayConfig,
-                               TransactionRepository transactionRepository,
-                               PaymentRepository paymentRepository,
-                               EnrollmentService enrollmentService,
-                               TransactionItemRepository transactionItemRepository) {
+            TransactionRepository transactionRepository,
+            PaymentRepository paymentRepository,
+            EnrollmentService enrollmentService,
+            TransactionItemRepository transactionItemRepository) {
         this.vnPayConfig = vnPayConfig;
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
@@ -133,7 +133,7 @@ public class VNPayPaymentService {
         }
         vnpParamsMap.put("vnp_IpAddr", VNPayUtil.getIpAddress(request));
 
-        //build query url
+        // build query url
         String queryUrl = VNPayUtil.getPaymentURL(vnpParamsMap, true);
         String hashData = VNPayUtil.getPaymentURL(vnpParamsMap, false);
         String vnpSecureHash = VNPayUtil.hmacSHA512(vnPayConfig.getSecretKey(), hashData);
@@ -162,12 +162,19 @@ public class VNPayPaymentService {
 
         try {
             UUID transactionId = UUID.fromString(vnp_TxnRef);
-            Transaction transaction = transactionRepository.findById(transactionId)
+            Transaction transaction = transactionRepository.findByIdWithItems(transactionId)
                     .orElseThrow(() -> new RuntimeException("Transaction not found: " + transactionId));
 
-            log.info("Found transaction: {} with current status: {}", transactionId, transaction.getStatus());
-
-            // Xác định trạng thái thanh toán
+            log.info("Found transaction: {} with current status: {}", transactionId, transaction.getStatus()); // Verify
+                                                                                                               // transaction
+                                                                                                               // items
+                                                                                                               // loaded
+            if (transaction.getTransactionItems() != null) {
+                log.info("Loaded {} transaction items for transaction: {}",
+                        transaction.getTransactionItems().size(), transactionId);
+            } else {
+                log.warn("Transaction {} has no items!", transactionId);
+            } // Xác định trạng thái thanh toán
             PaymentStatus paymentStatus;
             TransactionStatus transactionStatus;
 
@@ -186,10 +193,12 @@ public class VNPayPaymentService {
             transaction.setUpdated(java.time.ZonedDateTime.now());
             Transaction savedTransaction = transactionRepository.saveAndFlush(transaction);
 
-            log.info("Updated transaction: {} to status: {} (saved status: {})",
-                    transactionId, transactionStatus, savedTransaction.getStatus());
-
-            // Lưu payment record với gateway response
+            log.info("Updated transaction: {} to status: {}", transactionId, savedTransaction.getStatus()); // Lưu
+                                                                                                            // payment
+                                                                                                            // record
+                                                                                                            // với
+                                                                                                            // gateway
+                                                                                                            // response
             Map<String, Object> gatewayResponse = new HashMap<>();
             gatewayResponse.put("vnp_Amount", vnp_Amount);
             gatewayResponse.put("vnp_BankCode", vnp_BankCode);
@@ -207,23 +216,75 @@ public class VNPayPaymentService {
                     .build();
 
             Payment savedPayment = paymentRepository.saveAndFlush(payment);
-            log.info("Saved payment record: {} for transaction: {} with status: {}",
-                    savedPayment.getId(), transactionId, paymentStatus);
+            log.info("✅ Step 5 Complete: Saved payment record {} with status: {}",
+                    savedPayment.getId(), paymentStatus);
 
             // Tạo enrollment khi thanh toán thành công
             if (paymentStatus == PaymentStatus.SUCCESS) {
+                log.info("\n" +
+                        "================================================================================\n" +
+                        "💰 PAYMENT SUCCESSFUL - Starting Enrollment Process\n" +
+                        "================================================================================\n" +
+                        "Transaction ID: {}\n" +
+                        "User ID: {}\n" +
+                        "Payment Status: {}\n" +
+                        "Transaction Status: {}\n" +
+                        "================================================================================\n",
+                        transactionId, transaction.getUserId(), paymentStatus, transactionStatus);
                 try {
-                    log.info("Payment successful, creating enrollments for transaction: {}", transactionId);
-                    enrollmentService.createEnrollmentForTransaction(savedTransaction);
+
+                    // Reload transaction với transactionItems để đảm bảo data mới nhất
+                    Transaction transactionForEnrollment = transactionRepository.findByIdWithItems(transactionId)
+                            .orElseThrow(() -> new RuntimeException("Transaction not found: " + transactionId));
+
+                    // Verify data
+                    if (transactionForEnrollment.getTransactionItems() != null
+                            && !transactionForEnrollment.getTransactionItems().isEmpty()) {
+                        transactionForEnrollment.getTransactionItems()
+                                .forEach(item -> log.debug("   → Will enroll user {} in course {}",
+                                        transactionForEnrollment.getUserId(), item.getCourseId()));
+                    } else {
+                        log.error("❌ Transaction {} has no items for enrollment!", transactionId);
+                        throw new RuntimeException("Transaction has no items");
+                    }
+                    enrollmentService.createEnrollmentForTransaction(transactionForEnrollment);
+
                 } catch (Exception e) {
-                    log.error("Failed to create enrollment for transaction: {}. Error: {}", transactionId, e.getMessage(), e);
+                    log.error("\n" +
+                            "================================================================================\n" +
+                            "❌ ENROLLMENT PROCESS FAILED\n" +
+                            "================================================================================\n" +
+                            "Transaction ID: {}\n" +
+                            "Error: {}\n" +
+                            "Stack Trace:\n" +
+                            "================================================================================\n",
+                            transactionId, e.getMessage(), e);
                     // Không throw exception ở đây để không ảnh hưởng đến flow thanh toán
                     // Enrollment có thể được tạo lại sau bằng cách khác
                 }
+            } else {
+                log.warn("\n" +
+                        "================================================================================\n" +
+                        "⚠️ PAYMENT FAILED - Skipping Enrollment\n" +
+                        "================================================================================\n" +
+                        "Transaction ID: {}\n" +
+                        "Payment Status: {}\n" +
+                        "Transaction Status: {}\n" +
+                        "Response Code: {}\n" +
+                        "================================================================================\n",
+                        transactionId, paymentStatus, transactionStatus, vnp_ResponseCode);
             }
 
         } catch (Exception e) {
-            log.error("Error handling payment callback for txnRef: {}", vnp_TxnRef, e);
+            log.error("\n" +
+                    "================================================================================\n" +
+                    "❌ PAYMENT CALLBACK PROCESSING FAILED\n" +
+                    "================================================================================\n" +
+                    "Transaction Ref: {}\n" +
+                    "Error: {}\n" +
+                    "Stack Trace:\n" +
+                    "================================================================================\n",
+                    vnp_TxnRef, e.getMessage(), e);
             throw new RuntimeException("Failed to process payment callback", e);
         }
     }

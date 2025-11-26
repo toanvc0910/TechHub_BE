@@ -235,4 +235,14 @@ public interface CourseServiceClient {
 
         @DeleteMapping("/api/courses/tags/{id}")
         ResponseEntity<String> deleteTag(@PathVariable("id") UUID id);
+
+        // ============================================
+        // ENROLLMENTS
+        // ============================================
+
+        // Get current user's enrollments (My Learning)
+        @GetMapping("/api/v1/enrollments/my-enrollments")
+        ResponseEntity<String> getMyEnrollments(
+                        @RequestParam(required = false) String status,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
 }

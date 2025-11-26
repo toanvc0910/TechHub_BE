@@ -25,7 +25,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "payments")
 @TypeDefs({
-    @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class)
+        @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class),
+        @TypeDef(name = "jsonb", typeClass = com.vladmihalcea.hibernate.type.json.JsonBinaryType.class)
 })
 @Data
 @Builder
@@ -54,6 +55,7 @@ public class Payment {
     @Column(name = "status", nullable = false)
     private PaymentStatus status;
 
+    @Type(type = "jsonb")
     @Column(name = "gateway_response", columnDefinition = "jsonb")
     private String gatewayResponseJson;
 
