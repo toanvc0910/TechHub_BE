@@ -63,7 +63,7 @@ public class EnrollmentService {
      */
     private void createEnrollment(UUID userId, UUID courseId) {
         // Eureka sẽ tự động resolve service name thành actual URL
-        String url = "http://" + courseServiceName + "/api/v1/enrollments";
+        String url = "http://" + courseServiceName + "/api/enrollments";
 
         log.info("🌐 Using Service Discovery - Service: {}, Endpoint: {}", courseServiceName, url); // Tạo request body
         Map<String, Object> requestBody = new HashMap<>();
