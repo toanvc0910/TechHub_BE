@@ -106,6 +106,7 @@ public class EnrollmentService {
                 .userId(enrollment.getUserId())
                 .courseId(enrollment.getCourse().getId())
                 .courseName(enrollment.getCourse().getTitle())
+                .thumbnail(enrollment.getCourse().getThumbnail())
                 .status(enrollment.getStatus())
                 .enrolledAt(enrollment.getEnrolledAt())
                 .completedAt(enrollment.getCompletedAt())

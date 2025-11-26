@@ -9,6 +9,8 @@ import com.techhub.app.courseservice.dto.response.CourseRatingResponse;
 import com.techhub.app.courseservice.entity.Course;
 import com.techhub.app.courseservice.entity.Enrollment;
 import com.techhub.app.courseservice.entity.Rating;
+import com.techhub.app.courseservice.enums.CourseStatus;
+import com.techhub.app.courseservice.enums.EnrollmentStatus;
 import com.techhub.app.courseservice.enums.RatingTarget;
 import com.techhub.app.courseservice.repository.CourseRepository;
 import com.techhub.app.courseservice.repository.EnrollmentRepository;
@@ -87,16 +89,24 @@ public class CourseRatingServiceImpl implements CourseRatingService {
     }
 
     private void ensureCanRate(Course course, UUID userId) {
-        if (course.getInstructorId() != null && course.getInstructorId().equals(userId)) {
-            return;
-        }
+        // Only ADMIN can bypass enrollment check
         if (UserContext.hasAnyRole("ADMIN")) {
             return;
         }
-        Enrollment enrollment = enrollmentRepository.findByUserIdAndCourse_IdAndIsActiveTrue(userId, course.getId())
-                .orElse(null);
-        if (enrollment == null) {
-            throw new ForbiddenException("Only enrolled learners can rate this course");
+
+        // Check course status - only PUBLISHED courses can be rated
+        if (course.getStatus() != CourseStatus.PUBLISHED) {
+            throw new ForbiddenException("Only published courses can be rated");
+        }
+
+        // Check enrollment - must be enrolled and not dropped
+        Enrollment enrollment = enrollmentRepository
+                .findByUserIdAndCourse_IdAndIsActiveTrue(userId, course.getId())
+                .orElseThrow(() -> new ForbiddenException("Only enrolled learners can rate this course"));
+
+        // Reject DROPPED enrollments
+        if (enrollment.getStatus() == EnrollmentStatus.DROPPED) {
+            throw new ForbiddenException("You cannot rate a course you have dropped");
         }
     }
 

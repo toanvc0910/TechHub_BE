@@ -14,14 +14,14 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EnrollmentResponse {
-    
+
     private UUID id;
     private UUID userId;
     private UUID courseId;
     private String courseName;
+    private String thumbnail;
     private EnrollmentStatus status;
     private OffsetDateTime enrolledAt;
     private OffsetDateTime completedAt;
     private Boolean isActive;
 }
-
