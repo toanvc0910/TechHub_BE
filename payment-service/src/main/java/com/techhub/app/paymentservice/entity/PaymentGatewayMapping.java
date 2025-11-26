@@ -27,6 +27,10 @@ public class PaymentGatewayMapping {
     @Column(name = "gateway_order_id", nullable = false, unique = true)
     private String gatewayOrderId; // PayPal order ID, VNPay txnRef, etc.
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transaction_id", nullable = false, insertable = false, updatable = false)
+    private Transaction transaction;
+
     @Column(name = "transaction_id", nullable = false)
     private UUID transactionId;
 
@@ -41,4 +45,3 @@ public class PaymentGatewayMapping {
         created = ZonedDateTime.now();
     }
 }
-

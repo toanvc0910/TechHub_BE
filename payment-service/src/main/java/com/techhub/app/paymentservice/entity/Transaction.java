@@ -1,11 +1,14 @@
 package com.techhub.app.paymentservice.entity;
 
+import com.techhub.app.paymentservice.config.PostgreSQLEnumType;
 import com.techhub.app.paymentservice.entity.enums.TransactionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
@@ -16,6 +19,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "transactions")
+@TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class)
 @Data
 @Builder
 @NoArgsConstructor
@@ -35,7 +39,8 @@ public class Transaction {
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "transaction_status")
+    @Type(type = "pgsql_enum")
+    @Column(name = "status", nullable = false)
     private TransactionStatus status;
 
     @Column(name = "refund_reason")

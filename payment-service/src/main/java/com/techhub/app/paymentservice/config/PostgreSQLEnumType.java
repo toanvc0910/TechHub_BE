@@ -2,6 +2,7 @@ package com.techhub.app.paymentservice.config;
 
 import org.hibernate.HibernateException;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
+import org.hibernate.usertype.DynamicParameterizedType;
 import org.hibernate.usertype.UserType;
 
 import java.io.Serializable;
@@ -9,8 +10,28 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Properties;
 
-public class PostgreSQLEnumType implements UserType {
+public class PostgreSQLEnumType implements UserType, DynamicParameterizedType {
+
+    private Class<Enum> enumClass;
+
+    @Override
+    public void setParameterValues(Properties parameters) {
+        final ParameterType reader = (ParameterType) parameters.get(PARAMETER_TYPE);
+        if (reader != null) {
+            enumClass = reader.getReturnedClass().asSubclass(Enum.class);
+        } else {
+            final String enumClassName = (String) parameters.get("enumClass");
+            if (enumClassName != null) {
+                try {
+                    enumClass = (Class<Enum>) Class.forName(enumClassName).asSubclass(Enum.class);
+                } catch (ClassNotFoundException e) {
+                    throw new HibernateException("Enum class not found: " + enumClassName, e);
+                }
+            }
+        }
+    }
 
     @Override
     public int[] sqlTypes() {
@@ -19,7 +40,7 @@ public class PostgreSQLEnumType implements UserType {
 
     @Override
     public Class returnedClass() {
-        return Enum.class;
+        return enumClass;
     }
 
     @Override
@@ -39,7 +60,7 @@ public class PostgreSQLEnumType implements UserType {
         if (value == null) {
             return null;
         }
-        return Enum.valueOf((Class<Enum>) returnedClass(), value);
+        return Enum.valueOf(enumClass, value);
     }
 
     @Override

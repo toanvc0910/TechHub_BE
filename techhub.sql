@@ -15,7 +15,7 @@ CREATE TYPE enrollment_status AS ENUM('ENROLLED', 'IN_PROGRESS', 'COMPLETED', 'D
 CREATE TYPE rating_target AS ENUM('COURSE', 'LESSON');
 CREATE TYPE comment_target AS ENUM('COURSE', 'LESSON', 'BLOG', 'VIDEO', 'CODE');
 CREATE TYPE transaction_status AS ENUM('PENDING', 'COMPLETED', 'REFUNDED');
-CREATE TYPE payment_method AS ENUM('MOMO', 'ZALOPAY', 'CREDIT_CARD', 'BANK_TRANSFER');
+CREATE TYPE payment_method AS ENUM('MOMO', 'ZALOPAY', 'VNPAY', 'PAYPAL', 'CREDIT_CARD', 'BANK_TRANSFER');
 CREATE TYPE payment_status AS ENUM('SUCCESS', 'FAILED');
 CREATE TYPE blog_status AS ENUM('DRAFT', 'PUBLISHED');
 CREATE TYPE leaderboard_type AS ENUM('GLOBAL', 'COURSE', 'PATH');
@@ -558,6 +558,18 @@ CREATE TABLE payments (
 CREATE INDEX idx_payments_transaction_id ON payments(transaction_id);
 CREATE INDEX idx_payments_method ON payments(method);
 CREATE INDEX idx_payments_is_active ON payments(is_active);
+
+-- Payment Gateway Mappings Table
+CREATE TABLE payment_gateway_mappings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    gateway_order_id VARCHAR(255) NOT NULL UNIQUE,
+    transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    gateway_type VARCHAR(50) NOT NULL,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_payment_gateway_mappings_gateway_order_id ON payment_gateway_mappings(gateway_order_id);
+CREATE INDEX idx_payment_gateway_mappings_transaction_id ON payment_gateway_mappings(transaction_id);
+CREATE INDEX idx_payment_gateway_mappings_gateway_type ON payment_gateway_mappings(gateway_type);
 
 -- Carts Table
 CREATE TABLE carts (

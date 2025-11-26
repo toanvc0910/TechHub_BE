@@ -1,5 +1,6 @@
 package com.techhub.app.paymentservice.entity;
 
+import com.techhub.app.paymentservice.config.PostgreSQLEnumType;
 import com.techhub.app.paymentservice.entity.enums.PaymentMethod;
 import com.techhub.app.paymentservice.entity.enums.PaymentStatus;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -10,6 +11,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
+import org.hibernate.annotations.TypeDefs;
 
 import javax.persistence.*;
 import java.io.IOException;
@@ -20,6 +24,9 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "payments")
+@TypeDefs({
+    @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class)
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -38,11 +45,13 @@ public class Payment {
     private Transaction transaction;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "method", nullable = false, columnDefinition = "payment_method")
+    @Type(type = "pgsql_enum")
+    @Column(name = "method", nullable = false)
     private PaymentMethod method;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "payment_status")
+    @Type(type = "pgsql_enum")
+    @Column(name = "status", nullable = false)
     private PaymentStatus status;
 
     @Column(name = "gateway_response", columnDefinition = "jsonb")

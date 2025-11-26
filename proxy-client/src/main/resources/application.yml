@@ -37,7 +37,7 @@ spring:
         min-idle: ${REDIS_POOL_MIN_IDLE}
   # Kafka Configuration for Cache Invalidation (uses common-service KafkaConfig)
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
 
 eureka:
   client:
