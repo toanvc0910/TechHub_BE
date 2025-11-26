@@ -348,6 +348,15 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "/api/courses/tags/{id}",
                                         PermissionMethod.DELETE, "COURSES");
 
+                        // ==================== ENROLLMENT MANAGEMENT ====================
+                        Permission createEnrollmentPerm = createPermission("ENROLLMENT_CREATE", "Create enrollment",
+                                        "/api/enrollments", PermissionMethod.POST, "ENROLLMENTS");
+                        Permission getEnrollmentPerm = createPermission("ENROLLMENT_READ", "Get enrollment by ID",
+                                        "/api/enrollments/{enrollmentId}", PermissionMethod.GET, "ENROLLMENTS");
+                        Permission getMyEnrollmentsPerm = createPermission("ENROLLMENT_MY_ENROLLMENTS",
+                                        "Get my enrollments",
+                                        "/api/enrollments/my-enrollments", PermissionMethod.GET, "ENROLLMENTS");
+
                         // ==================== LEARNING PATH MANAGEMENT ====================
                         Permission createLearningPathPerm = createPermission("LEARNING_PATH_CREATE",
                                         "Create learning path",
@@ -563,6 +572,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         createSkillPerm, getSkillPerm, getAllSkillsPerm, updateSkillPerm,
                                         deleteSkillPerm, createTagPerm,
                                         getTagPerm, getAllTagsPerm, updateTagPerm, deleteTagPerm,
+                                        // Enrollment Management
+                                        createEnrollmentPerm, getEnrollmentPerm, getMyEnrollmentsPerm,
                                         // Learning Path Management
                                         createLearningPathPerm, readLearningPathsPerm, readLearningPathPerm,
                                         updateLearningPathPerm,

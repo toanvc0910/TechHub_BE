@@ -1,5 +1,6 @@
 package com.techhub.app.courseservice.controller;
 
+import com.techhub.app.commonservice.jwt.JwtUtil;
 import com.techhub.app.courseservice.dto.request.CreateEnrollmentRequest;
 import com.techhub.app.courseservice.dto.response.EnrollmentResponse;
 import com.techhub.app.courseservice.enums.EnrollmentStatus;
@@ -17,14 +18,16 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/enrollments")
+@RequestMapping("/api/enrollments")
 @Slf4j
 public class EnrollmentController {
 
     private final EnrollmentService enrollmentService;
+    private final JwtUtil jwtUtil;
 
-    public EnrollmentController(EnrollmentService enrollmentService) {
+    public EnrollmentController(EnrollmentService enrollmentService, JwtUtil jwtUtil) {
         this.enrollmentService = enrollmentService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping
@@ -94,11 +97,42 @@ public class EnrollmentController {
             HttpServletRequest request,
             @RequestParam(required = false) String status) {
 
-        // Lấy userId từ header (được set bởi proxy-client)
+        // Lấy userId từ header (được set bởi proxy-client) hoặc từ JWT token
         String userIdHeader = request.getHeader("X-User-Id");
+        UUID userId = null;
 
-        if (userIdHeader == null || userIdHeader.isEmpty()) {
-            log.error("❌ Missing X-User-Id header");
+        // Nếu có X-User-Id header (từ proxy), dùng nó
+        if (userIdHeader != null && !userIdHeader.isEmpty()) {
+            try {
+                userId = UUID.fromString(userIdHeader);
+                log.info("📚 Using userId from X-User-Id header: {}", userId);
+            } catch (IllegalArgumentException e) {
+                log.error("❌ Invalid X-User-Id header format: {}", userIdHeader);
+            }
+        }
+
+        // Nếu không có X-User-Id, thử lấy từ JWT token (direct call)
+        if (userId == null) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7);
+                    if (jwtUtil.validateToken(token)) {
+                        userId = jwtUtil.getUserIdFromToken(token);
+                        log.info("📚 Using userId from JWT token: {}", userId);
+                    } else {
+                        log.error("❌ Invalid JWT token");
+                    }
+                } catch (Exception e) {
+                    log.error("❌ Error parsing JWT token: {}", e.getMessage());
+                }
+            }
+        }
+
+        // Nếu vẫn không có userId, trả về lỗi
+        if (userId == null) {
+            log.error("❌ No user context found in headers for protected endpoint: {} {}",
+                    request.getMethod(), request.getRequestURI());
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("status", "error");
             errorResponse.put("message", "User not authenticated");
@@ -106,7 +140,6 @@ public class EnrollmentController {
         }
 
         try {
-            UUID userId = UUID.fromString(userIdHeader);
             log.info("📚 Getting enrollments for user: {} with status filter: {}", userId, status);
 
             List<EnrollmentResponse> enrollments;

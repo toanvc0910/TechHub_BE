@@ -240,8 +240,20 @@ public interface CourseServiceClient {
         // ENROLLMENTS
         // ============================================
 
+        // Create enrollment
+        @PostMapping("/api/enrollments")
+        ResponseEntity<String> createEnrollment(
+                        @RequestBody Object request,
+                        @RequestHeader("Authorization") String authHeader);
+
+        // Get enrollment by ID
+        @GetMapping("/api/enrollments/{enrollmentId}")
+        ResponseEntity<String> getEnrollment(
+                        @PathVariable String enrollmentId,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
         // Get current user's enrollments (My Learning)
-        @GetMapping("/api/v1/enrollments/my-enrollments")
+        @GetMapping("/api/enrollments/my-enrollments")
         ResponseEntity<String> getMyEnrollments(
                         @RequestParam(required = false) String status,
                         @RequestHeader(value = "Authorization", required = false) String authHeader);

@@ -5,6 +5,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,6 +24,38 @@ import org.springframework.web.bind.annotation.RestController;
 public class EnrollmentProxyController {
 
     private final CourseServiceClient courseServiceClient;
+
+    /**
+     * Create enrollment
+     * 
+     * @param request    Enrollment creation request
+     * @param authHeader Authorization header with JWT token
+     * @return Created enrollment
+     */
+    @PostMapping
+    public ResponseEntity<String> createEnrollment(
+            @RequestBody Object request,
+            @RequestHeader("Authorization") String authHeader) {
+
+        log.info("💳 Proxying request to create enrollment");
+        return courseServiceClient.createEnrollment(request, authHeader);
+    }
+
+    /**
+     * Get enrollment by ID
+     * 
+     * @param enrollmentId Enrollment ID
+     * @param authHeader   Authorization header with JWT token
+     * @return Enrollment details
+     */
+    @GetMapping("/{enrollmentId}")
+    public ResponseEntity<String> getEnrollment(
+            @PathVariable String enrollmentId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        log.info("📋 Proxying request to get enrollment: {}", enrollmentId);
+        return courseServiceClient.getEnrollment(enrollmentId, authHeader);
+    }
 
     /**
      * Get current user's enrollments (My Learning)
