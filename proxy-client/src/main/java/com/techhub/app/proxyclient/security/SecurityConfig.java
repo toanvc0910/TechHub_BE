@@ -27,6 +27,7 @@ public class SecurityConfig {
                 .antMatchers(org.springframework.http.HttpMethod.POST, "/api/users", "/api/proxy/users").permitAll()
                 .antMatchers("/api/users/forgot-password", "/api/proxy/users/forgot-password").permitAll()
                 .antMatchers("/api/users/reset-password/**", "/api/proxy/users/reset-password/**").permitAll()
+                .antMatchers("/api/users/resend-reset-code/**", "/api/proxy/users/resend-reset-code/**").permitAll()
                 .antMatchers("/actuator/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .antMatchers("/oauth2/**").permitAll()
                 // File endpoints - permitAll for now (can add authentication later)

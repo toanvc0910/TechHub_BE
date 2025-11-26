@@ -33,6 +33,11 @@ public class AuthProxyController {
         return userServiceClient.verifyEmail(verifyEmailRequest);
     }
 
+    @PostMapping("/resend-code")
+    public ResponseEntity<String> resendCode(@RequestBody Object resendCodeRequest) {
+        return userServiceClient.resendCode(resendCodeRequest);
+    }
+
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody Object loginRequest) {
         return userServiceClient.login(loginRequest);

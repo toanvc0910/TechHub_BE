@@ -38,6 +38,8 @@ public interface UserService {
 
     void forgotPassword(ForgotPasswordRequest request);
 
+    void resendResetPasswordCode(String email);
+
     void resetPassword(String email, ResetPasswordRequest request);
 
     void activateUser(UUID userId);

@@ -246,6 +246,20 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public void resendResetPasswordCode(String email) {
+        User user = userRepository.findByEmailAndIsActiveTrue(email)
+                .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
+
+        // Generate new OTP and send email
+        String otp = otpService.generateOTP();
+        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.RESET);
+        emailService.sendPasswordResetEmail(user.getEmail(), otp);
+
+        log.info("Password reset OTP resent to user {}", user.getEmail());
+    }
+
+    @Override
+    @Transactional
     public void resetPassword(String email, ResetPasswordRequest request) {
         User user = userRepository.findByEmailAndIsActiveTrue(email)
                 .orElseThrow(() -> new NotFoundException("User not found with email: " + email));

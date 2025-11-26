@@ -13,6 +13,9 @@ public interface UserServiceClient {
         @PostMapping("/api/auth/verify-email")
         ResponseEntity<String> verifyEmail(@RequestBody Object verifyEmailRequest);
 
+        @PostMapping("/api/auth/resend-code")
+        ResponseEntity<String> resendCode(@RequestBody Object resendCodeRequest);
+
         @PostMapping("/api/auth/login")
         ResponseEntity<String> login(@RequestBody Object loginRequest);
 
@@ -73,6 +76,9 @@ public interface UserServiceClient {
 
         @PostMapping("/api/users/forgot-password")
         ResponseEntity<String> forgotPassword(@RequestBody Object forgotPasswordRequest);
+
+        @PostMapping("/api/users/resend-reset-code/{email}")
+        ResponseEntity<String> resendResetCode(@PathVariable String email);
 
         @PostMapping("/api/users/reset-password/{email}")
         ResponseEntity<String> resetPassword(@PathVariable String email,

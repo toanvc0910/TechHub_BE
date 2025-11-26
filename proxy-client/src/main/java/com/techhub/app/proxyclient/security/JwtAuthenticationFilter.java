@@ -122,6 +122,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 uri.startsWith("/api/proxy/users/forgot-password") ||
                 uri.startsWith("/api/users/reset-password") ||
                 uri.startsWith("/api/proxy/users/reset-password") ||
+                uri.startsWith("/api/users/resend-reset-code") ||
+                uri.startsWith("/api/proxy/users/resend-reset-code") ||
                 uri.startsWith("/actuator/") ||
                 uri.startsWith("/swagger-ui/") ||
                 uri.startsWith("/v3/api-docs/") ||

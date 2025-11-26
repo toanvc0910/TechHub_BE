@@ -156,6 +156,21 @@ public class UserController {
         }
     }
 
+    @PostMapping("/resend-reset-code/{email}")
+    public ResponseEntity<GlobalResponse<String>> resendResetPasswordCode(@PathVariable @Email String email,
+            HttpServletRequest httpRequest) {
+        try {
+            userService.resendResetPasswordCode(email);
+            return ResponseEntity.ok(
+                    GlobalResponse.success("Reset password code resent successfully", "Code sent to email")
+                            .withPath(httpRequest.getRequestURI()));
+        } catch (Exception e) {
+            log.error("Error resending reset password code for email: {}", email, e);
+            return ResponseEntity.badRequest()
+                    .body(GlobalResponse.error(e.getMessage()));
+        }
+    }
+
     @PostMapping("/reset-password/{email}")
     public ResponseEntity<GlobalResponse<Void>> resetPassword(
             @PathVariable @Email String email,
