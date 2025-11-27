@@ -89,6 +89,8 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 uri.startsWith("/api/users/forgot-password") ||
                 uri.startsWith("/api/users/reset-password/") ||
                 uri.startsWith("/api/users/resend-reset-code/") ||
+                // Public user endpoints
+                uri.startsWith("/api/users/public/") ||
                 // OAuth2 endpoints
                 uri.startsWith("/oauth2/");
     }

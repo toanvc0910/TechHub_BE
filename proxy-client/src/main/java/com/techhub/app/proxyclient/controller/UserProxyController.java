@@ -116,4 +116,11 @@ public class UserProxyController {
 
         return userServiceClient.getCurrentUserProfile(authHeader, userId.toString(), userEmail.toString());
     }
+
+    // Public endpoints - no authentication required
+    @GetMapping("/public/instructors")
+    public ResponseEntity<String> getPublicInstructors(@RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "4") int size) {
+        return userServiceClient.getPublicInstructors(page, size);
+    }
 }

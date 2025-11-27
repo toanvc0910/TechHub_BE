@@ -344,6 +344,20 @@ public class UserServiceImpl implements UserService {
         return userRepository.countByStatusAndIsActiveTrue(status);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponse> getInstructorsByRole(String roleName, Pageable pageable) {
+        log.info("Fetching instructors with role: {}", roleName);
+
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new NotFoundException("Role not found: " + roleName));
+
+        Page<User> instructors = userRepository.findByUserRolesRoleAndIsActiveTrueAndStatus(role, UserStatus.ACTIVE,
+                pageable);
+
+        return instructors.map(this::convertToUserResponse);
+    }
+
     private User prepareUserForCreation(CreateUserRequest request, UserStatus status) {
         String email = normalizeEmail(request.getEmail());
         String username = normalizeUsername(request.getUsername());

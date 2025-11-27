@@ -54,6 +54,8 @@ public interface UserService {
 
     Page<UserResponse> searchUsers(String keyword, Pageable pageable);
 
+    Page<UserResponse> getInstructorsByRole(String roleName, Pageable pageable);
+
     boolean existsByEmail(String email);
 
     boolean existsByUsername(String username);

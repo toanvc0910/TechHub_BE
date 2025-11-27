@@ -264,6 +264,39 @@ public class UserController {
         }
     }
 
+    @GetMapping("/public/instructors")
+    public ResponseEntity<PageGlobalResponse<UserResponse>> getPublicInstructors(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "4") int size,
+            HttpServletRequest request) {
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<UserResponse> instructorPage = userService.getInstructorsByRole("INSTRUCTOR", pageable);
+
+            PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                    .page(instructorPage.getNumber())
+                    .size(instructorPage.getSize())
+                    .totalElements(instructorPage.getTotalElements())
+                    .totalPages(instructorPage.getTotalPages())
+                    .first(instructorPage.isFirst())
+                    .last(instructorPage.isLast())
+                    .hasNext(instructorPage.hasNext())
+                    .hasPrevious(instructorPage.hasPrevious())
+                    .build();
+
+            return ResponseEntity.ok(
+                    PageGlobalResponse
+                            .success("Instructors retrieved successfully", instructorPage.getContent(), paginationInfo)
+                            .withPath(request.getRequestURI()));
+
+        } catch (Exception e) {
+            log.error("Error retrieving public instructors", e);
+            return ResponseEntity.badRequest().body(
+                    PageGlobalResponse.<UserResponse>error("Failed to retrieve instructors")
+                            .withPath(request.getRequestURI()));
+        }
+    }
+
     @GetMapping("/profile")
     public ResponseEntity<GlobalResponse<UserResponse>> getCurrentUserProfile(
             HttpServletRequest request,

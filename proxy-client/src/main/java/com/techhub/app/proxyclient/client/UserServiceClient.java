@@ -104,6 +104,11 @@ public interface UserServiceClient {
                         @RequestHeader("X-User-Id") String userId,
                         @RequestHeader("X-User-Email") String userEmail);
 
+        // Public endpoints
+        @GetMapping("/api/users/public/instructors")
+        ResponseEntity<String> getPublicInstructors(@RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "4") int size);
+
         // ===== Admin RBAC =====
         @GetMapping("/api/admin/permissions")
         ResponseEntity<String> listPermissions(@RequestHeader("Authorization") String authHeader);
