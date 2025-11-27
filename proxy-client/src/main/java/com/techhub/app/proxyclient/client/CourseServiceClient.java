@@ -174,7 +174,7 @@ public interface CourseServiceClient {
                         @PathVariable String commentId,
                         @RequestHeader("Authorization") String authHeader);
 
-        // Exercises
+        // Exercises (Legacy single exercise endpoints)
         @GetMapping("/api/courses/{courseId}/lessons/{lessonId}/exercise")
         ResponseEntity<String> getExercise(@PathVariable String courseId,
                         @PathVariable String lessonId,
@@ -190,6 +190,31 @@ public interface CourseServiceClient {
         ResponseEntity<String> submitExercise(@PathVariable String courseId,
                         @PathVariable String lessonId,
                         @RequestBody Object request,
+                        @RequestHeader("Authorization") String authHeader);
+
+        // Exercises (New multiple exercises endpoints)
+        @GetMapping("/api/courses/{courseId}/lessons/{lessonId}/exercises")
+        ResponseEntity<String> getExercises(@PathVariable String courseId,
+                        @PathVariable String lessonId,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @PostMapping("/api/courses/{courseId}/lessons/{lessonId}/exercises")
+        ResponseEntity<String> createExercises(@PathVariable String courseId,
+                        @PathVariable String lessonId,
+                        @RequestBody Object request,
+                        @RequestHeader("Authorization") String authHeader);
+
+        @PutMapping("/api/courses/{courseId}/lessons/{lessonId}/exercises/{exerciseId}")
+        ResponseEntity<String> updateExercise(@PathVariable String courseId,
+                        @PathVariable String lessonId,
+                        @PathVariable String exerciseId,
+                        @RequestBody Object request,
+                        @RequestHeader("Authorization") String authHeader);
+
+        @DeleteMapping("/api/courses/{courseId}/lessons/{lessonId}/exercises/{exerciseId}")
+        ResponseEntity<String> deleteExercise(@PathVariable String courseId,
+                        @PathVariable String lessonId,
+                        @PathVariable String exerciseId,
                         @RequestHeader("Authorization") String authHeader);
 
         // Workspace IDE

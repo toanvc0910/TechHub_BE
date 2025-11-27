@@ -242,7 +242,7 @@ public class CourseProxyController {
         return courseServiceClient.deleteComment(courseId, commentId, authHeader);
     }
 
-    // Exercises
+    // Exercises (Legacy single exercise endpoints)
     @GetMapping("/{courseId}/lessons/{lessonId}/exercise")
     public ResponseEntity<String> getExercise(@PathVariable String courseId,
             @PathVariable String lessonId,
@@ -264,6 +264,39 @@ public class CourseProxyController {
             @RequestBody Object request,
             @RequestHeader("Authorization") String authHeader) {
         return courseServiceClient.submitExercise(courseId, lessonId, request, authHeader);
+    }
+
+    // Exercises (New multiple exercises endpoints)
+    @GetMapping("/{courseId}/lessons/{lessonId}/exercises")
+    public ResponseEntity<String> getExercises(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return courseServiceClient.getExercises(courseId, lessonId, authHeader);
+    }
+
+    @PostMapping("/{courseId}/lessons/{lessonId}/exercises")
+    public ResponseEntity<String> createExercises(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @RequestBody Object request,
+            @RequestHeader("Authorization") String authHeader) {
+        return courseServiceClient.createExercises(courseId, lessonId, request, authHeader);
+    }
+
+    @PutMapping("/{courseId}/lessons/{lessonId}/exercises/{exerciseId}")
+    public ResponseEntity<String> updateExercise(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @PathVariable String exerciseId,
+            @RequestBody Object request,
+            @RequestHeader("Authorization") String authHeader) {
+        return courseServiceClient.updateExercise(courseId, lessonId, exerciseId, request, authHeader);
+    }
+
+    @DeleteMapping("/{courseId}/lessons/{lessonId}/exercises/{exerciseId}")
+    public ResponseEntity<String> deleteExercise(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @PathVariable String exerciseId,
+            @RequestHeader("Authorization") String authHeader) {
+        return courseServiceClient.deleteExercise(courseId, lessonId, exerciseId, authHeader);
     }
 
     // Workspace

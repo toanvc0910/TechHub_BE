@@ -58,6 +58,16 @@ public class AuthProxyController {
         return userServiceClient.authHealth();
     }
 
+    // Change password for current user
+    @PostMapping("/change-password")
+    public ResponseEntity<String> changePassword(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestBody Object changePasswordRequest) {
+        log.info("Change password request for user: {}", userId);
+        return userServiceClient.changePassword(changePasswordRequest, authHeader, userId);
+    }
+
     // Exchange OAuth2 result (from FE) to JWT issued by proxy-client
     @PostMapping("/oauth2/exchange")
     public ResponseEntity<Map<String, Object>> oauth2Exchange(@RequestBody Map<String, Object> payload) {

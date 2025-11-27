@@ -130,17 +130,37 @@ public class UserController {
         }
     }
 
-    @PostMapping("/{userId}/change-password")
+    @PostMapping("/change-password")
     public ResponseEntity<GlobalResponse<Void>> changePassword(
-            @PathVariable UUID userId,
-            @Valid @RequestBody ChangePasswordRequest request) {
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletRequest httpServletRequest,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
         try {
+            UUID userId = null;
+
+            // Get user ID from X-User-Id header
+            if (userIdHeader != null && !userIdHeader.isEmpty()) {
+                userId = UUID.fromString(userIdHeader);
+            } else {
+                return ResponseEntity.badRequest().body(
+                        GlobalResponse.<Void>error("Authentication required - missing X-User-Id header", 400)
+                                .withPath(httpServletRequest.getRequestURI()));
+            }
+
             userService.changePassword(userId, request);
-            return ResponseEntity.ok(GlobalResponse.success("Password changed successfully", null));
-        } catch (Exception e) {
-            log.error("Error changing password for user: {}", userId, e);
+            return ResponseEntity.ok(
+                    GlobalResponse.<Void>success("Password changed successfully", null)
+                            .withPath(httpServletRequest.getRequestURI()));
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format in X-User-Id header: {}", userIdHeader, e);
             return ResponseEntity.badRequest()
-                    .body(GlobalResponse.error(e.getMessage()));
+                    .body(GlobalResponse.<Void>error("Invalid user ID format", 400)
+                            .withPath(httpServletRequest.getRequestURI()));
+        } catch (Exception e) {
+            log.error("Error changing password for user: {}", userIdHeader, e);
+            return ResponseEntity.badRequest()
+                    .body(GlobalResponse.<Void>error(e.getMessage(), 400)
+                            .withPath(httpServletRequest.getRequestURI()));
         }
     }
 

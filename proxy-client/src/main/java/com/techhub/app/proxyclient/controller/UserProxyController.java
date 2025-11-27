@@ -59,11 +59,12 @@ public class UserProxyController {
     }
 
     // Password management endpoints
-    @PostMapping("/{userId}/change-password")
-    public ResponseEntity<String> changePassword(@PathVariable String userId,
+    @PostMapping("/change-password")
+    public ResponseEntity<String> changePassword(
             @RequestBody Object changePasswordRequest,
-            @RequestHeader("Authorization") String authHeader) {
-        return userServiceClient.changePassword(userId, changePasswordRequest, authHeader);
+            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader("X-User-Id") String userId) {
+        return userServiceClient.changePassword(changePasswordRequest, authHeader, userId);
     }
 
     @PostMapping("/forgot-password")
