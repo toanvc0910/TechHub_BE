@@ -43,6 +43,8 @@ jobs:
             context: ./file-service
           - name: notification-service
             context: ./notification-service
+          - name: ai-service
+            context: ./ai-service
 
     steps:
       - name: Checkout source
