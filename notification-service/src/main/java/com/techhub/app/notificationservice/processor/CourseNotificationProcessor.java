@@ -17,8 +17,7 @@ import java.util.Set;
 /**
  * Processor for course-related notifications:
  * - NEW_COURSE: Broadcast to all users about new courses
- * - NEW_LESSON: Notify enrolled students about new lessons
- * - NEW_CONTENT: Notify enrolled students about new content (assets, exercises)
+ * - PROGRESS: Notify enrolled students about new lessons/content/exercises
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -27,12 +26,10 @@ public class CourseNotificationProcessor extends AbstractNotificationProcessor {
 
     private static final Set<NotificationType> SUPPORTED_TYPES = Set.of(
             NotificationType.NEW_COURSE,
-            NotificationType.NEW_LESSON,
-            NotificationType.NEW_CONTENT);
+            NotificationType.PROGRESS);
 
     private static final String DEFAULT_COURSE_TITLE = "Course Update";
-    private static final String DEFAULT_LESSON_TITLE = "New Lesson Available";
-    private static final String DEFAULT_CONTENT_TITLE = "New Content Available";
+    private static final String DEFAULT_PROGRESS_TITLE = "New Content Available";
 
     public CourseNotificationProcessor(NotificationService notificationService,
             NotificationDeliveryService notificationDeliveryService) {
@@ -71,10 +68,8 @@ public class CourseNotificationProcessor extends AbstractNotificationProcessor {
 
         if (type == NotificationType.NEW_COURSE) {
             return "A new course is available on TechHub. Check it out!";
-        } else if (type == NotificationType.NEW_LESSON) {
-            return "A new lesson has been added to your enrolled course.";
-        } else if (type == NotificationType.NEW_CONTENT) {
-            return "New content has been added to your enrolled course.";
+        } else if (type == NotificationType.PROGRESS) {
+            return "There's an update to your enrolled course.";
         }
 
         return "There's an update to your course.";
@@ -83,10 +78,8 @@ public class CourseNotificationProcessor extends AbstractNotificationProcessor {
     private String getDefaultTitle(NotificationType type) {
         if (type == NotificationType.NEW_COURSE) {
             return DEFAULT_COURSE_TITLE;
-        } else if (type == NotificationType.NEW_LESSON) {
-            return DEFAULT_LESSON_TITLE;
-        } else if (type == NotificationType.NEW_CONTENT) {
-            return DEFAULT_CONTENT_TITLE;
+        } else if (type == NotificationType.PROGRESS) {
+            return DEFAULT_PROGRESS_TITLE;
         }
         return DEFAULT_COURSE_TITLE;
     }

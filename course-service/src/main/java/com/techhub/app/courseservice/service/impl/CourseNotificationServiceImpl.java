@@ -100,7 +100,7 @@ public class CourseNotificationServiceImpl implements CourseNotificationService 
                 lessonTitle, courseTitle);
 
         publishToEnrolledStudents(
-                NotificationType.NEW_LESSON,
+                NotificationType.PROGRESS,
                 enrolledUserIds,
                 title,
                 message,
@@ -133,7 +133,7 @@ public class CourseNotificationServiceImpl implements CourseNotificationService 
                 assetType.toLowerCase(), lessonTitle, courseTitle);
 
         publishToEnrolledStudents(
-                NotificationType.NEW_CONTENT,
+                NotificationType.PROGRESS,
                 enrolledUserIds,
                 title,
                 message,
@@ -166,7 +166,7 @@ public class CourseNotificationServiceImpl implements CourseNotificationService 
                 lessonTitle, courseTitle);
 
         publishToEnrolledStudents(
-                NotificationType.NEW_CONTENT,
+                NotificationType.PROGRESS,
                 enrolledUserIds,
                 title,
                 message,
