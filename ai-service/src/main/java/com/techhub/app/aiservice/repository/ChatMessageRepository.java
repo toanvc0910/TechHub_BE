@@ -10,4 +10,6 @@ import java.util.UUID;
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> {
 
     List<ChatMessage> findBySessionOrderByTimestampAsc(ChatSession session);
+
+    List<ChatMessage> findTop10BySessionOrderByTimestampDesc(ChatSession session);
 }

@@ -141,6 +141,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 uri.startsWith("/app/api/proxy/payments/") ||
                 uri.startsWith("/app/api/proxy/transactions/") ||
                 uri.startsWith("/app/api/proxy/auth/") ||
+                // AI Chat streaming endpoints (SSE - public for real-time streaming)
+                uri.startsWith("/api/proxy/ai/chat/stream") ||
+                uri.startsWith("/app/api/proxy/ai/chat/stream") ||
                 ("/api/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
                 ("/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
                 ("/app/api/proxy/users".equals(uri) && "POST".equalsIgnoreCase(method)) ||
