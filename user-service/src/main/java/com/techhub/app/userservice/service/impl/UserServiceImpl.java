@@ -94,8 +94,8 @@ public class UserServiceImpl implements UserService {
         User saved = userRepository.save(user);
         otpService.deleteOTP(user.getId(), OTPTypeEnum.REGISTER);
 
-        emailService.sendAccountActivationEmail(saved.getEmail(), saved.getUsername());
-        emailService.sendWelcomeEmail(saved.getEmail(), saved.getUsername());
+        emailService.sendAccountActivationEmail(saved.getId(), saved.getEmail(), saved.getUsername());
+        emailService.sendWelcomeEmail(saved.getId(), saved.getEmail(), saved.getUsername());
 
         log.info("User {} successfully verified email", saved.getEmail());
         return convertToUserResponse(saved);
@@ -140,7 +140,7 @@ public class UserServiceImpl implements UserService {
             assignDefaultRole(user);
         }
 
-        emailService.sendWelcomeEmail(user.getEmail(), user.getUsername());
+        emailService.sendWelcomeEmail(user.getId(), user.getEmail(), user.getUsername());
         log.info("User {} {} by administrator", user.getEmail(), reactivated ? "reactivated" : "created");
         return convertToUserResponse(user);
     }
@@ -229,6 +229,9 @@ public class UserServiceImpl implements UserService {
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setUpdated(LocalDateTime.now());
         userRepository.save(user);
+
+        // Send password changed notification
+        emailService.sendPasswordChangedNotification(user.getId(), user.getEmail(), user.getUsername());
         log.info("Password changed for user {}", userId);
     }
 
@@ -241,6 +244,9 @@ public class UserServiceImpl implements UserService {
         String otp = otpService.generateOTP();
         otpService.saveOTP(user.getId(), otp, OTPTypeEnum.RESET);
         emailService.sendPasswordResetEmail(user.getEmail(), otp);
+
+        // Send in-app notification for security awareness
+        emailService.sendForgotPasswordNotification(user.getId(), user.getEmail(), user.getUsername());
         log.info("Password reset OTP generated for {}", user.getEmail());
     }
 
@@ -275,6 +281,9 @@ public class UserServiceImpl implements UserService {
         user.setUpdated(LocalDateTime.now());
         userRepository.save(user);
         otpService.deleteOTP(user.getId(), OTPTypeEnum.RESET);
+
+        // Send password reset success notification
+        emailService.sendPasswordResetSuccessNotification(user.getId(), user.getEmail(), user.getUsername());
         log.info("Password reset successfully for {}", email);
     }
 

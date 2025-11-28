@@ -496,16 +496,16 @@ public class DatabaseInitializer implements CommandLineRunner {
                         // ==================== NOTIFICATION SERVICES ====================
                         Permission getNotificationsPerm = createPermission("NOTIFICATION_READ_ALL",
                                         "Get all notifications",
-                                        "/api/v1/notifications", PermissionMethod.GET, "NOTIFICATIONS");
+                                        "/api/notifications", PermissionMethod.GET, "NOTIFICATIONS");
                         Permission getUnreadCountPerm = createPermission("NOTIFICATION_UNREAD_COUNT",
                                         "Get unread notification count",
-                                        "/api/v1/notifications/count/unread", PermissionMethod.GET, "NOTIFICATIONS");
+                                        "/api/notifications/count/unread", PermissionMethod.GET, "NOTIFICATIONS");
                         Permission markNotificationReadPerm = createPermission("NOTIFICATION_MARK_READ",
                                         "Mark notification as read",
-                                        "/api/v1/notifications/{id}/read", PermissionMethod.PUT, "NOTIFICATIONS");
+                                        "/api/notifications/{id}/read", PermissionMethod.PUT, "NOTIFICATIONS");
                         Permission markAllNotificationsReadPerm = createPermission("NOTIFICATION_MARK_ALL_READ",
                                         "Mark all notifications as read",
-                                        "/api/v1/notifications/read", PermissionMethod.PUT, "NOTIFICATIONS");
+                                        "/api/notifications/read", PermissionMethod.PUT, "NOTIFICATIONS");
 
                         // ==================== PAYMENT SERVICES ====================
                         Permission createVnPayPaymentPerm = createPermission("PAYMENT_VNPAY_CREATE",
