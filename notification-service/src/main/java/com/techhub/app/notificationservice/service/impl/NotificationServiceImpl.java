@@ -66,6 +66,15 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public long countUnread(UUID userId) {
+        if (userId == null) {
+            return 0;
+        }
+        return notificationRepository.countByUserIdAndIsActiveTrueAndRead(userId, false);
+    }
+
+    @Override
     @Transactional
     public Notification createNotification(Notification notification) {
         return notificationRepository.save(notification);

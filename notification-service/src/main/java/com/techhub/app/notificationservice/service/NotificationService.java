@@ -15,5 +15,7 @@ public interface NotificationService {
 
     int markAllAsRead(UUID userId);
 
+    long countUnread(UUID userId);
+
     Notification createNotification(Notification notification);
 }

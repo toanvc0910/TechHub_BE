@@ -48,6 +48,13 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/count/unread")
+    public ResponseEntity<Long> countUnread() {
+        UUID currentUserId = requireUser();
+        long count = notificationService.countUnread(currentUserId);
+        return ResponseEntity.ok(count);
+    }
+
     private UUID requireUser() {
         UUID userId = UserContext.getCurrentUserId();
         if (userId == null) {
