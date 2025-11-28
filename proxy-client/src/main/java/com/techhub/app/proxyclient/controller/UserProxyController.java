@@ -1,18 +1,23 @@
 package com.techhub.app.proxyclient.controller;
 
 import com.techhub.app.proxyclient.client.UserServiceClient;
+import com.techhub.app.commonservice.jwt.JwtUtil;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/proxy/users")
 @RequiredArgsConstructor
 public class UserProxyController {
 
     private final UserServiceClient userServiceClient;
+    private final JwtUtil jwtUtil;
 
     @GetMapping
     public ResponseEntity<String> getAllUsers(@RequestParam(defaultValue = "0") int page,
@@ -62,9 +67,20 @@ public class UserProxyController {
     @PostMapping("/change-password")
     public ResponseEntity<String> changePassword(
             @RequestBody Object changePasswordRequest,
-            @RequestHeader("Authorization") String authHeader,
-            @RequestHeader("X-User-Id") String userId) {
-        return userServiceClient.changePassword(changePasswordRequest, userId);
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            // Extract userId from JWT token
+            String token = authHeader.replace("Bearer ", "");
+            UUID userId = jwtUtil.getUserIdFromToken(token);
+
+            log.info("Change password request for user: {}", userId);
+            return userServiceClient.changePassword(changePasswordRequest, userId.toString());
+        } catch (Exception e) {
+            log.error("Error processing change password request", e);
+            return ResponseEntity.badRequest().body(
+                    String.format("{\"success\":false,\"message\":\"Failed to process change password request: %s\"}",
+                            e.getMessage()));
+        }
     }
 
     @PostMapping("/forgot-password")
