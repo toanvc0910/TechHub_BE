@@ -43,6 +43,7 @@ import com.techhub.app.courseservice.repository.ProgressRepository;
 import com.techhub.app.courseservice.repository.RatingRepository;
 import com.techhub.app.courseservice.repository.SkillRepository;
 import com.techhub.app.courseservice.repository.TagRepository;
+import com.techhub.app.courseservice.service.CourseNotificationService;
 import com.techhub.app.courseservice.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,7 @@ public class CourseServiceImpl implements CourseService {
     private final EventPublisher eventPublisher;
     private final SkillRepository skillRepository;
     private final TagRepository tagRepository;
+    private final CourseNotificationService courseNotificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -215,6 +217,11 @@ public class CourseServiceImpl implements CourseService {
         // Publish event for AI indexing
         publishCourseCreatedEvent(course);
 
+        // Send notification if course is published
+        if (course.getStatus() == CourseStatus.PUBLISHED) {
+            courseNotificationService.notifyNewCourse(course.getId(), course.getTitle());
+        }
+
         return getCourse(course.getId());
     }
 
@@ -227,6 +234,7 @@ public class CourseServiceImpl implements CourseService {
         log.info("updateCourse - Request tags: {}", request.getTags());
 
         Course course = getActiveCourse(courseId);
+        CourseStatus previousStatus = course.getStatus(); // Track previous status for notification
         UUID currentUserId = requireCurrentUser();
         if (!canManageCourse(course, currentUserId)) {
             throw new ForbiddenException("You are not allowed to update this course");
@@ -267,6 +275,12 @@ public class CourseServiceImpl implements CourseService {
 
         // Publish event for AI re-indexing
         publishCourseUpdatedEvent(course);
+
+        // Send notification if course was just published (status changed from
+        // non-PUBLISHED to PUBLISHED)
+        if (previousStatus != CourseStatus.PUBLISHED && course.getStatus() == CourseStatus.PUBLISHED) {
+            courseNotificationService.notifyNewCourse(course.getId(), course.getTitle());
+        }
 
         return getCourse(courseId);
     }
@@ -432,6 +446,16 @@ public class CourseServiceImpl implements CourseService {
         Lesson lesson = courseMapper.toLessonEntity(request, chapter, currentUserId, orderIndex);
         lessonRepository.save(lesson);
         log.info("Lesson {} created in chapter {}", lesson.getId(), chapterId);
+
+        // Send notification to enrolled students about new lesson
+        if (course.getStatus() == CourseStatus.PUBLISHED) {
+            courseNotificationService.notifyNewLesson(
+                    course.getId(),
+                    course.getTitle(),
+                    lesson.getId(),
+                    lesson.getTitle());
+        }
+
         return buildLessonResponse(lesson, course, null);
     }
 
@@ -514,6 +538,17 @@ public class CourseServiceImpl implements CourseService {
         LessonAsset asset = courseMapper.toLessonAssetEntity(request, lesson, currentUserId, orderIndex);
         lessonAssetRepository.save(asset);
         log.info("Asset {} created for lesson {}", asset.getId(), lessonId);
+
+        // Send notification to enrolled students about new content
+        if (course.getStatus() == CourseStatus.PUBLISHED) {
+            courseNotificationService.notifyNewContent(
+                    course.getId(),
+                    course.getTitle(),
+                    lesson.getId(),
+                    lesson.getTitle(),
+                    asset.getAssetType() != null ? asset.getAssetType().name() : "content");
+        }
+
         return buildAssetResponse(asset, course);
     }
 

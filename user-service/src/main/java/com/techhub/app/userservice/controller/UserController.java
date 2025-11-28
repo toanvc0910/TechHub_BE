@@ -412,4 +412,26 @@ public class UserController {
                             .withPath(httpServletRequest.getRequestURI()));
         }
     }
+
+    /**
+     * Internal endpoint for getting all active user IDs (for broadcast
+     * notifications)
+     * This endpoint is called by other services, not exposed to public API
+     */
+    @GetMapping("/internal/all-user-ids")
+    public ResponseEntity<GlobalResponse<java.util.List<UUID>>> getAllActiveUserIds(
+            HttpServletRequest httpServletRequest) {
+        try {
+            java.util.List<UUID> userIds = userService.getAllActiveUserIds();
+            log.info("Returning {} active user IDs for broadcast", userIds.size());
+            return ResponseEntity.ok(
+                    GlobalResponse.success("Active user IDs retrieved successfully", userIds)
+                            .withPath(httpServletRequest.getRequestURI()));
+        } catch (Exception e) {
+            log.error("Error fetching all active user IDs", e);
+            return ResponseEntity.internalServerError().body(
+                    GlobalResponse.<java.util.List<UUID>>error("Failed to fetch user IDs: " + e.getMessage(), 500)
+                            .withPath(httpServletRequest.getRequestURI()));
+        }
+    }
 }

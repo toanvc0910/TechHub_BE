@@ -355,6 +355,16 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UUID> getAllActiveUserIds() {
+        log.info("Fetching all active user IDs for broadcast notification");
+        return userRepository.findAllByIsActiveTrue()
+                .stream()
+                .map(User::getId)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<UserResponse> getInstructorsByRole(String roleName, Pageable pageable) {
         log.info("Fetching instructors with role: {}", roleName);
 

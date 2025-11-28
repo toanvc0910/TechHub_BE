@@ -61,4 +61,7 @@ public interface UserService {
     boolean existsByUsername(String username);
 
     long countUsersByStatus(UserStatus status);
+
+    // Get all active user IDs for broadcast notifications
+    java.util.List<UUID> getAllActiveUserIds();
 }

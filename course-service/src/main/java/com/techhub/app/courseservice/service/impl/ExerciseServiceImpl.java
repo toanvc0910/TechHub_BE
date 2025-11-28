@@ -20,6 +20,7 @@ import com.techhub.app.courseservice.entity.Exercise;
 import com.techhub.app.courseservice.entity.ExerciseTestCase;
 import com.techhub.app.courseservice.entity.Lesson;
 import com.techhub.app.courseservice.entity.Submission;
+import com.techhub.app.courseservice.enums.CourseStatus;
 import com.techhub.app.courseservice.enums.ExerciseType;
 import com.techhub.app.courseservice.enums.SubmissionStatus;
 import com.techhub.app.courseservice.enums.TestCaseVisibility;
@@ -29,6 +30,7 @@ import com.techhub.app.courseservice.repository.ExerciseRepository;
 import com.techhub.app.courseservice.repository.ExerciseTestCaseRepository;
 import com.techhub.app.courseservice.repository.LessonRepository;
 import com.techhub.app.courseservice.repository.SubmissionRepository;
+import com.techhub.app.courseservice.service.CourseNotificationService;
 import com.techhub.app.courseservice.service.CourseProgressService;
 import com.techhub.app.courseservice.service.ExerciseService;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +61,7 @@ public class ExerciseServiceImpl implements ExerciseService {
     private final SubmissionRepository submissionRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final CourseProgressService courseProgressService;
+    private final CourseNotificationService courseNotificationService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -78,8 +81,10 @@ public class ExerciseServiceImpl implements ExerciseService {
     @Override
     public ExerciseResponse upsertExercise(UUID courseId, UUID lessonId, ExerciseRequest request) {
         Lesson lesson = resolveLesson(courseId, lessonId);
-        ensureManagePermission(lesson.getChapter().getCourse());
+        Course course = lesson.getChapter().getCourse();
+        ensureManagePermission(course);
 
+        boolean isNewExercise = false;
         Exercise exercise = exerciseRepository.findByLesson_IdAndIsActiveTrue(lesson.getId())
                 .orElseGet(() -> {
                     Exercise entity = new Exercise();
@@ -90,6 +95,11 @@ public class ExerciseServiceImpl implements ExerciseService {
                     return entity;
                 });
 
+        // Check if this is a new exercise (no ID yet)
+        if (exercise.getId() == null) {
+            isNewExercise = true;
+        }
+
         exercise.setType(request.getType());
         exercise.setQuestion(request.getQuestion());
         exercise.setOptions(request.getOptions());
@@ -97,6 +107,15 @@ public class ExerciseServiceImpl implements ExerciseService {
         exerciseRepository.save(exercise);
 
         syncTestCases(exercise, request.getTestCases());
+
+        // Send notification if new exercise was created on a published course
+        if (isNewExercise && course.getStatus() == CourseStatus.PUBLISHED) {
+            courseNotificationService.notifyNewExercise(
+                    course.getId(),
+                    course.getTitle(),
+                    lesson.getId(),
+                    lesson.getTitle());
+        }
 
         List<ExerciseTestCase> testCases = testCaseRepository
                 .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
@@ -122,7 +141,8 @@ public class ExerciseServiceImpl implements ExerciseService {
     @Transactional
     public List<ExerciseResponse> createExercises(UUID courseId, UUID lessonId, List<ExerciseRequest> requests) {
         Lesson lesson = resolveLesson(courseId, lessonId);
-        ensureManagePermission(lesson.getChapter().getCourse());
+        Course course = lesson.getChapter().getCourse();
+        ensureManagePermission(course);
 
         List<ExerciseResponse> responses = new ArrayList<>();
         UUID currentUserId = UserContext.getCurrentUserId();
@@ -146,6 +166,16 @@ public class ExerciseServiceImpl implements ExerciseService {
             List<ExerciseTestCase> testCases = testCaseRepository
                     .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
             responses.add(mapToResponse(exercise, testCases, true));
+        }
+
+        // Send notification to enrolled students about new exercises (only once, not
+        // per exercise)
+        if (!responses.isEmpty() && course.getStatus() == CourseStatus.PUBLISHED) {
+            courseNotificationService.notifyNewExercise(
+                    course.getId(),
+                    course.getTitle(),
+                    lesson.getId(),
+                    lesson.getTitle());
         }
 
         return responses;

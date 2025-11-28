@@ -49,4 +49,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @EntityGraph(attributePaths = { "userRoles", "userRoles.role" })
     Page<User> findByUserRolesRoleAndIsActiveTrueAndStatus(Role role, UserStatus status, Pageable pageable);
+
+    // Get all active users for broadcast notifications
+    java.util.List<User> findAllByIsActiveTrue();
 }

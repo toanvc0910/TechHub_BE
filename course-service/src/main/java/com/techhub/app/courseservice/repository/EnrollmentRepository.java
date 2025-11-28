@@ -26,4 +26,10 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
     long countByCourseAndIsActiveTrue(Course course);
 
     long countByCourseAndStatus(Course course, EnrollmentStatus status);
+
+    // Get all enrolled user IDs for a specific course
+    List<Enrollment> findAllByCourse_IdAndIsActiveTrue(UUID courseId);
+
+    // Get all active enrollments (for broadcast notifications)
+    List<Enrollment> findAllByIsActiveTrue();
 }
