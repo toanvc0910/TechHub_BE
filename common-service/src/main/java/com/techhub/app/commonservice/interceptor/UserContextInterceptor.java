@@ -92,7 +92,9 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 // Public user endpoints
                 uri.startsWith("/api/users/public/") ||
                 // OAuth2 endpoints
-                uri.startsWith("/oauth2/");
+                uri.startsWith("/oauth2/") ||
+                // AI Chat streaming endpoints (SSE - bypass proxy for real-time streaming)
+                uri.startsWith("/api/ai/chat/stream");
     }
 
     private boolean isInternalService(String requestSource) {

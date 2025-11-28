@@ -34,6 +34,9 @@ public class SecurityConfig {
                 .antMatchers("/api/proxy/files/**").permitAll()
                 .antMatchers("/api/proxy/folders/**").permitAll()
                 .antMatchers("/api/proxy/file-usage/**").permitAll()
+                // AI Chat streaming endpoints (SSE)
+                .antMatchers("/api/proxy/ai/chat/stream/**").permitAll()
+                .antMatchers("/app/api/proxy/ai/chat/stream/**").permitAll()
                 // Payment endpoints - permitAll for payment callbacks and public payment
                 // operations
                 .antMatchers("/api/payment/**").permitAll()

@@ -116,7 +116,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                         Permission changeUserStatusPerm = createPermission("USER_STATUS_CHANGE", "Change user status",
                                         "/api/users/{id}/status/{status}", PermissionMethod.PUT, "USERS");
                         Permission changePasswordPerm = createPermission("USER_CHANGE_PASSWORD", "Change password",
-                                        "/api/users/{id}/change-password", PermissionMethod.POST, "USERS");
+                                        "/api/users/change-password", PermissionMethod.POST, "USERS");
 
                         // ==================== ADMIN - PERMISSION MANAGEMENT ====================
                         Permission listPermissionsPerm = createPermission("ADMIN_PERMISSION_LIST",

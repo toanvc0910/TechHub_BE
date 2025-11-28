@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -77,6 +78,34 @@ public class ExerciseController {
                 return ResponseEntity.ok(
                                 GlobalResponse.success("Exercises created", responses)
                                                 .withStatus("EXERCISES_CREATED")
+                                                .withPath(request.getRequestURI()));
+        }
+
+        // Update specific exercise
+        @PutMapping("/exercises/{exerciseId}")
+        public ResponseEntity<GlobalResponse<ExerciseResponse>> updateExercise(@PathVariable UUID courseId,
+                        @PathVariable UUID lessonId,
+                        @PathVariable UUID exerciseId,
+                        @Valid @RequestBody ExerciseRequest exerciseRequest,
+                        HttpServletRequest request) {
+                ExerciseResponse response = exerciseService.updateExercise(courseId, lessonId, exerciseId,
+                                exerciseRequest);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Exercise updated", response)
+                                                .withStatus("EXERCISE_UPDATED")
+                                                .withPath(request.getRequestURI()));
+        }
+
+        // Delete specific exercise
+        @DeleteMapping("/exercises/{exerciseId}")
+        public ResponseEntity<GlobalResponse<Void>> deleteExercise(@PathVariable UUID courseId,
+                        @PathVariable UUID lessonId,
+                        @PathVariable UUID exerciseId,
+                        HttpServletRequest request) {
+                exerciseService.deleteExercise(courseId, lessonId, exerciseId);
+                return ResponseEntity.ok(
+                                GlobalResponse.<Void>success("Exercise deleted", null)
+                                                .withStatus("EXERCISE_DELETED")
                                                 .withPath(request.getRequestURI()));
         }
 

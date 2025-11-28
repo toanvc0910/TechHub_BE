@@ -69,10 +69,10 @@ public interface UserServiceClient {
                         @RequestHeader("Authorization") String authHeader);
 
         // Password management endpoints
-        @PostMapping("/api/users/{userId}/change-password")
-        ResponseEntity<String> changePassword(@PathVariable String userId,
+        @PostMapping("/api/users/change-password")
+        ResponseEntity<String> changePassword(
                         @RequestBody Object changePasswordRequest,
-                        @RequestHeader("Authorization") String authHeader);
+                        @RequestHeader("X-User-Id") String userId);
 
         @PostMapping("/api/users/forgot-password")
         ResponseEntity<String> forgotPassword(@RequestBody Object forgotPasswordRequest);

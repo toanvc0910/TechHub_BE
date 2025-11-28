@@ -5,6 +5,7 @@ import com.techhub.app.commonservice.jwt.JwtUtil;
 import java.util.Collections;
 import java.util.Map;
 import java.util.List;
+import java.util.UUID;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -58,7 +59,26 @@ public class AuthProxyController {
         return userServiceClient.authHealth();
     }
 
-    // Exchange OAuth2 result (from FE) to JWT issued by proxy-client
+    // Change password for current user
+    @PostMapping("/change-password")
+    public ResponseEntity<String> changePassword(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody Object changePasswordRequest) {
+        try {
+            // Extract userId from JWT token
+            String token = authHeader.replace("Bearer ", "");
+            UUID userId = jwtUtil.getUserIdFromToken(token);
+
+            log.info("Change password request for user: {}", userId);
+            return userServiceClient.changePassword(changePasswordRequest, userId.toString());
+        } catch (Exception e) {
+            log.error("Error processing change password request", e);
+            return ResponseEntity.badRequest().body(
+                    String.format("{\"success\":false,\"message\":\"Failed to process change password request: %s\"}",
+                            e.getMessage()));
+        }
+    } // Exchange OAuth2 result (from FE) to JWT issued by proxy-client
+
     @PostMapping("/oauth2/exchange")
     public ResponseEntity<Map<String, Object>> oauth2Exchange(@RequestBody Map<String, Object> payload) {
         // Expected payload: { userId: string-uuid, email: string }

@@ -152,6 +152,91 @@ public class ExerciseServiceImpl implements ExerciseService {
     }
 
     @Override
+    public ExerciseResponse updateExercise(UUID courseId, UUID lessonId, UUID exerciseId, ExerciseRequest request) {
+        log.debug("[updateExercise] Start - courseId={}, lessonId={}, exerciseId={}, request={}", courseId, lessonId,
+                exerciseId, request);
+        Lesson lesson = resolveLesson(courseId, lessonId);
+        log.debug("[updateExercise] Resolved lesson id: {}", lesson.getId());
+        ensureManagePermission(lesson.getChapter().getCourse());
+        log.debug("[updateExercise] Permission check passed for course {}", lesson.getChapter().getCourse().getId());
+
+        Exercise exercise = exerciseRepository.findById(exerciseId)
+                .orElseThrow(() -> new NotFoundException("Exercise not found"));
+        log.debug("[updateExercise] Found exercise id: {} (active={})", exercise.getId(), exercise.getIsActive());
+
+        // Verify exercise belongs to the lesson
+        if (!exercise.getLesson().getId().equals(lessonId)) {
+            log.warn("[updateExercise] Exercise {} does not belong to lesson {}", exerciseId, lessonId);
+            throw new ForbiddenException("Exercise does not belong to the specified lesson");
+        }
+        log.debug("[updateExercise] Exercise belongs to lesson");
+
+        // Verify exercise is active
+        if (exercise.getIsActive() != null && !exercise.getIsActive()) {
+            log.warn("[updateExercise] Attempt to update inactive exercise {}", exerciseId);
+            throw new NotFoundException("Exercise is not active");
+        }
+        log.debug("[updateExercise] Exercise is active");
+
+        // Update exercise fields
+        exercise.setType(request.getType());
+        exercise.setQuestion(request.getQuestion());
+        exercise.setOptions(request.getOptions());
+
+        if (request.getOrderIndex() != null) {
+            log.debug("[updateExercise] Updating orderIndex from {} to {}", exercise.getOrderIndex(),
+                    request.getOrderIndex());
+            exercise.setOrderIndex(request.getOrderIndex());
+        }
+
+        exercise.setUpdatedBy(UserContext.getCurrentUserId());
+        exerciseRepository.save(exercise);
+        log.debug("[updateExercise] Exercise fields updated and saved. Current orderIndex: {}",
+                exercise.getOrderIndex());
+
+        // Sync test cases
+        syncTestCases(exercise, request.getTestCases());
+        log.debug("[updateExercise] Test cases synchronized");
+
+        List<ExerciseTestCase> testCases = testCaseRepository
+                .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+        ExerciseResponse response = mapToResponse(exercise, testCases, true);
+        log.debug("[updateExercise] Returning response for exercise {}", exerciseId);
+        return response;
+    }
+
+    @Override
+    public void deleteExercise(UUID courseId, UUID lessonId, UUID exerciseId) {
+        Lesson lesson = resolveLesson(courseId, lessonId);
+        ensureManagePermission(lesson.getChapter().getCourse());
+        log.debug("[deleteExercise] Start - courseId={}, lessonId={}, exerciseId={}", courseId, lessonId,
+                exerciseId);
+        Exercise exercise = exerciseRepository.findById(exerciseId)
+                .orElseThrow(() -> new NotFoundException("Exercise not found"));
+
+        // Verify exercise belongs to the lesson
+        if (!exercise.getLesson().getId().equals(lessonId)) {
+            throw new ForbiddenException("Exercise does not belong to the specified lesson");
+        }
+
+        // Soft delete the exercise
+        exercise.setIsActive(false);
+        exercise.setUpdatedBy(UserContext.getCurrentUserId());
+        exerciseRepository.save(exercise);
+
+        // Soft delete all associated test cases
+        List<ExerciseTestCase> testCases = testCaseRepository
+                .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
+        for (ExerciseTestCase testCase : testCases) {
+            testCase.setIsActive(false);
+            testCase.setUpdatedBy(UserContext.getCurrentUserId());
+            testCaseRepository.save(testCase);
+        }
+
+        log.info("Exercise {} soft deleted by user {}", exerciseId, UserContext.getCurrentUserId());
+    }
+
+    @Override
     public ExerciseSubmissionResponse submitExercise(UUID courseId, UUID lessonId, ExerciseSubmissionRequest request) {
         UUID userId = requireCurrentUser();
         Lesson lesson = resolveLesson(courseId, lessonId);
