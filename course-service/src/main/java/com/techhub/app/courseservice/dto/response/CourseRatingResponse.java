@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -19,4 +20,5 @@ public class CourseRatingResponse {
     private Double averageRating;
     private Long ratingCount;
     private Integer userScore;
+    private Map<Integer, Long> ratingDistribution;
 }

@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;
+import java.util.List;
 
 @Data
 @Builder
@@ -29,4 +30,5 @@ public class CreateUserRequest {
 
     private String firstName;
     private String lastName;
+    private List<String> roles; // Role names to assign to the user
 }

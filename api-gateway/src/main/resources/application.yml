@@ -43,6 +43,36 @@ spring:
               - PATCH
               - OPTIONS
       routes:
+        # WebSocket Routes - phải đặt trước các HTTP routes
+        - id: BLOG-SERVICE-WS
+          uri: lb://BLOG-SERVICE
+          predicates:
+            - Path=/blog-service/ws-comment/**
+          filters:
+            - StripPrefix=1
+          metadata:
+            response-timeout: -1
+        - id: BLOG-SERVICE-WS-SOCKJS
+          uri: lb://BLOG-SERVICE
+          predicates:
+            - Path=/blog-service/ws-comment/info/**
+          filters:
+            - StripPrefix=1
+        - id: COURSE-SERVICE-WS
+          uri: lb://COURSE-SERVICE
+          predicates:
+            - Path=/course-service/ws-comment/**
+          filters:
+            - StripPrefix=1
+          metadata:
+            response-timeout: -1
+        - id: COURSE-SERVICE-WS-SOCKJS
+          uri: lb://COURSE-SERVICE
+          predicates:
+            - Path=/course-service/ws-comment/info/**
+          filters:
+            - StripPrefix=1
+        # HTTP Routes
         - id: BLOG-SERVICE
           uri: lb://BLOG-SERVICE
           predicates:
@@ -67,6 +97,10 @@ spring:
           uri: lb://FILE-SERVICE
           predicates:
             - Path=/file-service/**
+        - id: AI-SERVICE
+          uri: lb://AI-SERVICE
+          predicates:
+            - Path=/ai-service/**
         # Expose OAuth2 endpoints of USER-SERVICE directly at gateway root
         - id: USER-SERVICE-OAUTH2
           uri: lb://USER-SERVICE

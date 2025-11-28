@@ -16,7 +16,6 @@ import com.techhub.app.userservice.entity.Role;
 import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.entity.UserRole;
 import com.techhub.app.userservice.enums.OTPTypeEnum;
-import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.enums.UserStatus;
 import com.techhub.app.userservice.repository.RoleRepository;
 import com.techhub.app.userservice.repository.UserRepository;
@@ -104,12 +103,42 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public void resendVerificationCode(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
+
+        if (Boolean.FALSE.equals(user.getIsActive())) {
+            throw new ForbiddenException("Account has been deactivated");
+        }
+        if (user.getStatus() == UserStatus.BANNED) {
+            throw new ForbiddenException("Account has been banned");
+        }
+        if (user.getStatus() == UserStatus.ACTIVE) {
+            throw new ConflictException("Account already verified");
+        }
+
+        // Generate new OTP and send email
+        String otp = otpService.generateOTP();
+        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.REGISTER);
+        emailService.sendOTPEmail(user.getEmail(), otp, OTPTypeEnum.REGISTER.name());
+
+        log.info("Verification code resent to user {}", user.getEmail());
+    }
+
+    @Override
+    @Transactional
     public UserResponse createUser(CreateUserRequest request) {
         User user = prepareUserForCreation(request, UserStatus.ACTIVE);
         boolean reactivated = user.getId() != null && userRepository.existsById(user.getId());
 
         user = userRepository.save(user);
-        assignDefaultRole(user);
+
+        // Assign roles from request, or default role if none provided
+        if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+            assignRoles(user, request.getRoles());
+        } else {
+            assignDefaultRole(user);
+        }
 
         emailService.sendWelcomeEmail(user.getEmail(), user.getUsername());
         log.info("User {} {} by administrator", user.getEmail(), reactivated ? "reactivated" : "created");
@@ -156,6 +185,12 @@ public class UserServiceImpl implements UserService {
 
         user.setUpdated(LocalDateTime.now());
         User saved = userRepository.save(user);
+
+        // Update roles if provided
+        if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+            assignRoles(saved, request.getRoles());
+        }
+
         log.info("User {} updated", saved.getId());
         return convertToUserResponse(saved);
     }
@@ -207,6 +242,20 @@ public class UserServiceImpl implements UserService {
         otpService.saveOTP(user.getId(), otp, OTPTypeEnum.RESET);
         emailService.sendPasswordResetEmail(user.getEmail(), otp);
         log.info("Password reset OTP generated for {}", user.getEmail());
+    }
+
+    @Override
+    @Transactional
+    public void resendResetPasswordCode(String email) {
+        User user = userRepository.findByEmailAndIsActiveTrue(email)
+                .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
+
+        // Generate new OTP and send email
+        String otp = otpService.generateOTP();
+        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.RESET);
+        emailService.sendPasswordResetEmail(user.getEmail(), otp);
+
+        log.info("Password reset OTP resent to user {}", user.getEmail());
     }
 
     @Override
@@ -295,6 +344,20 @@ public class UserServiceImpl implements UserService {
         return userRepository.countByStatusAndIsActiveTrue(status);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponse> getInstructorsByRole(String roleName, Pageable pageable) {
+        log.info("Fetching instructors with role: {}", roleName);
+
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new NotFoundException("Role not found: " + roleName));
+
+        Page<User> instructors = userRepository.findByUserRolesRoleAndIsActiveTrueAndStatus(role, UserStatus.ACTIVE,
+                pageable);
+
+        return instructors.map(this::convertToUserResponse);
+    }
+
     private User prepareUserForCreation(CreateUserRequest request, UserStatus status) {
         String email = normalizeEmail(request.getEmail());
         String username = normalizeUsername(request.getUsername());
@@ -311,7 +374,6 @@ public class UserServiceImpl implements UserService {
             }
             existing.setUsername(username);
             existing.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-            existing.setRole(UserRoleEnum.LEARNER);
             existing.setStatus(status);
             existing.setIsActive(true);
             existing.setUpdated(LocalDateTime.now());
@@ -323,7 +385,6 @@ public class UserServiceImpl implements UserService {
         user.setEmail(email);
         user.setUsername(username);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole(UserRoleEnum.LEARNER);
         user.setStatus(status);
         user.setIsActive(true);
         user.setCreated(now);
@@ -376,6 +437,39 @@ public class UserServiceImpl implements UserService {
                 });
     }
 
+    private void assignRoles(User user, List<String> roleNames) {
+        // First, deactivate all existing roles for this user
+        List<UserRole> existingUserRoles = userRoleRepository.findByUserId(user.getId());
+        for (UserRole existingUserRole : existingUserRoles) {
+            existingUserRole.setIsActive(false);
+            existingUserRole.setUpdated(LocalDateTime.now());
+        }
+        userRoleRepository.saveAll(existingUserRoles);
+
+        // Then assign the new roles
+        for (String roleName : roleNames) {
+            Role role = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new NotFoundException("Role not found: " + roleName));
+
+            userRoleRepository.findByUserIdAndRoleId(user.getId(), role.getId())
+                    .ifPresentOrElse(existing -> {
+                        existing.setIsActive(true);
+                        existing.setUpdated(LocalDateTime.now());
+                        userRoleRepository.save(existing);
+                    }, () -> {
+                        UserRole userRole = new UserRole();
+                        userRole.setUserId(user.getId());
+                        userRole.setRoleId(role.getId());
+                        userRole.setUser(user);
+                        userRole.setRole(role);
+                        userRole.setAssignedAt(LocalDateTime.now());
+                        userRole.setIsActive(Boolean.TRUE);
+                        userRoleRepository.save(userRole);
+                    });
+        }
+        log.info("Assigned roles {} to user {}", roleNames, user.getId());
+    }
+
     private User findActiveUserById(UUID userId) {
         return userRepository.findById(userId)
                 .filter(User::getIsActive)
@@ -387,10 +481,6 @@ public class UserServiceImpl implements UserService {
                 .filter(UserRole::getIsActive)
                 .map(userRole -> userRole.getRole().getName())
                 .collect(Collectors.toList());
-
-        if (roles.isEmpty()) {
-            roles = List.of(user.getRole().name());
-        }
 
         return UserResponse.builder()
                 .id(user.getId())

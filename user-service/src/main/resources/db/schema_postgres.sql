@@ -6,7 +6,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Define ENUM types
-CREATE TYPE user_role AS ENUM('LEARNER', 'INSTRUCTOR', 'ADMIN');
 CREATE TYPE user_status AS ENUM('ACTIVE', 'INACTIVE', 'BANNED');
 CREATE TYPE lang AS ENUM('VI', 'EN', 'JA');
 CREATE TYPE otp_type AS ENUM('REGISTER', 'LOGIN', 'RESET');
@@ -17,7 +16,6 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     username VARCHAR(255) UNIQUE,
     password_hash VARCHAR(255),
-    role user_role NOT NULL,
     status user_status DEFAULT 'ACTIVE',
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -59,7 +57,6 @@ CREATE TABLE IF NOT EXISTS otps (
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
 CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);

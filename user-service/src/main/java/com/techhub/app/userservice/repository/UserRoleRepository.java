@@ -8,12 +8,17 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface UserRoleRepository extends JpaRepository<UserRole, UserRoleId> {
     @Query("SELECT ur FROM UserRole ur WHERE ur.user.id = :userId AND ur.isActive = true")
     List<UserRole> findByUserId(@Param("userId") UUID userId);
+
+    List<UserRole> findByRoleId(UUID roleId);
+
     boolean existsByUserIdAndRoleId(UUID userId, UUID roleId);
-    java.util.Optional<UserRole> findByUserIdAndRoleId(UUID userId, UUID roleId);
+
+    Optional<UserRole> findByUserIdAndRoleId(UUID userId, UUID roleId);
 }

@@ -31,7 +31,8 @@ public class CourseSummaryResponse {
     private CourseLevel level;
     private Language language;
     private List<String> categories;
-    private List<String> tags;
+    private List<SkillDTO> skills;
+    private List<TagDTO> tags;
     private List<String> objectives;
     private List<String> requirements;
     private UUID instructorId;

@@ -58,6 +58,16 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException("Invalid credentials");
         }
 
+        // Ensure roles are initialized before mapping to DTO to avoid lazy proxy issues
+        user.getUserRoles().forEach(ur -> {
+            if (ur.getIsActive() != null && ur.getIsActive() && ur.getRole() != null) {
+                ur.getRole().getName();
+            }
+        });
+
+        // Mark login type for auditing/debug (local login)
+        user.setLoginType("LOCAL");
+
         List<String> roles = resolveRoles(user);
         logSuccessfulAuthentication(user);
 
@@ -106,9 +116,6 @@ public class AuthServiceImpl implements AuthService {
                 .map(userRole -> userRole.getRole().getName())
                 .collect(Collectors.toList());
 
-        if (roles.isEmpty()) {
-            roles = List.of(user.getRole().name());
-        }
         return roles;
     }
 

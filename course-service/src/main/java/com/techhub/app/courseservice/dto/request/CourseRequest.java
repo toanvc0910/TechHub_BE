@@ -38,6 +38,8 @@ public class CourseRequest {
 
     private List<@Size(max = 100) String> categories;
 
+    // Optional skills list (frontend may send skills under this field)
+    private List<@Size(max = 100) String> skills;
     private List<@Size(max = 100) String> tags;
 
     @DecimalMin(value = "0.0", inclusive = true)

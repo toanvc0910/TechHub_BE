@@ -32,4 +32,8 @@ public class GoogleOAuth2UserInfo extends OAuth2UserInfo {
     public Boolean getEmailVerified() {
         return (Boolean) attributes.get("email_verified");
     }
+
+    public void setEmail(String email) {
+        this.attributes.put("email", email);
+    }
 }

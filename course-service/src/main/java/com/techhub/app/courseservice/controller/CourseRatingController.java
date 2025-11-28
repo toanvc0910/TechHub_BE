@@ -30,23 +30,21 @@ public class CourseRatingController {
 
     @GetMapping
     public ResponseEntity<GlobalResponse<CourseRatingResponse>> getCourseRating(@PathVariable UUID courseId,
-                                                                                HttpServletRequest request) {
+            HttpServletRequest request) {
         CourseRatingResponse response = courseRatingService.getCourseRating(courseId);
         return ResponseEntity.ok(
                 GlobalResponse.success("Course rating retrieved", response)
-                        .withPath(request.getRequestURI())
-        );
+                        .withPath(request.getRequestURI()));
     }
 
     @PostMapping
     public ResponseEntity<GlobalResponse<CourseRatingResponse>> submitCourseRating(@PathVariable UUID courseId,
-                                                                                   @Valid @RequestBody RatingRequest ratingRequest,
-                                                                                   HttpServletRequest request) {
+            @Valid @RequestBody RatingRequest ratingRequest,
+            HttpServletRequest request) {
         CourseRatingResponse response = courseRatingService.submitCourseRating(courseId, ratingRequest);
         return ResponseEntity.ok(
                 GlobalResponse.success("Course rating submitted", response)
                         .withStatus("COURSE_RATED")
-                        .withPath(request.getRequestURI())
-        );
+                        .withPath(request.getRequestURI()));
     }
 }

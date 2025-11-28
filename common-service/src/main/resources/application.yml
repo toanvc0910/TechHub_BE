@@ -13,7 +13,7 @@ spring:
 
 kafka:
   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
-  hostname: ${KAFKA_HOSTNAME:localhost}
+  hostname: ${KAFKA_HOSTNAME:103.188.83.154}
   port: ${KAFKA_PORT:9092}
   topics:
     email: ${KAFKA_EMAIL_TOPIC:email-notifications}

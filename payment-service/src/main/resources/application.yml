@@ -1,14 +1,62 @@
 server:
   port: 8084
 
+dotenv:
+  location: ../.env
+
 spring:
   application:
     name: PAYMENT-SERVICE
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
-  zipkin:
-    base-url: ${SPRING_ZIPKIN_BASE_URL:http://${HOST_IP_ADDRESS:localhost}:9411/}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: true
+      pool-name: UserServiceHikariPool
+      leak-detection-threshold: 60000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
+        format_sql: true
 
+# PayPal Configuration
+paypal:
+  mode: ${PAYPAL_MODE:sandbox}
+  client-id: ${PAYPAL_CLIENT_ID}
+  client-secret: ${PAYPAL_CLIENT_SECRET}
+  api-base: ${PAYPAL_API_BASE}
+  return-url: ${PAYPAL_RETURN_URL}
+  cancel-url: ${PAYPAL_CANCEL_URL}
+
+# VNPay Configuration
+vnpay:
+  tmn-code: ${VNPAY_TMN_CODE}
+  hash-secret: ${VNPAY_HASH_SECRET}
+  payment-url: ${VNPAY_PAYMENT_URL}
+  return-url: ${VNPAY_RETURN_URL}
+  version: ${VNPAY_VERSION}
+  command: ${VNPAY_COMMAND}
+  order-type: ${VNPAY_ORDER_TYPE}
+
+# Payment Frontend URLs
+payment:
+  frontend-result-url: ${PAYMENT_FRONTEND_RESULT_URL}
+  frontend-vnpay-return-url: ${PAYMENT_FRONTEND_VNPAY_RETURN_URL}
+
+# Eureka Configuration
 eureka:
   client:
     register-with-eureka: true
@@ -19,21 +67,6 @@ eureka:
     prefer-ip-address: true
     hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
 
-resilience4j:
-  circuitbreaker:
-    instances:
-      paymentService:
-        register-health-indicator: true
-        event-consumer-buffer-size: 10
-        automatic-transition-from-open-to-half-open-enabled: true
-        failure-rate-threshold: 50
-        minimum-number-of-calls: 5
-        permitted-number-of-calls-in-half-open-state: 3
-        sliding-window-size: 10
-        wait-duration-in-open-state: 5s
-
-logging:
-  level:
-    com.techhub.app.paymentservice: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+# Course Service - sử dụng service name thay vì hardcode URL
+course-service:
+  name: COURSE-SERVICE  # Service name registered in Eureka

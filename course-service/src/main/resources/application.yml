@@ -30,6 +30,19 @@ spring:
         format_sql: true
   zipkin:
     base-url: ${SPRING_ZIPKIN_BASE_URL:http://${HOST_IP_ADDRESS:localhost}:9411/}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
 
 eureka:
   client:
@@ -59,3 +72,25 @@ logging:
     com.techhub.app.courseservice: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# WebSocket Configuration
+app:
+  websocket:
+    endpoint: ${WEBSOCKET_ENDPOINT:/ws-comment}
+    sock-js-enabled: ${WEBSOCKET_SOCKJS_ENABLED:true}
+    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:*}
+    application-destination-prefixes:
+      - ${WEBSOCKET_APP_PREFIX:/app}
+    broker-destination-prefixes:
+      - ${WEBSOCKET_BROKER_TOPIC_PREFIX:/topic}
+      - ${WEBSOCKET_BROKER_QUEUE_PREFIX:/queue}
+    user-destination-prefix: ${WEBSOCKET_USER_PREFIX:/user}
+    preserve-publish-order: ${WEBSOCKET_PRESERVE_ORDER:true}
+    # External broker (RabbitMQ STOMP) - optional
+    relay-enabled: ${WEBSOCKET_RELAY_ENABLED:false}
+    relay:
+      host: ${WEBSOCKET_RELAY_HOST:localhost}
+      port: ${WEBSOCKET_RELAY_PORT:61613}
+      login: ${WEBSOCKET_RELAY_LOGIN:guest}
+      passcode: ${WEBSOCKET_RELAY_PASSCODE:guest}
+      virtual-host: ${WEBSOCKET_RELAY_VHOST:/}

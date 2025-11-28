@@ -37,8 +37,8 @@ public class CourseMapper {
         course.setStatus(request.getStatus() != null ? request.getStatus() : CourseStatus.DRAFT);
         course.setLevel(request.getLevel() != null ? request.getLevel() : CourseLevel.ALL_LEVELS);
         course.setLanguage(request.getLanguage() != null ? request.getLanguage() : Language.VI);
-        course.setCategories(normalizeList(request.getCategories(), false));
-        course.setTags(normalizeList(request.getTags(), true));
+        // TODO: Map skills/tags from request to CourseSkill/CourseTag entities here if
+        // needed
         course.setDiscountPrice(normalizePrice(request.getDiscountPrice()));
         course.setPromoEndDate(request.getPromoEndDate());
         course.setThumbnail(normalizeText(request.getThumbnail()));
@@ -69,12 +69,7 @@ public class CourseMapper {
         if (request.getLanguage() != null) {
             course.setLanguage(request.getLanguage());
         }
-        if (request.getCategories() != null) {
-            course.setCategories(normalizeList(request.getCategories(), false));
-        }
-        if (request.getTags() != null) {
-            course.setTags(normalizeList(request.getTags(), true));
-        }
+        // TODO: Update skills/tags mapping here if needed
         if (request.getDiscountPrice() != null || request.getDiscountPrice() == null) {
             course.setDiscountPrice(normalizePrice(request.getDiscountPrice()));
         }

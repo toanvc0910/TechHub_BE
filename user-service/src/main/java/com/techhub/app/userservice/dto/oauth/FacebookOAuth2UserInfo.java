@@ -39,4 +39,8 @@ public class FacebookOAuth2UserInfo extends OAuth2UserInfo {
     public Boolean getEmailVerified() {
         return true; // Facebook emails are considered verified
     }
+
+    public void setEmail(String email) {
+        this.attributes.put("email", email);
+    }
 }

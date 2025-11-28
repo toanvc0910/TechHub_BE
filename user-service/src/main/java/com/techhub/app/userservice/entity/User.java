@@ -2,7 +2,6 @@ package com.techhub.app.userservice.entity;
 
 import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
 import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
-import com.techhub.app.userservice.enums.UserRoleEnum;
 import com.techhub.app.userservice.enums.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -37,7 +36,7 @@ public class User {
     @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "username", unique = true, length = 255)
+    @Column(name = "username", length = 255)
     private String username;
 
     @Column(name = "password_hash", length = 255)
@@ -45,10 +44,6 @@ public class User {
 
     @Column(name = "avatar", length = 500)
     private String avatar;
-
-    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.UserRoleEnum"))
-    @Column(name = "role", nullable = false, columnDefinition = "user_role")
-    private UserRoleEnum role;
 
     @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.UserStatus"))
     @Column(name = "status", columnDefinition = "user_status")
@@ -73,6 +68,9 @@ public class User {
     // Fix: Use the correct UserRole entity for the relationship
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<UserRole> userRoles = new ArrayList<>();
+
+    @Column(name = "login_type", length = 50)
+    private String loginType = "LOCAL";
 
     @PrePersist
     protected void onCreate() {
