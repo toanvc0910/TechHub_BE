@@ -72,3 +72,25 @@ logging:
     com.techhub.app.courseservice: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# WebSocket Configuration
+app:
+  websocket:
+    endpoint: ${WEBSOCKET_ENDPOINT:/ws-comment}
+    sock-js-enabled: ${WEBSOCKET_SOCKJS_ENABLED:true}
+    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:*}
+    application-destination-prefixes:
+      - ${WEBSOCKET_APP_PREFIX:/app}
+    broker-destination-prefixes:
+      - ${WEBSOCKET_BROKER_TOPIC_PREFIX:/topic}
+      - ${WEBSOCKET_BROKER_QUEUE_PREFIX:/queue}
+    user-destination-prefix: ${WEBSOCKET_USER_PREFIX:/user}
+    preserve-publish-order: ${WEBSOCKET_PRESERVE_ORDER:true}
+    # External broker (RabbitMQ STOMP) - optional
+    relay-enabled: ${WEBSOCKET_RELAY_ENABLED:false}
+    relay:
+      host: ${WEBSOCKET_RELAY_HOST:localhost}
+      port: ${WEBSOCKET_RELAY_PORT:61613}
+      login: ${WEBSOCKET_RELAY_LOGIN:guest}
+      passcode: ${WEBSOCKET_RELAY_PASSCODE:guest}
+      virtual-host: ${WEBSOCKET_RELAY_VHOST:/}

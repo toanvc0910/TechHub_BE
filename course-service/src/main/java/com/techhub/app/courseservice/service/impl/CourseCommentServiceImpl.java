@@ -14,6 +14,10 @@ import com.techhub.app.courseservice.repository.CommentRepository;
 import com.techhub.app.courseservice.repository.CourseRepository;
 import com.techhub.app.courseservice.repository.LessonRepository;
 import com.techhub.app.courseservice.service.CourseCommentService;
+import com.techhub.app.courseservice.websocket.service.CommentWebSocketService;
+import com.techhub.app.commonservice.websocket.dto.CommentTargetType;
+import com.techhub.app.commonservice.websocket.dto.CommentWebSocketMessage;
+import com.techhub.app.commonservice.websocket.dto.CommentEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +39,7 @@ public class CourseCommentServiceImpl implements CourseCommentService {
     private final CommentRepository commentRepository;
     private final CourseRepository courseRepository;
     private final LessonRepository lessonRepository;
+    private final CommentWebSocketService webSocketService;
 
     @Override
     @Transactional(readOnly = true)
@@ -69,7 +74,23 @@ public class CourseCommentServiceImpl implements CourseCommentService {
         Comment comment = createComment(request, course.getId(), CommentTarget.COURSE, parent);
         commentRepository.save(comment);
         log.debug("Course comment {} created by {}", comment.getId(), comment.getUserId());
-        return mapToResponse(comment);
+        
+        // Build response
+        CommentResponse response = mapToResponse(comment);
+        
+        // Broadcast via WebSocket
+        CommentWebSocketMessage wsMessage = CommentWebSocketMessage.builder()
+                .eventType(CommentEventType.CREATED)
+                .commentId(comment.getId())
+                .targetId(course.getId())
+                .targetType(CommentTargetType.COURSE)
+                .userId(comment.getUserId())
+                .content(comment.getContent())
+                .createdAt(comment.getCreated())
+                .build();
+        webSocketService.broadcastCommentCreated(wsMessage);
+        
+        return response;
     }
 
     @Override
@@ -87,7 +108,23 @@ public class CourseCommentServiceImpl implements CourseCommentService {
         Comment comment = createComment(request, lesson.getId(), CommentTarget.LESSON, parent);
         commentRepository.save(comment);
         log.debug("Lesson comment {} created by {}", comment.getId(), comment.getUserId());
-        return mapToResponse(comment);
+        
+        // Build response
+        CommentResponse response = mapToResponse(comment);
+        
+        // Broadcast via WebSocket
+        CommentWebSocketMessage wsMessage = CommentWebSocketMessage.builder()
+                .eventType(CommentEventType.CREATED)
+                .commentId(comment.getId())
+                .targetId(lesson.getId())
+                .targetType(CommentTargetType.LESSON)
+                .userId(comment.getUserId())
+                .content(comment.getContent())
+                .createdAt(comment.getCreated())
+                .build();
+        webSocketService.broadcastCommentCreated(wsMessage);
+        
+        return response;
     }
 
     @Override
