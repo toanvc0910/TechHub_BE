@@ -26,43 +26,65 @@ public abstract class AbstractNotificationProcessor implements NotificationProce
     private final NotificationDeliveryService notificationDeliveryService;
 
     protected void dispatch(NotificationCommand command) {
+        log.info("📤 [DISPATCH] ===== START DISPATCH =====");
         if (command == null || CollectionUtils.isEmpty(command.getRecipients())) {
-            log.warn("Skip notification command {} due to missing recipients", command != null ? command.getCommandId() : null);
+            log.warn("📤 [DISPATCH] Skip notification command {} due to missing recipients",
+                    command != null ? command.getCommandId() : null);
             return;
         }
 
         Set<NotificationDeliveryMethod> deliveryMethods = resolveDeliveryMethods(command);
-        command.getRecipients().forEach(recipient -> handleRecipient(command, recipient, deliveryMethods));
+        log.info("📤 [DISPATCH] DeliveryMethods resolved: {}", deliveryMethods);
+        log.info("📤 [DISPATCH] Processing {} recipients", command.getRecipients().size());
+
+        command.getRecipients().forEach(recipient -> {
+            log.info("📤 [DISPATCH] Processing recipient: userId={}, email={}",
+                    recipient.getUserId(), recipient.getEmail());
+            handleRecipient(command, recipient, deliveryMethods);
+        });
+        log.info("📤 [DISPATCH] ===== END DISPATCH =====");
     }
 
     protected void handleRecipient(NotificationCommand command,
-                                   NotificationRecipient recipient,
-                                   Set<NotificationDeliveryMethod> deliveryMethods) {
+            NotificationRecipient recipient,
+            Set<NotificationDeliveryMethod> deliveryMethods) {
+        log.debug("📬 [HANDLE RECIPIENT] Processing deliveryMethods: {}", deliveryMethods);
+
         if (deliveryMethods.contains(NotificationDeliveryMethod.IN_APP)) {
+            log.info("📬 [HANDLE RECIPIENT] Creating IN_APP notification");
             createInAppNotification(command, recipient);
         }
         if (deliveryMethods.contains(NotificationDeliveryMethod.EMAIL)) {
+            log.info("📬 [HANDLE RECIPIENT] Sending EMAIL notification");
             notificationDeliveryService.deliverEmail(command, recipient);
         }
         if (deliveryMethods.contains(NotificationDeliveryMethod.PUSH)) {
-            log.debug("Push notification delivery not implemented yet for {}", command.getCommandId());
+            log.debug("📬 [HANDLE RECIPIENT] Push notification delivery not implemented yet for {}",
+                    command.getCommandId());
         }
     }
 
     protected void createInAppNotification(NotificationCommand command, NotificationRecipient recipient) {
+        log.info("💾 [IN_APP] ===== CREATING IN_APP NOTIFICATION =====");
         UUID userId = recipient != null ? recipient.getUserId() : null;
         if (userId == null) {
-            log.debug("Skip in-app notification for command {} due to missing user id", command.getCommandId());
+            log.warn("💾 [IN_APP] Skip in-app notification for command {} due to missing user id",
+                    command.getCommandId());
             return;
         }
 
+        log.info("💾 [IN_APP] Building notification for userId: {}", userId);
         Notification notification = buildNotification(command, recipient);
         notification.setUserId(userId);
         notification.setSentAt(OffsetDateTime.now());
         notification.setMetadata(mergeMetadata(command.getMetadata(), recipient));
         notification.setMessage(resolveMessage(command, recipient));
 
-        notificationService.createNotification(notification);
+        log.info("💾 [IN_APP] Saving notification: type={}, title={}, message={}",
+                notification.getType(), notification.getTitle(), notification.getMessage());
+
+        Notification saved = notificationService.createNotification(notification);
+        log.info("💾 [IN_APP] ✅ Notification saved with id: {}", saved.getId());
     }
 
     protected Notification buildNotification(NotificationCommand command, NotificationRecipient recipient) {

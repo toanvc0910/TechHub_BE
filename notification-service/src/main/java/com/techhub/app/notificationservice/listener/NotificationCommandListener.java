@@ -15,17 +15,24 @@ public class NotificationCommandListener {
 
     private final NotificationProcessingService notificationProcessingService;
 
-    @KafkaListener(
-            topics = "${kafka.topics.notification:notification-commands}",
-            containerFactory = "kafkaListenerContainerFactory"
-    )
+    @KafkaListener(topics = "${kafka.topics.notification:notification-commands}", containerFactory = "kafkaListenerContainerFactory")
     public void onMessage(NotificationCommand command, Acknowledgment acknowledgment) {
+        log.info("📨 [KAFKA LISTENER] ===== RECEIVED NOTIFICATION COMMAND =====");
+        log.info("📨 [KAFKA LISTENER] CommandId: {}", command.getCommandId());
+        log.info("📨 [KAFKA LISTENER] Type: {}, Title: {}", command.getType(), command.getTitle());
+        log.info("📨 [KAFKA LISTENER] DeliveryMethods: {}", command.getDeliveryMethods());
+        log.info("📨 [KAFKA LISTENER] Recipients: {}", command.getRecipients());
+        log.info("📨 [KAFKA LISTENER] Metadata: {}", command.getMetadata());
+
         try {
-            log.debug("Received notification command {}", command.getCommandId());
+            log.debug("📨 [KAFKA LISTENER] Starting to process command...");
             notificationProcessingService.process(command);
             acknowledgment.acknowledge();
+            log.info("📨 [KAFKA LISTENER] ✅ Command processed and acknowledged successfully");
         } catch (Exception ex) {
-            log.error("Failed to process notification command {}", command.getCommandId(), ex);
+            log.error("📨 [KAFKA LISTENER] ❌ Failed to process notification command {}: {}",
+                    command.getCommandId(), ex.getMessage(), ex);
         }
+        log.info("📨 [KAFKA LISTENER] ===== END =====");
     }
 }

@@ -16,13 +16,20 @@ public class NotificationProcessingService {
     private final List<NotificationProcessor> processors;
 
     public void process(NotificationCommand command) {
+        log.info("⚙️ [PROCESSING SERVICE] ===== START PROCESSING =====");
+        log.info("⚙️ [PROCESSING SERVICE] Command type: {}, Available processors: {}",
+                command.getType(), processors.size());
+
         for (NotificationProcessor processor : processors) {
+            log.debug("⚙️ [PROCESSING SERVICE] Checking processor: {}", processor.getClass().getSimpleName());
             if (processor.supports(command)) {
-                log.debug("Processing notification command {} with processor {}", command.getCommandId(), processor.getClass().getSimpleName());
+                log.info("⚙️ [PROCESSING SERVICE] ✅ Found matching processor: {}",
+                        processor.getClass().getSimpleName());
                 processor.process(command);
+                log.info("⚙️ [PROCESSING SERVICE] ✅ Processing completed by {}", processor.getClass().getSimpleName());
                 return;
             }
         }
-        log.warn("No notification processor could handle command {}", command.getCommandId());
+        log.warn("⚙️ [PROCESSING SERVICE] ⚠️ No processor could handle command type: {}", command.getType());
     }
 }

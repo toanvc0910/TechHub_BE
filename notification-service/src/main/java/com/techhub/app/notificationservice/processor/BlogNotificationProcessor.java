@@ -6,6 +6,7 @@ import com.techhub.app.commonservice.kafka.event.notification.NotificationType;
 import com.techhub.app.notificationservice.entity.Notification;
 import com.techhub.app.notificationservice.service.NotificationDeliveryService;
 import com.techhub.app.notificationservice.service.NotificationService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -15,23 +16,36 @@ import java.util.Map;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
+@Slf4j
 public class BlogNotificationProcessor extends AbstractNotificationProcessor {
 
     private static final String DEFAULT_TITLE = "Blog update";
 
     public BlogNotificationProcessor(NotificationService notificationService,
-                                     NotificationDeliveryService notificationDeliveryService) {
+            NotificationDeliveryService notificationDeliveryService) {
         super(notificationService, notificationDeliveryService);
     }
 
     @Override
     public boolean supports(NotificationCommand command) {
-        return command != null && command.getType() == NotificationType.BLOG;
+        boolean supports = command != null && command.getType() == NotificationType.BLOG;
+        log.debug("📝 [BLOG PROCESSOR] supports() check: type={}, result={}",
+                command != null ? command.getType() : "null", supports);
+        return supports;
     }
 
     @Override
     public void process(NotificationCommand command) {
+        log.info("📝 [BLOG PROCESSOR] ===== PROCESSING BLOG NOTIFICATION =====");
+        log.info("📝 [BLOG PROCESSOR] CommandId: {}, Title: {}", command.getCommandId(), command.getTitle());
+        log.info("📝 [BLOG PROCESSOR] Recipients count: {}",
+                command.getRecipients() != null ? command.getRecipients().size() : 0);
+        log.info("📝 [BLOG PROCESSOR] DeliveryMethods: {}", command.getDeliveryMethods());
+        log.info("📝 [BLOG PROCESSOR] Metadata: {}", command.getMetadata());
+
         dispatch(command);
+
+        log.info("📝 [BLOG PROCESSOR] ✅ Blog notification dispatched successfully");
     }
 
     @Override

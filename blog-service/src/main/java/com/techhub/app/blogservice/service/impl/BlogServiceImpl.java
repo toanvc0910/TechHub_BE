@@ -87,7 +87,11 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     public BlogResponse createBlog(BlogRequest request) {
+        log.debug("📝 [CREATE BLOG] ===== START =====");
+        log.debug("📝 [CREATE BLOG] Request: title={}, status={}", request.getTitle(), request.getStatus());
+
         UUID currentUserId = requireUser();
+        log.debug("📝 [CREATE BLOG] Current user: {}", currentUserId);
 
         Blog blog = blogMapper.toEntity(request);
         blog.setAuthorId(currentUserId);
@@ -95,23 +99,39 @@ public class BlogServiceImpl implements BlogService {
         blog.setUpdatedBy(currentUserId);
 
         Blog saved = blogRepository.save(blog);
-        log.info("Blog {} created by {}", saved.getId(), currentUserId);
+        log.info("📝 [CREATE BLOG] Blog {} created by {}, status={}", saved.getId(), currentUserId, saved.getStatus());
+
+        log.debug("📝 [CREATE BLOG] Calling notifyPublicationIfNecessary with previousStatus=null");
         notifyPublicationIfNecessary(saved, null);
+
+        log.debug("📝 [CREATE BLOG] ===== END =====");
         return blogMapper.toResponse(saved);
     }
 
     @Override
     public BlogResponse updateBlog(UUID blogId, BlogRequest request) {
+        log.debug("📝 [UPDATE BLOG] ===== START =====");
+        log.debug("📝 [UPDATE BLOG] BlogId: {}, Request: title={}, status={}", blogId, request.getTitle(),
+                request.getStatus());
+
         Blog blog = getActiveBlog(blogId);
         ensureCanModify(blog);
 
         BlogStatus previousStatus = blog.getStatus();
+        log.debug("📝 [UPDATE BLOG] Previous status: {}, New status from request: {}", previousStatus,
+                request.getStatus());
+
         blogMapper.applyRequest(blog, request);
         blog.setUpdatedBy(UserContext.getCurrentUserId());
 
         Blog saved = blogRepository.save(blog);
-        log.info("Blog {} updated", blogId);
+        log.info("📝 [UPDATE BLOG] Blog {} updated, previousStatus={}, newStatus={}", blogId, previousStatus,
+                saved.getStatus());
+
+        log.debug("📝 [UPDATE BLOG] Calling notifyPublicationIfNecessary");
         notifyPublicationIfNecessary(saved, previousStatus);
+
+        log.debug("📝 [UPDATE BLOG] ===== END =====");
         return blogMapper.toResponse(saved);
     }
 
@@ -182,15 +202,28 @@ public class BlogServiceImpl implements BlogService {
     }
 
     private void notifyPublicationIfNecessary(Blog blog, BlogStatus previousStatus) {
+        log.debug("🔔 [NOTIFY] ===== notifyPublicationIfNecessary START =====");
+        log.debug("🔔 [NOTIFY] Blog: id={}, status={}, previousStatus={}",
+                blog != null ? blog.getId() : "null",
+                blog != null ? blog.getStatus() : "null",
+                previousStatus);
+
         if (blog == null || blog.getStatus() != BlogStatus.PUBLISHED) {
+            log.debug("🔔 [NOTIFY] SKIP: Blog is null or status is not PUBLISHED (current={})",
+                    blog != null ? blog.getStatus() : "null");
             return;
         }
         if (previousStatus == BlogStatus.PUBLISHED) {
+            log.debug("🔔 [NOTIFY] SKIP: previousStatus was already PUBLISHED");
             return;
         }
+
+        log.info("🔔 [NOTIFY] ✅ SENDING notification for blog: {} (title={})", blog.getId(), blog.getTitle());
+
         NotificationRecipient recipient = NotificationRecipient.builder()
                 .userId(blog.getAuthorId())
                 .build();
+        log.debug("🔔 [NOTIFY] Recipient: userId={}", blog.getAuthorId());
 
         NotificationCommand command = NotificationCommand.builder()
                 .type(NotificationType.BLOG)
@@ -204,6 +237,11 @@ public class BlogServiceImpl implements BlogService {
                         "authorId", blog.getAuthorId()))
                 .build();
 
+        log.debug("🔔 [NOTIFY] NotificationCommand: type={}, title={}, deliveryMethods={}",
+                command.getType(), command.getTitle(), command.getDeliveryMethods());
+
         notificationCommandPublisher.publish(command);
+        log.info("🔔 [NOTIFY] ✅ Notification published to Kafka topic");
+        log.debug("🔔 [NOTIFY] ===== notifyPublicationIfNecessary END =====");
     }
 }

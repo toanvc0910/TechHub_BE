@@ -493,6 +493,20 @@ public class DatabaseInitializer implements CommandLineRunner {
                         Permission qdrantStatsPerm = createPermission("AI_QDRANT_STATS", "Qdrant stats",
                                         "/api/ai/admin/qdrant-stats", PermissionMethod.POST, "AI");
 
+                        // ==================== NOTIFICATION SERVICES ====================
+                        Permission getNotificationsPerm = createPermission("NOTIFICATION_READ_ALL",
+                                        "Get all notifications",
+                                        "/api/v1/notifications", PermissionMethod.GET, "NOTIFICATIONS");
+                        Permission getUnreadCountPerm = createPermission("NOTIFICATION_UNREAD_COUNT",
+                                        "Get unread notification count",
+                                        "/api/v1/notifications/count/unread", PermissionMethod.GET, "NOTIFICATIONS");
+                        Permission markNotificationReadPerm = createPermission("NOTIFICATION_MARK_READ",
+                                        "Mark notification as read",
+                                        "/api/v1/notifications/{id}/read", PermissionMethod.PUT, "NOTIFICATIONS");
+                        Permission markAllNotificationsReadPerm = createPermission("NOTIFICATION_MARK_ALL_READ",
+                                        "Mark all notifications as read",
+                                        "/api/v1/notifications/read", PermissionMethod.PUT, "NOTIFICATIONS");
+
                         // ==================== PAYMENT SERVICES ====================
                         Permission createVnPayPaymentPerm = createPermission("PAYMENT_VNPAY_CREATE",
                                         "Create VNPay payment",
@@ -600,6 +614,9 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         recommendScheduledPerm,
                                         aiChatPerm, reindexCoursesPerm, reindexLessonsPerm, reindexAllPerm,
                                         qdrantStatsPerm,
+                                        // Notification Services
+                                        getNotificationsPerm, getUnreadCountPerm, markNotificationReadPerm,
+                                        markAllNotificationsReadPerm,
                                         // Payment Services
                                         createVnPayPaymentPerm, vnPayCallbackPerm, createPayPalPaymentPerm,
                                         payPalSuccessPerm, payPalCancelPerm,
@@ -673,7 +690,10 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "FILE_USAGE_READ",
                                         // AI - Use AI features
                                         "AI_GENERATE_EXERCISES", "AI_GENERATE_LEARNING_PATH", "AI_RECOMMEND_REALTIME",
-                                        "AI_RECOMMEND_SCHEDULED", "AI_CHAT"
+                                        "AI_RECOMMEND_SCHEDULED", "AI_CHAT",
+                                        // Notifications
+                                        "NOTIFICATION_READ_ALL", "NOTIFICATION_UNREAD_COUNT", "NOTIFICATION_MARK_READ",
+                                        "NOTIFICATION_MARK_ALL_READ"
                         };
                         assignPermissionsByCode(instructorRole.getId(), permissions, instructorPermissions);
                         System.out.println("✅ INSTRUCTOR role assigned " + instructorPermissions.length
@@ -714,7 +734,10 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "FOLDER_DELETE",
                                         "FILE_USAGE_TRACK", "FILE_USAGE_REMOVE", "FILE_USAGE_READ",
                                         // AI - Basic AI features
-                                        "AI_RECOMMEND_REALTIME", "AI_CHAT"
+                                        "AI_RECOMMEND_REALTIME", "AI_CHAT",
+                                        // Notifications
+                                        "NOTIFICATION_READ_ALL", "NOTIFICATION_UNREAD_COUNT", "NOTIFICATION_MARK_READ",
+                                        "NOTIFICATION_MARK_ALL_READ"
                         };
                         assignPermissionsByCode(learnerRole.getId(), permissions, learnerPermissions);
                         System.out.println(
