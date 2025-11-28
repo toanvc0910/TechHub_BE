@@ -484,6 +484,17 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "/api/ai/recommendations/scheduled", PermissionMethod.POST, "AI");
                         Permission aiChatPerm = createPermission("AI_CHAT", "AI Chat", "/api/ai/chat/messages",
                                         PermissionMethod.POST, "AI");
+                        Permission aiChatSessionsPerm = createPermission("AI_CHAT_SESSIONS", "Get AI Chat Sessions",
+                                        "/api/ai/chat/sessions", PermissionMethod.GET, "AI");
+                        Permission aiChatSessionCreatePerm = createPermission("AI_CHAT_SESSION_CREATE",
+                                        "Create AI Chat Session",
+                                        "/api/ai/chat/sessions", PermissionMethod.POST, "AI");
+                        Permission aiChatSessionDetailPerm = createPermission("AI_CHAT_SESSION_DETAIL",
+                                        "Get AI Chat Session Detail",
+                                        "/api/ai/chat/sessions/{sessionId}", PermissionMethod.GET, "AI");
+                        Permission aiChatSessionDeletePerm = createPermission("AI_CHAT_SESSION_DELETE",
+                                        "Delete AI Chat Session",
+                                        "/api/ai/chat/sessions/{sessionId}", PermissionMethod.DELETE, "AI");
                         Permission reindexCoursesPerm = createPermission("AI_REINDEX_COURSES", "Reindex courses",
                                         "/api/ai/admin/reindex-courses", PermissionMethod.POST, "AI");
                         Permission reindexLessonsPerm = createPermission("AI_REINDEX_LESSONS", "Reindex lessons",
@@ -612,7 +623,9 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         // AI Services
                                         generateExercisesPerm, generateLearningPathPerm, recommendRealtimePerm,
                                         recommendScheduledPerm,
-                                        aiChatPerm, reindexCoursesPerm, reindexLessonsPerm, reindexAllPerm,
+                                        aiChatPerm, aiChatSessionsPerm, aiChatSessionCreatePerm,
+                                        aiChatSessionDetailPerm, aiChatSessionDeletePerm,
+                                        reindexCoursesPerm, reindexLessonsPerm, reindexAllPerm,
                                         qdrantStatsPerm,
                                         // Notification Services
                                         getNotificationsPerm, getUnreadCountPerm, markNotificationReadPerm,
@@ -644,10 +657,9 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "USER_READ_ALL", "USER_READ", "USER_PROFILE", "USER_READ_EMAIL",
                                         "USER_READ_USERNAME",
                                         "USER_CHANGE_PASSWORD",
-                                        // Blog - Full CRUD
-                                        "BLOG_CREATE", "BLOG_READ_ALL", "BLOG_READ", "BLOG_UPDATE", "BLOG_DELETE",
-                                        "BLOG_TAGS",
-                                        "BLOG_COMMENT_READ", "BLOG_COMMENT_CREATE", "BLOG_COMMENT_DELETE",
+                                        // Blog - Read and comment only (no management)
+                                        "BLOG_READ_ALL", "BLOG_READ", "BLOG_TAGS",
+                                        "BLOG_COMMENT_READ", "BLOG_COMMENT_CREATE",
                                         // Course - Full CRUD
                                         "COURSE_CREATE", "COURSE_READ_ALL", "COURSE_READ", "COURSE_UPDATE",
                                         "COURSE_DELETE",
@@ -669,6 +681,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "COURSE_TAG_CREATE", "COURSE_TAG_READ", "COURSE_TAG_READ_ALL",
                                         "COURSE_TAG_UPDATE",
                                         "COURSE_TAG_DELETE",
+                                        // Enrollment - Full access
+                                        "ENROLLMENT_CREATE", "ENROLLMENT_READ", "ENROLLMENT_MY_ENROLLMENTS",
                                         // Learning Path - Full CRUD
                                         "LEARNING_PATH_CREATE", "LEARNING_PATH_READ_ALL", "LEARNING_PATH_READ",
                                         "LEARNING_PATH_UPDATE",
@@ -690,10 +704,17 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "FILE_USAGE_READ",
                                         // AI - Use AI features
                                         "AI_GENERATE_EXERCISES", "AI_GENERATE_LEARNING_PATH", "AI_RECOMMEND_REALTIME",
-                                        "AI_RECOMMEND_SCHEDULED", "AI_CHAT",
+                                        "AI_RECOMMEND_SCHEDULED", "AI_CHAT", "AI_CHAT_SESSIONS",
+                                        "AI_CHAT_SESSION_CREATE",
+                                        "AI_CHAT_SESSION_DETAIL", "AI_CHAT_SESSION_DELETE",
                                         // Notifications
                                         "NOTIFICATION_READ_ALL", "NOTIFICATION_UNREAD_COUNT", "NOTIFICATION_MARK_READ",
-                                        "NOTIFICATION_MARK_ALL_READ"
+                                        "NOTIFICATION_MARK_ALL_READ",
+                                        // Payment - Full access
+                                        "PAYMENT_VNPAY_CREATE", "PAYMENT_VNPAY_CALLBACK", "PAYMENT_PAYPAL_CREATE",
+                                        "PAYMENT_PAYPAL_SUCCESS", "PAYMENT_PAYPAL_CANCEL",
+                                        // Transaction - Read own transactions
+                                        "TRANSACTION_READ_BY_USER", "TRANSACTION_READ", "TRANSACTION_PAYMENTS_READ"
                         };
                         assignPermissionsByCode(instructorRole.getId(), permissions, instructorPermissions);
                         System.out.println("✅ INSTRUCTOR role assigned " + instructorPermissions.length
@@ -719,25 +740,31 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "COURSE_WORKSPACE_READ", "COURSE_WORKSPACE_SAVE",
                                         "COURSE_SKILL_READ", "COURSE_SKILL_READ_ALL", "COURSE_TAG_READ",
                                         "COURSE_TAG_READ_ALL",
+                                        // Enrollment - Full access
+                                        "ENROLLMENT_CREATE", "ENROLLMENT_READ", "ENROLLMENT_MY_ENROLLMENTS",
                                         // Learning Path - Read and track progress
                                         "LEARNING_PATH_READ_ALL", "LEARNING_PATH_READ", "LEARNING_PATH_SEARCH",
                                         "LEARNING_PATH_BY_CREATOR", "LEARNING_PATH_BY_COURSE",
                                         "LEARNING_PATH_PROGRESS_UPSERT", "LEARNING_PATH_PROGRESS_READ",
                                         "LEARNING_PATH_PROGRESS_BY_USER",
                                         "LEARNING_PATH_STATISTICS",
-                                        // File - Own files only
+                                        // File - Upload and read only (no delete/update)
                                         "FILE_UPLOAD", "FILE_UPLOAD_MULTIPLE", "FILE_READ", "FILE_READ_ALL",
                                         "FILE_READ_BY_FOLDER",
-                                        "FILE_DELETE", "FILE_STATISTICS",
-                                        "FOLDER_CREATE", "FOLDER_READ_BY_USER", "FOLDER_READ", "FOLDER_READ_TREE",
-                                        "FOLDER_UPDATE",
-                                        "FOLDER_DELETE",
-                                        "FILE_USAGE_TRACK", "FILE_USAGE_REMOVE", "FILE_USAGE_READ",
+                                        "FOLDER_READ_BY_USER", "FOLDER_READ", "FOLDER_READ_TREE",
+                                        "FILE_USAGE_READ",
                                         // AI - Basic AI features
-                                        "AI_RECOMMEND_REALTIME", "AI_CHAT",
+                                        "AI_RECOMMEND_REALTIME", "AI_CHAT", "AI_CHAT_SESSIONS",
+                                        "AI_CHAT_SESSION_CREATE",
+                                        "AI_CHAT_SESSION_DETAIL", "AI_CHAT_SESSION_DELETE",
                                         // Notifications
                                         "NOTIFICATION_READ_ALL", "NOTIFICATION_UNREAD_COUNT", "NOTIFICATION_MARK_READ",
-                                        "NOTIFICATION_MARK_ALL_READ"
+                                        "NOTIFICATION_MARK_ALL_READ",
+                                        // Payment - Full access
+                                        "PAYMENT_VNPAY_CREATE", "PAYMENT_VNPAY_CALLBACK", "PAYMENT_PAYPAL_CREATE",
+                                        "PAYMENT_PAYPAL_SUCCESS", "PAYMENT_PAYPAL_CANCEL",
+                                        // Transaction - Read own transactions
+                                        "TRANSACTION_READ_BY_USER", "TRANSACTION_READ", "TRANSACTION_PAYMENTS_READ"
                         };
                         assignPermissionsByCode(learnerRole.getId(), permissions, learnerPermissions);
                         System.out.println(
