@@ -176,6 +176,23 @@ services:
       service-discovery-container:
         condition: service_healthy
     restart: always
+  
+  ai-service-container:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    image: toandeptroai/ai-service:0.1.0
+    container_name: ai-service-container
+    ports:
+      - 8091:8091
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - do-an-net
+    depends_on:
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
 
 networks:
   do-an-net:

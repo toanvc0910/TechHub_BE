@@ -15,6 +15,7 @@ import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,7 @@ public class BlogCommentServiceImpl implements BlogCommentService {
 
     private final BlogRepository blogRepository;
     private final BlogCommentRepository blogCommentRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Transactional(readOnly = true)
@@ -67,7 +69,16 @@ public class BlogCommentServiceImpl implements BlogCommentService {
 
         BlogComment saved = blogCommentRepository.save(comment);
         log.info("Comment {} created on blog {} by {}", saved.getId(), blogId, currentUserId);
-        return toResponse(saved, new ArrayList<>());
+        
+        // Build response
+        CommentResponse response = toResponse(saved, new ArrayList<>());
+        
+        // Broadcast to all subscribers via WebSocket
+        String destination = "/topic/blog/" + blogId + "/comments";
+        log.info(">>> Broadcasting new comment to WebSocket: {}", destination);
+        messagingTemplate.convertAndSend(destination, response);
+        
+        return response;
     }
 
     @Override
