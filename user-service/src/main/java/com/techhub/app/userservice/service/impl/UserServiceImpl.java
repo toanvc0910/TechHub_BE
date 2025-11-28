@@ -103,6 +103,30 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public void resendVerificationCode(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
+
+        if (Boolean.FALSE.equals(user.getIsActive())) {
+            throw new ForbiddenException("Account has been deactivated");
+        }
+        if (user.getStatus() == UserStatus.BANNED) {
+            throw new ForbiddenException("Account has been banned");
+        }
+        if (user.getStatus() == UserStatus.ACTIVE) {
+            throw new ConflictException("Account already verified");
+        }
+
+        // Generate new OTP and send email
+        String otp = otpService.generateOTP();
+        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.REGISTER);
+        emailService.sendOTPEmail(user.getEmail(), otp, OTPTypeEnum.REGISTER.name());
+
+        log.info("Verification code resent to user {}", user.getEmail());
+    }
+
+    @Override
+    @Transactional
     public UserResponse createUser(CreateUserRequest request) {
         User user = prepareUserForCreation(request, UserStatus.ACTIVE);
         boolean reactivated = user.getId() != null && userRepository.existsById(user.getId());
@@ -222,6 +246,20 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public void resendResetPasswordCode(String email) {
+        User user = userRepository.findByEmailAndIsActiveTrue(email)
+                .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
+
+        // Generate new OTP and send email
+        String otp = otpService.generateOTP();
+        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.RESET);
+        emailService.sendPasswordResetEmail(user.getEmail(), otp);
+
+        log.info("Password reset OTP resent to user {}", user.getEmail());
+    }
+
+    @Override
+    @Transactional
     public void resetPassword(String email, ResetPasswordRequest request) {
         User user = userRepository.findByEmailAndIsActiveTrue(email)
                 .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
@@ -304,6 +342,20 @@ public class UserServiceImpl implements UserService {
     @Override
     public long countUsersByStatus(UserStatus status) {
         return userRepository.countByStatusAndIsActiveTrue(status);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponse> getInstructorsByRole(String roleName, Pageable pageable) {
+        log.info("Fetching instructors with role: {}", roleName);
+
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new NotFoundException("Role not found: " + roleName));
+
+        Page<User> instructors = userRepository.findByUserRolesRoleAndIsActiveTrueAndStatus(role, UserStatus.ACTIVE,
+                pageable);
+
+        return instructors.map(this::convertToUserResponse);
     }
 
     private User prepareUserForCreation(CreateUserRequest request, UserStatus status) {

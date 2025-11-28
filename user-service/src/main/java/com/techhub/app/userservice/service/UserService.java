@@ -20,6 +20,8 @@ public interface UserService {
 
     UserResponse verifyUserRegistration(VerifyEmailRequest request);
 
+    void resendVerificationCode(String email);
+
     UserResponse createUser(CreateUserRequest request);
 
     UserResponse getUserById(UUID userId);
@@ -36,6 +38,8 @@ public interface UserService {
 
     void forgotPassword(ForgotPasswordRequest request);
 
+    void resendResetPasswordCode(String email);
+
     void resetPassword(String email, ResetPasswordRequest request);
 
     void activateUser(UUID userId);
@@ -49,6 +53,8 @@ public interface UserService {
     Page<UserResponse> getUsersByStatus(UserStatus status, Pageable pageable);
 
     Page<UserResponse> searchUsers(String keyword, Pageable pageable);
+
+    Page<UserResponse> getInstructorsByRole(String roleName, Pageable pageable);
 
     boolean existsByEmail(String email);
 

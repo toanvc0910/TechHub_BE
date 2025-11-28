@@ -4,6 +4,7 @@ import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.userservice.dto.request.CreateUserRequest;
 import com.techhub.app.userservice.dto.request.LoginRequest;
+import com.techhub.app.userservice.dto.request.ResendCodeRequest;
 import com.techhub.app.userservice.dto.request.VerifyEmailRequest;
 import com.techhub.app.userservice.dto.response.AuthResponse;
 import com.techhub.app.userservice.dto.response.UserResponse;
@@ -29,63 +30,77 @@ import javax.validation.Valid;
 @Slf4j
 public class AuthController {
 
-    private final AuthService authService;
-    private final UserService userService;
+        private final AuthService authService;
+        private final UserService userService;
 
-    @PostMapping("/register")
-    public ResponseEntity<GlobalResponse<UserResponse>> register(@Valid @RequestBody CreateUserRequest request,
-                                                                 HttpServletRequest httpRequest) {
-        log.info("Register request for email: {}", request.getEmail());
-        UserResponse userResponse = userService.registerUser(request);
+        @PostMapping("/register")
+        public ResponseEntity<GlobalResponse<UserResponse>> register(@Valid @RequestBody CreateUserRequest request,
+                        HttpServletRequest httpRequest) {
+                log.info("Register request for email: {}", request.getEmail());
+                UserResponse userResponse = userService.registerUser(request);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(GlobalResponse.success("Registration initiated. Please verify your email.", userResponse)
-                        .withStatus("REGISTER_PENDING")
-                        .withPath(httpRequest.getRequestURI()));
-    }
-
-    @PostMapping("/verify-email")
-    public ResponseEntity<GlobalResponse<UserResponse>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request,
-                                                                    HttpServletRequest httpRequest) {
-        log.info("Email verification requested for {}", request.getEmail());
-        UserResponse userResponse = userService.verifyUserRegistration(request);
-
-        return ResponseEntity.ok(
-                GlobalResponse.success("Email verified successfully", userResponse)
-                        .withStatus("REGISTER_VERIFIED")
-                        .withPath(httpRequest.getRequestURI()));
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<GlobalResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request,
-                                                              HttpServletRequest httpRequest) {
-        log.info("Login request for email: {}", request.getEmail());
-        AuthResponse authResponse = authService.authenticate(request);
-
-        return ResponseEntity.ok(
-                GlobalResponse.success("Login successful", authResponse)
-                        .withPath(httpRequest.getRequestURI()));
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<GlobalResponse<String>> logout(@RequestHeader("Authorization") String authHeader,
-                                                         HttpServletRequest httpRequest) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new BadRequestException("Authorization header must contain a Bearer token");
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(GlobalResponse
+                                                .success("Registration initiated. Please verify your email.",
+                                                                userResponse)
+                                                .withStatus("REGISTER_PENDING")
+                                                .withPath(httpRequest.getRequestURI()));
         }
 
-        String token = authHeader.substring(7);
-        authService.logout(token);
+        @PostMapping("/verify-email")
+        public ResponseEntity<GlobalResponse<UserResponse>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request,
+                        HttpServletRequest httpRequest) {
+                log.info("Email verification requested for {}", request.getEmail());
+                UserResponse userResponse = userService.verifyUserRegistration(request);
 
-        return ResponseEntity.ok(
-                GlobalResponse.success("Logout successful", "User logged out successfully")
-                        .withPath(httpRequest.getRequestURI()));
-    }
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Email verified successfully", userResponse)
+                                                .withStatus("REGISTER_VERIFIED")
+                                                .withPath(httpRequest.getRequestURI()));
+        }
 
-    @GetMapping("/health")
-    public ResponseEntity<GlobalResponse<String>> health(HttpServletRequest httpRequest) {
-        return ResponseEntity.ok(
-                GlobalResponse.success("User service is running", "OK")
-                        .withPath(httpRequest.getRequestURI()));
-    }
+        @PostMapping("/resend-code")
+        public ResponseEntity<GlobalResponse<String>> resendVerificationCode(
+                        @Valid @RequestBody ResendCodeRequest request,
+                        HttpServletRequest httpRequest) {
+                log.info("Resend verification code requested for {}", request.getEmail());
+                userService.resendVerificationCode(request.getEmail());
+
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Verification code resent successfully", "Code sent to email")
+                                                .withPath(httpRequest.getRequestURI()));
+        }
+
+        @PostMapping("/login")
+        public ResponseEntity<GlobalResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request,
+                        HttpServletRequest httpRequest) {
+                log.info("Login request for email: {}", request.getEmail());
+                AuthResponse authResponse = authService.authenticate(request);
+
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Login successful", authResponse)
+                                                .withPath(httpRequest.getRequestURI()));
+        }
+
+        @PostMapping("/logout")
+        public ResponseEntity<GlobalResponse<String>> logout(@RequestHeader("Authorization") String authHeader,
+                        HttpServletRequest httpRequest) {
+                if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                        throw new BadRequestException("Authorization header must contain a Bearer token");
+                }
+
+                String token = authHeader.substring(7);
+                authService.logout(token);
+
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Logout successful", "User logged out successfully")
+                                                .withPath(httpRequest.getRequestURI()));
+        }
+
+        @GetMapping("/health")
+        public ResponseEntity<GlobalResponse<String>> health(HttpServletRequest httpRequest) {
+                return ResponseEntity.ok(
+                                GlobalResponse.success("User service is running", "OK")
+                                                .withPath(httpRequest.getRequestURI()));
+        }
 }

@@ -41,7 +41,8 @@ public class UserContextInterceptor implements HandlerInterceptor {
 
         // Validate that request comes from proxy-client or other internal services
         if (!"proxy-client".equals(requestSource) && !isInternalService(requestSource)) {
-            log.warn("Request not from proxy-client or internal service - URI: {} {}, Source: {}", method, requestURI, requestSource);
+            log.warn("Request not from proxy-client or internal service - URI: {} {}, Source: {}", method, requestURI,
+                    requestSource);
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return false;
         }
@@ -50,8 +51,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
         if (userIdStr != null && userEmail != null) {
             try {
                 UUID userId = UUID.fromString(userIdStr);
-                List<String> roles = userRoles != null ?
-                    Arrays.asList(userRoles.split(",")) : Arrays.asList();
+                List<String> roles = userRoles != null ? Arrays.asList(userRoles.split(",")) : Arrays.asList();
 
                 // Set user context in request attributes
                 request.setAttribute("currentUserId", userId);
@@ -59,7 +59,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 request.setAttribute("currentUserRoles", roles);
 
                 log.debug("User context set - ID: {}, Email: {}, Roles: {} for {} {}",
-                    userId, userEmail, roles, method, requestURI);
+                        userId, userEmail, roles, method, requestURI);
 
                 return true;
             } catch (Exception e) {
@@ -77,31 +77,32 @@ public class UserContextInterceptor implements HandlerInterceptor {
 
     private boolean isPublicEndpoint(String uri) {
         return uri.startsWith("/actuator/") ||
-               uri.startsWith("/swagger-ui/") ||
-               uri.startsWith("/v3/api-docs/") ||
-               uri.equals("/health") ||
-               uri.equals("/api/health") ||
-               // Auth endpoints should be public (handled by proxy-client)
-               uri.startsWith("/api/auth/") ||
-               // User registration endpoint
-               (uri.equals("/api/users") && "POST".equals("POST")) ||
-               // Password reset endpoints
-               uri.startsWith("/api/users/forgot-password") ||
-               uri.startsWith("/api/users/reset-password/") ||
-               // OAuth2 endpoints
-               uri.startsWith("/oauth2/");
+                uri.startsWith("/swagger-ui/") ||
+                uri.startsWith("/v3/api-docs/") ||
+                uri.equals("/health") ||
+                uri.equals("/api/health") ||
+                // Auth endpoints should be public (handled by proxy-client)
+                uri.startsWith("/api/auth/") ||
+                // User registration endpoint
+                (uri.equals("/api/users") && "POST".equals("POST")) ||
+                // Password reset endpoints
+                uri.startsWith("/api/users/forgot-password") ||
+                uri.startsWith("/api/users/reset-password/") ||
+                uri.startsWith("/api/users/resend-reset-code/") ||
+                // Public user endpoints
+                uri.startsWith("/api/users/public/") ||
+                // OAuth2 endpoints
+                uri.startsWith("/oauth2/");
     }
 
     private boolean isInternalService(String requestSource) {
         // Allow requests from internal microservices
-        return requestSource != null && (
-            requestSource.equals("payment-service") ||
-            requestSource.equals("course-service") ||
-            requestSource.equals("user-service") ||
-            requestSource.equals("notification-service") ||
-            requestSource.equals("learning-path-service") ||
-            requestSource.equals("blog-service") ||
-            requestSource.equals("file-service")
-        );
+        return requestSource != null && (requestSource.equals("payment-service") ||
+                requestSource.equals("course-service") ||
+                requestSource.equals("user-service") ||
+                requestSource.equals("notification-service") ||
+                requestSource.equals("learning-path-service") ||
+                requestSource.equals("blog-service") ||
+                requestSource.equals("file-service"));
     }
 }
