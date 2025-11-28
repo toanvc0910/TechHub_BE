@@ -34,11 +34,14 @@ public class ChatStreamingController {
                                 request.getUserId(), request.getSessionId(), request.getMessage());
 
                 return chatStreamingService.sendStreamingMessage(request)
-                                .doOnNext(chunk -> log.info("📦 [AI-SERVICE] Emitting chunk: {}", chunk))
+                                .doOnNext(chunk -> log.info("📦 [AI-SERVICE] Emitting chunk: '{}'", chunk))
                                 .map(chunk -> {
+                                        // Wrap content in a JSON object to preserve leading/trailing spaces
+                                        // SSE data field may trim whitespace, so we use JSON encoding
+                                        String jsonData = "{\"content\":\"" + escapeJsonString(chunk) + "\"}";
                                         ServerSentEvent<String> sse = ServerSentEvent.<String>builder()
                                                         .event("message")
-                                                        .data(chunk)
+                                                        .data(jsonData)
                                                         .build();
                                         log.info("📤 [AI-SERVICE] Built SSE: event={}, data={}", sse.event(),
                                                         sse.data());
@@ -56,6 +59,19 @@ public class ChatStreamingController {
                                 .doOnComplete(() -> log.info("✅ [AI-SERVICE] ===== STREAM COMPLETED ====="))
                                 .doOnError(error -> log.error("❌ [AI-SERVICE] Stream error: {}", error.getMessage(),
                                                 error));
+        }
+
+        /**
+         * Escape special characters for JSON string
+         */
+        private String escapeJsonString(String str) {
+                if (str == null)
+                        return "";
+                return str.replace("\\", "\\\\")
+                                .replace("\"", "\\\"")
+                                .replace("\n", "\\n")
+                                .replace("\r", "\\r")
+                                .replace("\t", "\\t");
         }
 
         /**

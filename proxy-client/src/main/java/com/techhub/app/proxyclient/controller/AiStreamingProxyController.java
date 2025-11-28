@@ -59,7 +59,7 @@ public class AiStreamingProxyController {
                                                                 .data(null)
                                                                 .build();
                                         } else if (data.startsWith("data:")) {
-                                                // Don't trim - preserve spaces!
+                                                // Extract JSON data after "data:"
                                                 String content = data.substring(5);
                                                 // Only trim for [DONE] check
                                                 if (content.trim().equals("[DONE]")) {
@@ -69,14 +69,14 @@ public class AiStreamingProxyController {
                                                                         .data("[DONE]")
                                                                         .build();
                                                 }
-                                                // Keep content as-is (with spaces)
+                                                // Pass through JSON data as-is (contains {"content":"..."})
                                                 log.info("📨 [AiStreamingProxy] Data content: '{}'", content);
                                                 return ServerSentEvent.<String>builder()
                                                                 .event("message")
                                                                 .data(content)
                                                                 .build();
                                         } else {
-                                                // Raw data - keep as-is
+                                                // Raw data - pass through as-is
                                                 log.info("📦 [AiStreamingProxy] Raw data (no prefix): {}", data);
                                                 return ServerSentEvent.<String>builder()
                                                                 .event("message")
