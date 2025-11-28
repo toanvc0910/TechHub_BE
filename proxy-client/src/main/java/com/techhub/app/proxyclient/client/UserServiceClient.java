@@ -72,7 +72,6 @@ public interface UserServiceClient {
         @PostMapping("/api/users/change-password")
         ResponseEntity<String> changePassword(
                         @RequestBody Object changePasswordRequest,
-                        @RequestHeader("Authorization") String authHeader,
                         @RequestHeader("X-User-Id") String userId);
 
         @PostMapping("/api/users/forgot-password")

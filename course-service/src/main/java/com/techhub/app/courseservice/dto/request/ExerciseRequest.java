@@ -21,5 +21,7 @@ public class ExerciseRequest {
 
     private Object options;
 
+    private Integer orderIndex;
+
     private List<ExerciseTestCaseDto> testCases;
 }

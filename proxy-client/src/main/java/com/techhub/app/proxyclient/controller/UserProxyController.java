@@ -64,7 +64,7 @@ public class UserProxyController {
             @RequestBody Object changePasswordRequest,
             @RequestHeader("Authorization") String authHeader,
             @RequestHeader("X-User-Id") String userId) {
-        return userServiceClient.changePassword(changePasswordRequest, authHeader, userId);
+        return userServiceClient.changePassword(changePasswordRequest, userId);
     }
 
     @PostMapping("/forgot-password")

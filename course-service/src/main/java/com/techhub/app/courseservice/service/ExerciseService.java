@@ -18,5 +18,9 @@ public interface ExerciseService {
 
     List<ExerciseResponse> createExercises(UUID courseId, UUID lessonId, List<ExerciseRequest> requests);
 
+    ExerciseResponse updateExercise(UUID courseId, UUID lessonId, UUID exerciseId, ExerciseRequest request);
+
+    void deleteExercise(UUID courseId, UUID lessonId, UUID exerciseId);
+
     ExerciseSubmissionResponse submitExercise(UUID courseId, UUID lessonId, ExerciseSubmissionRequest request);
 }
