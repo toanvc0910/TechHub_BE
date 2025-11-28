@@ -372,7 +372,7 @@ CREATE INDEX idx_exercise_test_cases_order ON exercise_test_cases(exercise_id, "
 CREATE INDEX idx_exercise_test_cases_visibility ON exercise_test_cases(visibility);
 CREATE INDEX idx_exercise_test_cases_is_active ON exercise_test_cases(is_active);
 
--- Progress Table
+-- Progress Table 
 CREATE TABLE progress (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -430,7 +430,7 @@ CREATE INDEX idx_enrollments_status ON enrollments(status);
 CREATE INDEX idx_enrollments_is_active ON enrollments(is_active);
 
 -- Ratings
-CREATE TABLE ratings (
+CREATE TABLE ratings ( 
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     target_id UUID NOT NULL,
@@ -448,7 +448,7 @@ CREATE INDEX idx_ratings_score ON ratings(score);
 CREATE INDEX idx_ratings_is_active ON ratings(is_active);
 
 -- Submissions
-CREATE TABLE submissions (
+CREATE TABLE submissions ( 
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     exercise_id UUID NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
@@ -572,7 +572,7 @@ CREATE INDEX idx_payment_gateway_mappings_transaction_id ON payment_gateway_mapp
 CREATE INDEX idx_payment_gateway_mappings_gateway_type ON payment_gateway_mappings(gateway_type);
 
 -- Carts Table
-CREATE TABLE carts (
+CREATE TABLE    (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     items JSONB NOT NULL DEFAULT '[]'::JSONB,
