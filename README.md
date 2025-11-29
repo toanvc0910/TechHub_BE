@@ -38,10 +38,6 @@
 Mở trình duyệt và truy cập: `https://[domain]/login`
 
 ### Bước 2: Nhập thông tin đăng nhập
-```
-Email: admin@techhub.com
-Password: admin123
-```
 
 ### Bước 3: Xác thực
 - Hệ thống sẽ xác thực thông tin đăng nhập
