@@ -1,4 +1,3 @@
-version: "3"
 services:
   ai-service-container:
     image: toandeptroai/ai-service:0.1.0
