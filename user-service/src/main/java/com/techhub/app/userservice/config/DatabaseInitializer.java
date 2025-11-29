@@ -197,6 +197,9 @@ public class DatabaseInitializer implements CommandLineRunner {
                         Permission readCoursesPerm = createPermission("COURSE_READ_ALL", "Read all courses",
                                         "/api/courses",
                                         PermissionMethod.GET, "COURSES");
+                        Permission readMyCoursesPerm = createPermission("COURSE_MY_COURSES", "Read my courses",
+                                        "/api/courses/my-courses",
+                                        PermissionMethod.GET, "COURSES");
                         Permission readCoursePerm = createPermission("COURSE_READ", "Read course by ID",
                                         "/api/courses/{id}",
                                         PermissionMethod.GET, "COURSES");
@@ -572,7 +575,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         getBlogTagsPerm,
                                         getBlogCommentsPerm, addBlogCommentPerm, deleteBlogCommentPerm,
                                         // Course Management
-                                        createCoursePerm, readCoursesPerm, readCoursePerm, updateCoursePerm,
+                                        createCoursePerm, readCoursesPerm, readMyCoursesPerm, readCoursePerm,
+                                        updateCoursePerm,
                                         deleteCoursePerm,
                                         enrollCoursePerm,
                                         // Course Chapters
@@ -661,7 +665,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "BLOG_READ_ALL", "BLOG_READ", "BLOG_TAGS",
                                         "BLOG_COMMENT_READ", "BLOG_COMMENT_CREATE",
                                         // Course - Full CRUD
-                                        "COURSE_CREATE", "COURSE_READ_ALL", "COURSE_READ", "COURSE_UPDATE",
+                                        "COURSE_CREATE", "COURSE_READ_ALL", "COURSE_MY_COURSES", "COURSE_READ",
+                                        "COURSE_UPDATE",
                                         "COURSE_DELETE",
                                         "COURSE_CHAPTER_READ", "COURSE_CHAPTER_CREATE", "COURSE_CHAPTER_UPDATE",
                                         "COURSE_CHAPTER_DELETE",

@@ -16,6 +16,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "COURSE-SERVICE")
 public interface CourseServiceClient {
 
+        // Get instructor's own courses (all statuses)
+        @GetMapping("/api/courses/my-courses")
+        ResponseEntity<String> getMyCourses(@RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size,
+                        @RequestParam(required = false) String search,
+                        @RequestHeader("Authorization") String authHeader);
+
         // Course core operations
         @GetMapping("/api/courses")
         ResponseEntity<String> getAllCourses(@RequestParam(defaultValue = "0") int page,

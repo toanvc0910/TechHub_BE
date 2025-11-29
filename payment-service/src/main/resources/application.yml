@@ -16,12 +16,12 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-timeout: 20000
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: 5
+      minimum-idle: 2
       idle-timeout: 300000
       max-lifetime: 1200000
       auto-commit: true
-      pool-name: UserServiceHikariPool
+      pool-name: PaymentServiceHikariPool
       leak-detection-threshold: 60000
   jpa:
     hibernate:

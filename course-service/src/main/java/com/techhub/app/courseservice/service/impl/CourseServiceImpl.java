@@ -88,17 +88,36 @@ public class CourseServiceImpl implements CourseService {
     @Transactional(readOnly = true)
     public Page<CourseSummaryResponse> getCourses(String search, Pageable pageable) {
         String normalized = normalizeSearch(search);
-        UUID currentUserId = UserContext.getCurrentUserId();
         boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN);
-        boolean isInstructor = UserContext.hasAnyRole(ROLE_INSTRUCTOR);
 
         Page<Course> courses;
         if (isAdmin) {
+            // ADMIN: Xem tất cả courses (mọi status)
             courses = courseRepository.searchCourses(null, normalized, pageable);
-        } else if (isInstructor && currentUserId != null) {
+        } else {
+            // INSTRUCTOR, LEARNER, Guest: Xem tất cả courses PUBLISHED
+            courses = courseRepository.searchCourses(CourseStatus.PUBLISHED.name(), normalized, pageable);
+        }
+        return courses.map(this::buildCourseSummary);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CourseSummaryResponse> getMyCourses(String search, Pageable pageable) {
+        String normalized = normalizeSearch(search);
+        UUID currentUserId = UserContext.getCurrentUserId();
+        boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN);
+
+        Page<Course> courses;
+        if (isAdmin) {
+            // ADMIN: Xem tất cả courses (mọi status)
+            courses = courseRepository.searchCourses(null, normalized, pageable);
+        } else if (currentUserId != null) {
+            // INSTRUCTOR: Xem tất cả courses của mình (mọi status: DRAFT, PUBLISHED, etc.)
             courses = courseRepository.searchInstructorCourses(currentUserId, normalized, pageable);
         } else {
-            courses = courseRepository.searchCourses(CourseStatus.PUBLISHED.name(), normalized, pageable);
+            // Không có user -> trả về rỗng
+            courses = Page.empty(pageable);
         }
         return courses.map(this::buildCourseSummary);
     }
