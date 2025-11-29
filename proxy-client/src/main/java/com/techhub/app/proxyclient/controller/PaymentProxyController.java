@@ -35,14 +35,14 @@ public class PaymentProxyController {
         if (PayerID != null) {
             queryParams += "&PayerID=" + PayerID;
         }
-        response.sendRedirect("http://localhost:8084/api/v1/payment/paypal/success?" + queryParams);
+        response.sendRedirect("http://103.188.83.154:8084/api/v1/payment/paypal/success?" + queryParams);
     }
 
     @GetMapping("/paypal/cancel")
     public void paypalCancel(@RequestParam(required = false) String token,
                             HttpServletResponse response) throws IOException {
         String queryParams = token != null ? "token=" + token : "";
-        response.sendRedirect("http://localhost:8084/api/v1/payment/paypal/cancel?" + queryParams);
+        response.sendRedirect("http://103.188.83.154:8084/api/v1/payment/paypal/cancel?" + queryParams);
     }
 
     // ===== VNPAY ENDPOINTS =====
@@ -62,7 +62,7 @@ public class PaymentProxyController {
         // VNPay callback redirects directly - we forward to the payment service callback URL
         // This is handled by VNPayPaymentController in payment-service
         String queryString = request.getQueryString();
-        response.sendRedirect("http://localhost:8084/api/v1/payment/vn-pay-callback?" + queryString);
+        response.sendRedirect("http://103.188.83.154:8084/api/v1/payment/vn-pay-callback?" + queryString);
     }
 
     // ===== GENERIC PAYMENT ENDPOINTS =====
