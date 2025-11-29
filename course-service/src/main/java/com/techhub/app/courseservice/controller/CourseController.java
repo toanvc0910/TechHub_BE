@@ -71,6 +71,33 @@ public class CourseController {
                                                 .withPath(request.getRequestURI()));
         }
 
+        @GetMapping("/my-courses")
+        public ResponseEntity<PageGlobalResponse<CourseSummaryResponse>> getMyCourses(
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size,
+                        @RequestParam(required = false) String search,
+                        HttpServletRequest request) {
+                Pageable pageable = PageRequest.of(page, size);
+                Page<CourseSummaryResponse> coursePage = courseService.getMyCourses(search, pageable);
+
+                PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                                .page(coursePage.getNumber())
+                                .size(coursePage.getSize())
+                                .totalElements(coursePage.getTotalElements())
+                                .totalPages(coursePage.getTotalPages())
+                                .first(coursePage.isFirst())
+                                .last(coursePage.isLast())
+                                .hasNext(coursePage.hasNext())
+                                .hasPrevious(coursePage.hasPrevious())
+                                .build();
+
+                return ResponseEntity.ok(
+                                PageGlobalResponse
+                                                .success("My courses retrieved successfully", coursePage.getContent(),
+                                                                paginationInfo)
+                                                .withPath(request.getRequestURI()));
+        }
+
         @GetMapping("/{courseId}")
         public ResponseEntity<GlobalResponse<CourseDetailResponse>> getCourse(@PathVariable UUID courseId,
                         HttpServletRequest request) {
