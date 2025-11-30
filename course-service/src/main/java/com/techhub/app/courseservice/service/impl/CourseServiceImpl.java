@@ -324,6 +324,7 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public void enrollCourse(UUID courseId) {
         UUID currentUserId = requireCurrentUser();
+
         Course course = getActiveCourse(courseId);
 
         if (course.getStatus() != CourseStatus.PUBLISHED) {
@@ -332,13 +333,15 @@ public class CourseServiceImpl implements CourseService {
 
         Enrollment enrollment = enrollmentRepository.findByUserIdAndCourse_Id(currentUserId, courseId)
                 .orElseGet(() -> {
+                    log.info("🎓 [enrollCourse] No existing enrollment found, creating new one");
                     Enrollment entity = new Enrollment();
                     entity.setCourse(course);
                     entity.setUserId(currentUserId);
                     return entity;
                 });
 
-        if (Boolean.TRUE.equals(enrollment.getIsActive()) &&
+        if (enrollment.getId() != null &&
+                Boolean.TRUE.equals(enrollment.getIsActive()) &&
                 enrollment.getStatus() != EnrollmentStatus.DROPPED) {
             throw new BadRequestException("User already enrolled in this course");
         }
