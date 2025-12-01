@@ -197,6 +197,9 @@ public class DatabaseInitializer implements CommandLineRunner {
                         Permission readCoursesPerm = createPermission("COURSE_READ_ALL", "Read all courses",
                                         "/api/courses",
                                         PermissionMethod.GET, "COURSES");
+                        Permission readMyCoursesPerm = createPermission("COURSE_MY_COURSES", "Read my courses",
+                                        "/api/courses/my-courses",
+                                        PermissionMethod.GET, "COURSES");
                         Permission readCoursePerm = createPermission("COURSE_READ", "Read course by ID",
                                         "/api/courses/{id}",
                                         PermissionMethod.GET, "COURSES");
@@ -300,6 +303,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "COURSES");
 
                         // ==================== COURSE EXERCISES ====================
+                        // Legacy single exercise endpoints
                         Permission getExercisePerm = createPermission("COURSE_EXERCISE_READ", "Get exercise",
                                         "/api/courses/{courseId}/lessons/{lessonId}/exercise", PermissionMethod.GET,
                                         "COURSES");
@@ -310,6 +314,22 @@ public class DatabaseInitializer implements CommandLineRunner {
                         Permission submitExercisePerm = createPermission("COURSE_EXERCISE_SUBMIT", "Submit exercise",
                                         "/api/courses/{courseId}/lessons/{lessonId}/exercise/submissions",
                                         PermissionMethod.POST,
+                                        "COURSES");
+
+                        // New multiple exercises endpoints
+                        Permission getExercisesPerm = createPermission("COURSE_EXERCISES_READ", "Get all exercises",
+                                        "/api/courses/{courseId}/lessons/{lessonId}/exercises", PermissionMethod.GET,
+                                        "COURSES");
+                        Permission createExercisesPerm = createPermission("COURSE_EXERCISES_CREATE", "Create exercises",
+                                        "/api/courses/{courseId}/lessons/{lessonId}/exercises", PermissionMethod.POST,
+                                        "COURSES");
+                        Permission updateExercisePerm = createPermission("COURSE_EXERCISES_UPDATE", "Update exercise",
+                                        "/api/courses/{courseId}/lessons/{lessonId}/exercises/{exerciseId}",
+                                        PermissionMethod.PUT,
+                                        "COURSES");
+                        Permission deleteExercisePerm = createPermission("COURSE_EXERCISES_DELETE", "Delete exercise",
+                                        "/api/courses/{courseId}/lessons/{lessonId}/exercises/{exerciseId}",
+                                        PermissionMethod.DELETE,
                                         "COURSES");
 
                         // ==================== COURSE WORKSPACE ====================
@@ -572,7 +592,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         getBlogTagsPerm,
                                         getBlogCommentsPerm, addBlogCommentPerm, deleteBlogCommentPerm,
                                         // Course Management
-                                        createCoursePerm, readCoursesPerm, readCoursePerm, updateCoursePerm,
+                                        createCoursePerm, readCoursesPerm, readMyCoursesPerm, readCoursePerm,
+                                        updateCoursePerm,
                                         deleteCoursePerm,
                                         enrollCoursePerm,
                                         // Course Chapters
@@ -591,6 +612,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         getWorkspaceCommentsPerm, addWorkspaceCommentPerm, deleteCommentPerm,
                                         // Course Exercises
                                         getExercisePerm, upsertExercisePerm, submitExercisePerm,
+                                        getExercisesPerm, createExercisesPerm, updateExercisePerm, deleteExercisePerm,
                                         // Course Workspace
                                         getWorkspacePerm, saveWorkspacePerm,
                                         // Course Skills & Tags
@@ -661,7 +683,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "BLOG_READ_ALL", "BLOG_READ", "BLOG_TAGS",
                                         "BLOG_COMMENT_READ", "BLOG_COMMENT_CREATE",
                                         // Course - Full CRUD
-                                        "COURSE_CREATE", "COURSE_READ_ALL", "COURSE_READ", "COURSE_UPDATE",
+                                        "COURSE_CREATE", "COURSE_READ_ALL", "COURSE_MY_COURSES", "COURSE_READ",
+                                        "COURSE_UPDATE",
                                         "COURSE_DELETE",
                                         "COURSE_CHAPTER_READ", "COURSE_CHAPTER_CREATE", "COURSE_CHAPTER_UPDATE",
                                         "COURSE_CHAPTER_DELETE",
@@ -674,6 +697,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "COURSE_LESSON_COMMENT_READ", "COURSE_LESSON_COMMENT_CREATE",
                                         "COURSE_WORKSPACE_COMMENT_READ", "COURSE_WORKSPACE_COMMENT_CREATE",
                                         "COURSE_EXERCISE_READ", "COURSE_EXERCISE_UPSERT", "COURSE_EXERCISE_SUBMIT",
+                                        "COURSE_EXERCISES_READ", "COURSE_EXERCISES_CREATE", "COURSE_EXERCISES_UPDATE",
+                                        "COURSE_EXERCISES_DELETE",
                                         "COURSE_WORKSPACE_READ", "COURSE_WORKSPACE_SAVE",
                                         "COURSE_SKILL_CREATE", "COURSE_SKILL_READ", "COURSE_SKILL_READ_ALL",
                                         "COURSE_SKILL_UPDATE",
@@ -737,6 +762,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "COURSE_LESSON_COMMENT_READ", "COURSE_LESSON_COMMENT_CREATE",
                                         "COURSE_WORKSPACE_COMMENT_READ", "COURSE_WORKSPACE_COMMENT_CREATE",
                                         "COURSE_EXERCISE_READ", "COURSE_EXERCISE_SUBMIT",
+                                        "COURSE_EXERCISES_READ",
                                         "COURSE_WORKSPACE_READ", "COURSE_WORKSPACE_SAVE",
                                         "COURSE_SKILL_READ", "COURSE_SKILL_READ_ALL", "COURSE_TAG_READ",
                                         "COURSE_TAG_READ_ALL",

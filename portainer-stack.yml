@@ -13,6 +13,9 @@ services:
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
     networks:
       - do-an-net
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8761/actuator/health"]
@@ -35,8 +38,10 @@ services:
     networks:
       - do-an-net
     depends_on:
-      service-discovery-container:
-        condition: service_healthy
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8443/actuator/health"]
@@ -67,10 +72,11 @@ services:
     networks:
       - do-an-net
     depends_on:
-      api-gateway-container:
-        condition: service_healthy
-      service-discovery-container:
-        condition: service_healthy
+      - api-gateway-container
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
@@ -112,8 +118,10 @@ services:
     networks:
       - do-an-net
     depends_on:
-      service-discovery-container:
-        condition: service_healthy
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
@@ -156,10 +164,11 @@ services:
     networks:
       - do-an-net
     depends_on:
-      api-gateway-container:
-        condition: service_healthy
-      service-discovery-container:
-        condition: service_healthy
+      - api-gateway-container
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
@@ -199,10 +208,11 @@ services:
     networks:
       - do-an-net
     depends_on:
-      api-gateway-container:
-        condition: service_healthy
-      service-discovery-container:
-        condition: service_healthy
+      - api-gateway-container
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
@@ -227,10 +237,11 @@ services:
     networks:
       - do-an-net
     depends_on:
-      api-gateway-container:
-        condition: service_healthy
-      service-discovery-container:
-        condition: service_healthy
+      - api-gateway-container
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
@@ -270,10 +281,11 @@ services:
     networks:
       - do-an-net
     depends_on:
-      api-gateway-container:
-        condition: service_healthy
-      service-discovery-container:
-        condition: service_healthy
+      - api-gateway-container
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8084/actuator/health"]
@@ -299,8 +311,10 @@ services:
     networks:
       - do-an-net
     depends_on:
-      service-discovery-container:
-        condition: service_healthy
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8086/actuator/health"]
@@ -334,8 +348,10 @@ services:
     networks:
       - do-an-net
     depends_on:
-      service-discovery-container:
-        condition: service_healthy
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8088/actuator/health"]
@@ -375,8 +391,10 @@ services:
     networks:
       - do-an-net
     depends_on:
-      service-discovery-container:
-        condition: service_healthy
+      - service-discovery-container
+    cpus: "0.30"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8091/actuator/health"]

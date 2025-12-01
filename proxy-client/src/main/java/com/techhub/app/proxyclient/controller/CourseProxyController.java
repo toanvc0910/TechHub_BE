@@ -23,6 +23,15 @@ public class CourseProxyController {
 
     private final CourseServiceClient courseServiceClient;
 
+    // Get instructor's own courses for Manage page (all statuses including DRAFT)
+    @GetMapping("/my-courses")
+    public ResponseEntity<String> getMyCourses(@RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestHeader("Authorization") String authHeader) {
+        return courseServiceClient.getMyCourses(page, size, search, authHeader);
+    }
+
     // Course core operations
     @GetMapping
     public ResponseEntity<String> getAllCourses(@RequestParam(defaultValue = "0") int page,

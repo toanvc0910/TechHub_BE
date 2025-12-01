@@ -58,8 +58,7 @@ public abstract class BaseWebSocketAuthInterceptor implements ChannelInterceptor
                     Principal principal = new UsernamePasswordAuthenticationToken(
                             result.getUserId().toString(),
                             null,
-                            authorities
-                    );
+                            authorities);
 
                     accessor.setUser(principal);
                     log.debug("WebSocket authenticated user: {}", result.getUserId());

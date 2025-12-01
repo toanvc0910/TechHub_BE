@@ -19,6 +19,8 @@ public interface CourseService {
 
     Page<CourseSummaryResponse> getCourses(String search, Pageable pageable);
 
+    Page<CourseSummaryResponse> getMyCourses(String search, Pageable pageable);
+
     CourseDetailResponse getCourse(UUID courseId);
 
     CourseDetailResponse createCourse(CourseRequest request);
