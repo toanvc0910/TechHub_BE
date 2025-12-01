@@ -1,5 +1,6 @@
 package com.techhub.app.aiservice.service;
 
+import com.techhub.app.aiservice.client.QdrantClient;
 import com.techhub.app.aiservice.config.QdrantProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,11 +21,27 @@ public class VectorIndexingService {
     private final JdbcTemplate jdbcTemplate;
     private final VectorService vectorService;
     private final QdrantProperties qdrantProperties;
+    private final QdrantClient qdrantClient;
+    private final EmbeddingService embeddingService;
 
     /**
      * Reindex all existing courses from PostgreSQL into Qdrant
+     * This method CLEARS the collection first to remove stale/orphaned embeddings
      */
     public int reindexAllCourses() {
+        log.info("📊 Starting full course reindexing...");
+        
+        // Step 1: Clear the collection to remove stale embeddings
+        log.info("🗑️ Clearing course embeddings collection to remove stale data...");
+        try {
+            int dimension = embeddingService.getEmbeddingDimension();
+            qdrantClient.clearCollection(qdrantProperties.getRecommendationCollection(), dimension);
+            log.info("✅ Collection cleared successfully");
+        } catch (Exception e) {
+            log.error("❌ Failed to clear collection, continuing with upsert only...", e);
+        }
+
+        // Step 2: Fetch all published courses from database
         log.info("📊 Fetching all published courses from database...");
 
         // Query courses with tags and skills aggregated as JSON arrays
@@ -82,10 +99,21 @@ public class VectorIndexingService {
 
     /**
      * Reindex all lessons from database to Qdrant
+     * This method CLEARS the lesson collection first to remove stale/orphaned embeddings
      */
     @Transactional(readOnly = true)
     public int reindexAllLessons() {
         log.info("🔄 Starting full lesson reindexing...");
+
+        // Step 1: Clear the lesson collection to remove stale embeddings
+        log.info("🗑️ Clearing lesson embeddings collection to remove stale data...");
+        try {
+            int dimension = embeddingService.getEmbeddingDimension();
+            qdrantClient.clearCollection(qdrantProperties.getLessonCollection(), dimension);
+            log.info("✅ Lesson collection cleared successfully");
+        } catch (Exception e) {
+            log.error("❌ Failed to clear lesson collection, continuing with upsert only...", e);
+        }
 
         try {
             // Fetch all lessons with course_id via JOIN with chapters table
@@ -214,9 +242,33 @@ public class VectorIndexingService {
             stats.put("database_published_courses", dbCount);
             stats.put("course_embeddings_collection", qdrantProperties.getRecommendationCollection());
             stats.put("user_embeddings_collection", qdrantProperties.getProfileCollection());
+            stats.put("lesson_embeddings_collection", qdrantProperties.getLessonCollection());
             stats.put("qdrant_host", qdrantProperties.getHost());
-            stats.put("note", "To get vector counts, query Qdrant directly: GET " + qdrantProperties.getHost()
-                    + "/collections/{collection_name}");
+
+            // Get actual embedding counts from Qdrant
+            try {
+                Map<String, Object> courseCollectionInfo = qdrantClient.getCollectionInfo(qdrantProperties.getRecommendationCollection());
+                if (courseCollectionInfo != null && !courseCollectionInfo.isEmpty()) {
+                    stats.put("qdrant_course_embeddings_count", courseCollectionInfo.get("points_count"));
+                    stats.put("qdrant_course_collection_status", courseCollectionInfo.get("status"));
+                }
+                
+                Map<String, Object> lessonCollectionInfo = qdrantClient.getCollectionInfo(qdrantProperties.getLessonCollection());
+                if (lessonCollectionInfo != null && !lessonCollectionInfo.isEmpty()) {
+                    stats.put("qdrant_lesson_embeddings_count", lessonCollectionInfo.get("points_count"));
+                }
+            } catch (Exception qdrantEx) {
+                log.warn("⚠️ Could not fetch Qdrant collection info: {}", qdrantEx.getMessage());
+                stats.put("qdrant_info_error", qdrantEx.getMessage());
+            }
+
+            // Check for mismatch
+            Integer qdrantCount = (Integer) stats.get("qdrant_course_embeddings_count");
+            if (dbCount != null && qdrantCount != null && !dbCount.equals(qdrantCount)) {
+                stats.put("warning", String.format(
+                    "MISMATCH DETECTED! Database has %d published courses but Qdrant has %d embeddings. " +
+                    "Please run reindex-courses to sync.", dbCount, qdrantCount));
+            }
 
         } catch (Exception e) {
             log.error("❌ Failed to get Qdrant stats", e);

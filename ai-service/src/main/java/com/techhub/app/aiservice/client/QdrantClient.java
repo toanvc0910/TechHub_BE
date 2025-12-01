@@ -95,6 +95,65 @@ public class QdrantClient {
     }
 
     /**
+     * Clear all points in a collection (delete and recreate)
+     * Use this before full reindex to remove stale/orphaned embeddings
+     */
+    public void clearCollection(String collectionName, int vectorSize) {
+        String url = qdrantProperties.getHost() + "/collections/" + collectionName;
+
+        try {
+            // Delete the collection
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.DELETE,
+                    new HttpEntity<>(buildHeaders()),
+                    Map.class);
+            log.info("🗑️ Deleted collection: {}", collectionName);
+
+            // Recreate the collection
+            Map<String, Object> body = new HashMap<>();
+            Map<String, Object> vectorsConfig = new HashMap<>();
+            vectorsConfig.put("size", vectorSize);
+            vectorsConfig.put("distance", "Cosine");
+            body.put("vectors", vectorsConfig);
+
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.PUT,
+                    new HttpEntity<>(body, buildHeaders()),
+                    Map.class);
+            log.info("✅ Recreated collection: {}", collectionName);
+        } catch (Exception e) {
+            log.error("❌ Failed to clear collection: {}", collectionName, e);
+            throw new RuntimeException("Failed to clear collection: " + collectionName, e);
+        }
+    }
+
+    /**
+     * Get collection info including point count
+     */
+    public Map<String, Object> getCollectionInfo(String collectionName) {
+        String url = qdrantProperties.getHost() + "/collections/" + collectionName;
+
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    new HttpEntity<>(buildHeaders()),
+                    Map.class);
+
+            Map<String, Object> body = response.getBody();
+            if (body != null && body.containsKey("result")) {
+                return (Map<String, Object>) body.get("result");
+            }
+            return Collections.emptyMap();
+        } catch (Exception e) {
+            log.error("❌ Failed to get collection info: {}", collectionName, e);
+            return Collections.emptyMap();
+        }
+    }
+
+    /**
      * Retrieve a single point by ID
      */
     public Map<String, Object> retrievePoint(String collectionName, String pointId) {
