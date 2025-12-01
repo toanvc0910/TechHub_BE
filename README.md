@@ -550,7 +550,5 @@ Hiển thị tất cả vai trò trong hệ thống:
 
 ---
 
-**Chúc bạn quản trị hiệu quả! 🚀**
-
 *Tài liệu này được cập nhật thường xuyên. Vui lòng check version mới nhất.*
 *Phiên bản: 1.0 - Cập nhật: 2025-01-29*
