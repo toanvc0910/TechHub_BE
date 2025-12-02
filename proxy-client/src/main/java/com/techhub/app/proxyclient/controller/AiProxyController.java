@@ -85,6 +85,13 @@ public class AiProxyController {
         return aiServiceClient.getExerciseDrafts(lessonId, authHeader);
     }
 
+    @PostMapping("/drafts/exercises/batch")
+    public ResponseEntity<String> getExerciseDraftsBatch(
+            @RequestBody Object request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getExerciseDraftsBatch(request, authHeader);
+    }
+
     @GetMapping("/drafts/exercises/latest")
     public ResponseEntity<String> getLatestExerciseDraft(
             @RequestParam java.util.UUID lessonId,

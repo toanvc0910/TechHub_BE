@@ -70,6 +70,50 @@ public class AiDraftController {
     }
 
     /**
+     * Get tất cả exercise drafts cho nhiều lessons (dùng để lấy drafts của 1 course)
+     * 
+     * POST /api/ai/drafts/exercises/batch
+     * Body: { "lessonIds": ["uuid1", "uuid2", ...] }
+     */
+    @PostMapping("/exercises/batch")
+    public ResponseEntity<GlobalResponse<List<AiDraftListResponse>>> getExerciseDraftsBatch(
+            @RequestBody Map<String, List<String>> request,
+            HttpServletRequest servletRequest) {
+
+        List<String> lessonIds = request.get("lessonIds");
+        
+        if (lessonIds == null || lessonIds.isEmpty()) {
+            List<AiDraftListResponse> emptyList = List.of();
+            return ResponseEntity.ok(
+                    GlobalResponse.success("No lesson IDs provided", emptyList)
+                            .withPath(servletRequest.getRequestURI()));
+        }
+
+        log.info("📋 Getting exercise drafts for {} lessons", lessonIds.size());
+
+        List<AiGenerationTask> drafts = aiGenerationTaskRepository
+                .findByTargetReferenceInAndStatusAndTaskTypeOrderByCreatedDesc(
+                        lessonIds,
+                        AiTaskStatus.DRAFT,
+                        AiTaskType.EXERCISE_GENERATION);
+
+        List<AiDraftListResponse> response = drafts.stream()
+                .map(task -> AiDraftListResponse.builder()
+                        .taskId(task.getId())
+                        .taskType(task.getTaskType())
+                        .status(task.getStatus())
+                        .targetReference(task.getTargetReference())
+                        .resultPayload(task.getResultPayload())
+                        .createdAt(task.getCreated())
+                        .build())
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(
+                GlobalResponse.success("Found " + response.size() + " draft(s)", response)
+                        .withPath(servletRequest.getRequestURI()));
+    }
+
+    /**
      * Get draft mới nhất cho 1 lesson (most common use case)
      * 
      * GET /api/ai/drafts/exercises/latest?lessonId={lessonId}
@@ -218,13 +262,20 @@ public class AiDraftController {
             @RequestParam(required = false, defaultValue = "No reason provided") String reason,
             HttpServletRequest servletRequest) {
 
-        log.info("❌ Admin rejecting draft: {}", taskId);
+        log.info("❌ Admin rejecting draft: {} with reason: {}", taskId, reason);
 
-        aiDraftApprovalService.rejectDraft(taskId, reason);
+        try {
+            aiDraftApprovalService.rejectDraft(taskId, reason);
 
-        return ResponseEntity.ok(
-                GlobalResponse.<Void>success("Draft rejected successfully", null)
-                        .withStatus("DRAFT_REJECTED")
-                        .withPath(servletRequest.getRequestURI()));
+            return ResponseEntity.ok(
+                    GlobalResponse.<Void>success("Draft rejected successfully", null)
+                            .withStatus("DRAFT_REJECTED")
+                            .withPath(servletRequest.getRequestURI()));
+        } catch (Exception e) {
+            log.error("❌ Failed to reject draft {}: {}", taskId, e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    GlobalResponse.<Void>error(e.getMessage())
+                            .withPath(servletRequest.getRequestURI()));
+        }
     }
 }

@@ -59,6 +59,11 @@ public interface AiServiceClient {
                         @RequestParam UUID lessonId,
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 
+        @PostMapping("/api/ai/drafts/exercises/batch")
+        ResponseEntity<String> getExerciseDraftsBatch(
+                        @RequestBody Object request,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
         @GetMapping("/api/ai/drafts/exercises/latest")
         ResponseEntity<String> getLatestExerciseDraft(
                         @RequestParam UUID lessonId,
