@@ -44,6 +44,8 @@ eureka:
 kafka:
   topics:
     course-events: ${KAFKA_COURSE_EVENTS_TOPIC:course-events}
+    lesson-events: ${KAFKA_LESSON_EVENTS_TOPIC:lesson-events}
+    enrollment-events: ${KAFKA_ENROLLMENT_EVENTS_TOPIC:enrollment-events}
   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
 
 # OpenAI Configuration

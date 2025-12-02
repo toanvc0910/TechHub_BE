@@ -100,6 +100,7 @@ public class VectorIndexingService {
     /**
      * Reindex all lessons from database to Qdrant
      * This method CLEARS the lesson collection first to remove stale/orphaned embeddings
+     * OPTIMIZED: Uses batch embeddings to reduce API calls
      */
     @Transactional(readOnly = true)
     public int reindexAllLessons() {
@@ -125,34 +126,108 @@ public class VectorIndexingService {
             List<Map<String, Object>> lessons = jdbcTemplate.queryForList(sql);
             log.info("📊 Found {} lessons to reindex", lessons.size());
 
-            int count = 0;
-            for (Map<String, Object> lesson : lessons) {
+            if (lessons.isEmpty()) {
+                return 0;
+            }
+
+            // Process in batches of 20 lessons
+            int batchSize = 20;
+            int successCount = 0;
+
+            for (int i = 0; i < lessons.size(); i += batchSize) {
+                int end = Math.min(i + batchSize, lessons.size());
+                List<Map<String, Object>> batch = lessons.subList(i, end);
+
                 try {
-                    UUID lessonId = (UUID) lesson.get("id");
-                    String title = (String) lesson.get("title");
-                    String content = (String) lesson.get("content");
-                    String videoUrl = (String) lesson.get("video_url");
-
-                    Map<String, Object> metadata = new HashMap<>();
-                    metadata.put("course_id",
-                            lesson.get("course_id") != null ? lesson.get("course_id").toString() : null);
-                    metadata.put("chapter_id",
-                            lesson.get("chapter_id") != null ? lesson.get("chapter_id").toString() : null);
-                    metadata.put("content_type", lesson.get("content_type"));
-
-                    vectorService.indexLesson(lessonId, title, content, videoUrl, metadata);
-                    count++;
+                    int batchSuccess = batchIndexLessons(batch);
+                    successCount += batchSuccess;
+                    log.info("✅ Indexed lesson batch {}/{} ({} lessons)",
+                            (i / batchSize) + 1,
+                            (lessons.size() + batchSize - 1) / batchSize,
+                            batchSuccess);
                 } catch (Exception e) {
-                    log.error("❌ Failed to index lesson: {}", lesson.get("id"), e);
+                    log.error("❌ Failed to index lesson batch {}/{}: {}",
+                            (i / batchSize) + 1,
+                            (lessons.size() + batchSize - 1) / batchSize,
+                            e.getMessage());
                 }
             }
 
-            log.info("✅ Lesson reindexing completed: {}/{} lessons indexed", count, lessons.size());
-            return count;
+            log.info("✅ Lesson reindexing completed: {}/{} lessons indexed", successCount, lessons.size());
+            return successCount;
         } catch (Exception e) {
             log.error("❌ Lesson reindexing failed", e);
             throw new RuntimeException("Lesson reindexing failed", e);
         }
+    }
+
+    /**
+     * Batch index lessons using batch embeddings (reduces API calls)
+     */
+    private int batchIndexLessons(List<Map<String, Object>> lessons) {
+        // Step 1: Prepare texts for batch embedding
+        List<String> texts = new ArrayList<>();
+        List<Map<String, Object>> validLessons = new ArrayList<>();
+
+        for (Map<String, Object> lesson : lessons) {
+            UUID lessonId = (UUID) lesson.get("id");
+            String title = (String) lesson.get("title");
+            String content = (String) lesson.get("content");
+
+            String text = title + " " + (content != null ? content : "");
+            if (text.trim().isEmpty()) {
+                continue;
+            }
+
+            texts.add(text);
+            validLessons.add(lesson);
+        }
+
+        if (texts.isEmpty()) {
+            return 0;
+        }
+
+        // Step 2: Generate embeddings in batch (1 API call!)
+        List<List<Double>> embeddings = embeddingService.generateEmbeddingsBatch(texts);
+
+        if (embeddings.size() != validLessons.size()) {
+            log.error("❌ Lesson embedding count mismatch");
+            return 0;
+        }
+
+        // Step 3: Build points and upsert
+        List<QdrantClient.QdrantPoint> points = new ArrayList<>();
+
+        for (int i = 0; i < validLessons.size(); i++) {
+            Map<String, Object> lesson = validLessons.get(i);
+            List<Double> embedding = embeddings.get(i);
+
+            if (embedding.isEmpty()) {
+                continue;
+            }
+
+            UUID lessonId = (UUID) lesson.get("id");
+            String title = (String) lesson.get("title");
+            String content = (String) lesson.get("content");
+            String videoUrl = (String) lesson.get("video_url");
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("lesson_id", lessonId.toString());
+            payload.put("title", title);
+            payload.put("content", content);
+            payload.put("video_url", videoUrl);
+            payload.put("course_id", lesson.get("course_id") != null ? lesson.get("course_id").toString() : null);
+            payload.put("chapter_id", lesson.get("chapter_id") != null ? lesson.get("chapter_id").toString() : null);
+            payload.put("content_type", lesson.get("content_type"));
+
+            points.add(new QdrantClient.QdrantPoint(lessonId.toString(), embedding, payload));
+        }
+
+        if (!points.isEmpty()) {
+            qdrantClient.upsertPoints(qdrantProperties.getLessonCollection(), points);
+        }
+
+        return points.size();
     }
 
     /**

@@ -26,6 +26,7 @@ import com.techhub.app.courseservice.entity.Lesson;
 import com.techhub.app.courseservice.entity.LessonAsset;
 import com.techhub.app.courseservice.entity.Progress;
 import com.techhub.app.courseservice.event.CourseEvent;
+import com.techhub.app.courseservice.event.LessonEvent;
 import com.techhub.app.courseservice.event.EventPublisher;
 import com.techhub.app.courseservice.entity.Skill;
 import com.techhub.app.courseservice.entity.Tag;
@@ -478,6 +479,24 @@ public class CourseServiceImpl implements CourseService {
                     lesson.getTitle());
         }
 
+        // Publish lesson event for AI indexing
+        try {
+            LessonEvent lessonEvent = LessonEvent.builder()
+                    .eventType(LessonEvent.EventType.CREATED)
+                    .lessonId(lesson.getId())
+                    .courseId(courseId)
+                    .chapterId(chapterId)
+                    .title(lesson.getTitle())
+                    .content(lesson.getContent())
+                    .contentType(lesson.getContentType() != null ? lesson.getContentType().name() : null)
+                    .order(lesson.getOrderIndex())
+                    .isFree(lesson.getIsFree())
+                    .build();
+            eventPublisher.publishLessonEvent(lessonEvent);
+        } catch (Exception e) {
+            log.warn("Failed to publish lesson event for indexing", e);
+        }
+
         return buildLessonResponse(lesson, course, null);
     }
 
@@ -494,6 +513,25 @@ public class CourseServiceImpl implements CourseService {
         courseMapper.updateLesson(lesson, request, currentUserId);
         lessonRepository.save(lesson);
         log.info("Lesson {} updated in chapter {}", lessonId, chapterId);
+        
+        // Publish lesson event for AI indexing
+        try {
+            LessonEvent lessonEvent = LessonEvent.builder()
+                    .eventType(LessonEvent.EventType.UPDATED)
+                    .lessonId(lesson.getId())
+                    .courseId(courseId)
+                    .chapterId(chapterId)
+                    .title(lesson.getTitle())
+                    .content(lesson.getContent())
+                    .contentType(lesson.getContentType() != null ? lesson.getContentType().name() : null)
+                    .order(lesson.getOrderIndex())
+                    .isFree(lesson.getIsFree())
+                    .build();
+            eventPublisher.publishLessonEvent(lessonEvent);
+        } catch (Exception e) {
+            log.warn("Failed to publish lesson event for indexing", e);
+        }
+        
         return buildLessonResponse(lesson, course, null);
     }
 
@@ -515,6 +553,19 @@ public class CourseServiceImpl implements CourseService {
         // ✅ HARD DELETE - Xóa cứng luôn
         lessonRepository.delete(lesson);
         log.info("✅ Lesson {} hard-deleted (CASCADE will delete all assets & progress)", lessonId);
+        
+        // Publish lesson delete event for AI indexing (remove from vector DB)
+        try {
+            LessonEvent lessonEvent = LessonEvent.builder()
+                    .eventType(LessonEvent.EventType.DELETED)
+                    .lessonId(lessonId)
+                    .courseId(courseId)
+                    .chapterId(chapterId)
+                    .build();
+            eventPublisher.publishLessonEvent(lessonEvent);
+        } catch (Exception e) {
+            log.warn("Failed to publish lesson delete event for indexing", e);
+        }
 
         // ✅ AUTO REORDER: Update orderIndex of remaining lessons
         List<Lesson> remainingLessons = lessonRepository

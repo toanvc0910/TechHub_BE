@@ -200,7 +200,8 @@ public class VectorService {
     }
 
     /**
-     * Batch index multiple courses
+     * Batch index multiple courses - OPTIMIZED with batch embeddings
+     * This significantly reduces API calls by batching multiple texts into one embedding request
      */
     public void batchIndexCourses(List<Map<String, Object>> courses) {
         if (courses == null || courses.isEmpty()) {
@@ -208,10 +209,11 @@ public class VectorService {
         }
 
         try {
-            List<QdrantPoint> points = new ArrayList<>();
-
+            // Step 1: Prepare all texts for batch embedding
+            List<String> texts = new ArrayList<>();
+            List<Map<String, Object>> validCourses = new ArrayList<>();
+            
             for (Map<String, Object> course : courses) {
-                // Convert UUID to String properly
                 Object idObj = course.get("id");
                 String courseId = idObj != null ? idObj.toString() : null;
 
@@ -220,39 +222,62 @@ public class VectorService {
                     continue;
                 }
 
-                // Safely extract String fields, handling PGobject
                 String title = getStringValue(course.get("title"));
                 String description = getStringValue(course.get("description"));
                 String objectives = getStringValue(course.get("objectives"));
                 String requirements = getStringValue(course.get("requirements"));
 
                 String text = embeddingService.buildCourseText(title, description, objectives, requirements);
-                List<Double> embedding = embeddingService.generateEmbedding(text);
+                texts.add(text);
+                validCourses.add(course);
+            }
 
-                if (!embedding.isEmpty()) {
-                    // Update course map to have String ID for payload
-                    Map<String, Object> coursePayload = new HashMap<>(course);
-                    coursePayload.put("id", courseId);
+            if (texts.isEmpty()) {
+                return;
+            }
 
-                    // Convert any non-primitive objects to String representation
-                    // PostgreSQL json_agg returns PGobject which needs to be converted
-                    for (Map.Entry<String, Object> entry : coursePayload.entrySet()) {
-                        Object value = entry.getValue();
-                        if (value != null && !isPrimitiveOrString(value)) {
-                            coursePayload.put(entry.getKey(), value.toString());
-                        }
-                    }
+            // Step 2: Generate embeddings in batch (1 API call for all!)
+            log.info("📦 Generating {} embeddings in batch...", texts.size());
+            List<List<Double>> embeddings = embeddingService.generateEmbeddingsBatch(texts);
 
-                    points.add(new QdrantPoint(courseId, embedding, coursePayload));
-                    log.debug("📦 Prepared course for indexing: {} - {}", courseId, title);
+            if (embeddings.size() != validCourses.size()) {
+                log.error("❌ Embedding count mismatch: {} texts vs {} embeddings", 
+                    validCourses.size(), embeddings.size());
+                return;
+            }
+
+            // Step 3: Build points and upsert
+            List<QdrantPoint> points = new ArrayList<>();
+            for (int i = 0; i < validCourses.size(); i++) {
+                Map<String, Object> course = validCourses.get(i);
+                List<Double> embedding = embeddings.get(i);
+                
+                if (embedding.isEmpty()) {
+                    continue;
                 }
+
+                String courseId = course.get("id").toString();
+                String title = getStringValue(course.get("title"));
+
+                Map<String, Object> coursePayload = new HashMap<>(course);
+                coursePayload.put("id", courseId);
+
+                for (Map.Entry<String, Object> entry : coursePayload.entrySet()) {
+                    Object value = entry.getValue();
+                    if (value != null && !isPrimitiveOrString(value)) {
+                        coursePayload.put(entry.getKey(), value.toString());
+                    }
+                }
+
+                points.add(new QdrantPoint(courseId, embedding, coursePayload));
+                log.debug("📦 Prepared course for indexing: {} - {}", courseId, title);
             }
 
             if (!points.isEmpty()) {
                 qdrantClient.upsertPoints(
                         qdrantProperties.getRecommendationCollection(),
                         points);
-                log.info("✅ Batch indexed {} courses", points.size());
+                log.info("✅ Batch indexed {} courses with {} API call(s)", points.size(), 1);
             }
         } catch (Exception e) {
             log.error("❌ Failed to batch index courses", e);
@@ -295,6 +320,20 @@ public class VectorService {
             log.info("✅ Indexed lesson: {} - {}", lessonId, title);
         } catch (Exception e) {
             log.error("❌ Failed to index lesson: {}", lessonId, e);
+        }
+    }
+
+    /**
+     * Delete lesson from Qdrant
+     */
+    public void deleteLesson(UUID lessonId) {
+        try {
+            qdrantClient.deletePoint(
+                    qdrantProperties.getLessonCollection(),
+                    lessonId.toString());
+            log.info("🗑️ Deleted lesson from index: {}", lessonId);
+        } catch (Exception e) {
+            log.error("❌ Failed to delete lesson: {}", lessonId, e);
         }
     }
 

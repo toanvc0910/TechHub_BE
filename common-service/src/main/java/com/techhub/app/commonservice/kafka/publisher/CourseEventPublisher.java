@@ -19,6 +19,12 @@ public class CourseEventPublisher {
 
     @Value("${kafka.topics.course-events:" + KafkaTopics.COURSE_EVENTS_TOPIC + "}")
     private String courseEventsTopic;
+    
+    @Value("${kafka.topics.lesson-events:lesson-events}")
+    private String lessonEventsTopic;
+    
+    @Value("${kafka.topics.enrollment-events:enrollment-events}")
+    private String enrollmentEventsTopic;
 
     public void publishCourseEvent(CourseEventPayload event) {
         try {
@@ -31,8 +37,8 @@ public class CourseEventPublisher {
 
     public void publishLessonEvent(LessonEventPayload event) {
         try {
-            // Use courseId as key to ensure ordering if needed, or lessonId
-            kafkaTemplate.send(courseEventsTopic, event.getCourseId(), event);
+            // Use separate topic for lesson events
+            kafkaTemplate.send(lessonEventsTopic, event.getCourseId(), event);
             log.info("📤 Published LessonEvent: {} for lesson {}", event.getEventType(), event.getLessonId());
         } catch (Exception e) {
             log.error("❌ Failed to publish LessonEvent for lesson {}", event.getLessonId(), e);
@@ -41,7 +47,8 @@ public class CourseEventPublisher {
 
     public void publishEnrollmentEvent(EnrollmentEventPayload event) {
         try {
-            kafkaTemplate.send(courseEventsTopic, event.getUserId(), event); // Key by userId or courseId
+            // Use separate topic for enrollment events
+            kafkaTemplate.send(enrollmentEventsTopic, event.getUserId(), event);
             log.info("📤 Published EnrollmentEvent: {} for user {} course {}", event.getEventType(), event.getUserId(), event.getCourseId());
         } catch (Exception e) {
             log.error("❌ Failed to publish EnrollmentEvent for enrollment {}", event.getEnrollmentId(), e);

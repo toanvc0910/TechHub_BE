@@ -44,6 +44,13 @@ spring:
         spring.json.trusted.packages: "*"
         spring.json.use.type.headers: false
 
+# Kafka Topics Configuration
+kafka:
+  topics:
+    course-events: ${KAFKA_COURSE_EVENTS_TOPIC:course-events}
+    lesson-events: ${KAFKA_LESSON_EVENTS_TOPIC:lesson-events}
+    enrollment-events: ${KAFKA_ENROLLMENT_EVENTS_TOPIC:enrollment-events}
+
 eureka:
   client:
     register-with-eureka: true
