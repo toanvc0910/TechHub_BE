@@ -130,6 +130,59 @@ public class QdrantClient {
     }
 
     /**
+     * Check if Qdrant is healthy by trying to list collections
+     * This is more reliable than a health endpoint as it verifies actual connectivity
+     */
+    public boolean checkHealth() {
+        String url = qdrantProperties.getHost() + "/collections";
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    new HttpEntity<>(buildHeaders()),
+                    Map.class);
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            log.warn("⚠️ Qdrant health check failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get Qdrant version information
+     */
+    public String getVersion() {
+        String url = qdrantProperties.getHost() + "/";
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    new HttpEntity<>(buildHeaders()),
+                    Map.class);
+            Map<String, Object> body = response.getBody();
+            if (body != null) {
+                // Qdrant root endpoint returns version in different possible formats
+                if (body.containsKey("version")) {
+                    Object version = body.get("version");
+                    return version != null ? version.toString() : null;
+                }
+                // Sometimes version is nested in result
+                if (body.containsKey("result")) {
+                    Map<String, Object> result = (Map<String, Object>) body.get("result");
+                    if (result != null && result.containsKey("version")) {
+                        Object version = result.get("version");
+                        return version != null ? version.toString() : null;
+                    }
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            log.warn("⚠️ Failed to get Qdrant version: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Get collection info including point count
      */
     public Map<String, Object> getCollectionInfo(String collectionName) {

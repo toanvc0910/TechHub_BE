@@ -309,44 +309,104 @@ public class VectorIndexingService {
         Map<String, Object> stats = new HashMap<>();
 
         try {
-            // Count courses in PostgreSQL
-            Integer dbCount = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM courses WHERE status = 'PUBLISHED' AND is_active = 'Y'",
-                    Integer.class);
+            // Check Qdrant health
+            boolean healthy = qdrantClient.checkHealth();
+            stats.put("healthy", healthy);
 
-            stats.put("database_published_courses", dbCount);
-            stats.put("course_embeddings_collection", qdrantProperties.getRecommendationCollection());
-            stats.put("user_embeddings_collection", qdrantProperties.getProfileCollection());
-            stats.put("lesson_embeddings_collection", qdrantProperties.getLessonCollection());
-            stats.put("qdrant_host", qdrantProperties.getHost());
+            // Get Qdrant version
+            String version = qdrantClient.getVersion();
+            if (version != null) {
+                stats.put("version", version);
+            }
 
-            // Get actual embedding counts from Qdrant
+            // Structure collections data
+            Map<String, Object> collections = new HashMap<>();
+
+            // Get course collection info
             try {
                 Map<String, Object> courseCollectionInfo = qdrantClient.getCollectionInfo(qdrantProperties.getRecommendationCollection());
                 if (courseCollectionInfo != null && !courseCollectionInfo.isEmpty()) {
-                    stats.put("qdrant_course_embeddings_count", courseCollectionInfo.get("points_count"));
-                    stats.put("qdrant_course_collection_status", courseCollectionInfo.get("status"));
+                    Map<String, Object> courseStats = new HashMap<>();
+                    Object pointsCount = courseCollectionInfo.get("points_count");
+                    Object vectorCount = courseCollectionInfo.get("vectors_count");
+                    Object status = courseCollectionInfo.get("status");
+                    
+                    courseStats.put("pointsCount", pointsCount != null ? pointsCount : 0);
+                    courseStats.put("vectorCount", vectorCount != null ? vectorCount : pointsCount != null ? pointsCount : 0);
+                    courseStats.put("status", status != null ? status.toString() : "unknown");
+                    
+                    collections.put("courses", courseStats);
+                } else {
+                    // Collection doesn't exist or is empty
+                    Map<String, Object> courseStats = new HashMap<>();
+                    courseStats.put("pointsCount", 0);
+                    courseStats.put("vectorCount", 0);
+                    courseStats.put("status", "not_found");
+                    collections.put("courses", courseStats);
                 }
-                
-                Map<String, Object> lessonCollectionInfo = qdrantClient.getCollectionInfo(qdrantProperties.getLessonCollection());
-                if (lessonCollectionInfo != null && !lessonCollectionInfo.isEmpty()) {
-                    stats.put("qdrant_lesson_embeddings_count", lessonCollectionInfo.get("points_count"));
-                }
-            } catch (Exception qdrantEx) {
-                log.warn("⚠️ Could not fetch Qdrant collection info: {}", qdrantEx.getMessage());
-                stats.put("qdrant_info_error", qdrantEx.getMessage());
+            } catch (Exception e) {
+                log.warn("⚠️ Could not fetch course collection info: {}", e.getMessage());
+                Map<String, Object> courseStats = new HashMap<>();
+                courseStats.put("pointsCount", 0);
+                courseStats.put("vectorCount", 0);
+                courseStats.put("status", "error");
+                collections.put("courses", courseStats);
             }
 
-            // Check for mismatch
-            Integer qdrantCount = (Integer) stats.get("qdrant_course_embeddings_count");
-            if (dbCount != null && qdrantCount != null && !dbCount.equals(qdrantCount)) {
-                stats.put("warning", String.format(
-                    "MISMATCH DETECTED! Database has %d published courses but Qdrant has %d embeddings. " +
-                    "Please run reindex-courses to sync.", dbCount, qdrantCount));
+            // Get lesson collection info
+            try {
+                Map<String, Object> lessonCollectionInfo = qdrantClient.getCollectionInfo(qdrantProperties.getLessonCollection());
+                if (lessonCollectionInfo != null && !lessonCollectionInfo.isEmpty()) {
+                    Map<String, Object> lessonStats = new HashMap<>();
+                    Object pointsCount = lessonCollectionInfo.get("points_count");
+                    Object vectorCount = lessonCollectionInfo.get("vectors_count");
+                    Object status = lessonCollectionInfo.get("status");
+                    
+                    lessonStats.put("pointsCount", pointsCount != null ? pointsCount : 0);
+                    lessonStats.put("vectorCount", vectorCount != null ? vectorCount : pointsCount != null ? pointsCount : 0);
+                    lessonStats.put("status", status != null ? status.toString() : "unknown");
+                    
+                    collections.put("lessons", lessonStats);
+                } else {
+                    // Collection doesn't exist or is empty
+                    Map<String, Object> lessonStats = new HashMap<>();
+                    lessonStats.put("pointsCount", 0);
+                    lessonStats.put("vectorCount", 0);
+                    lessonStats.put("status", "not_found");
+                    collections.put("lessons", lessonStats);
+                }
+            } catch (Exception e) {
+                log.warn("⚠️ Could not fetch lesson collection info: {}", e.getMessage());
+                Map<String, Object> lessonStats = new HashMap<>();
+                lessonStats.put("pointsCount", 0);
+                lessonStats.put("vectorCount", 0);
+                lessonStats.put("status", "error");
+                collections.put("lessons", lessonStats);
+            }
+
+            stats.put("collections", collections);
+
+            // Additional debug info (for backend logs, not sent to frontend)
+            try {
+                Integer dbCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM courses WHERE status = 'PUBLISHED' AND is_active = 'Y'",
+                        Integer.class);
+                
+                Map<String, Object> coursesCollection = (Map<String, Object>) collections.get("courses");
+                Integer qdrantCount = coursesCollection != null ? (Integer) coursesCollection.get("pointsCount") : null;
+                
+                if (dbCount != null && qdrantCount != null && !dbCount.equals(qdrantCount)) {
+                    log.warn("⚠️ MISMATCH DETECTED! Database has {} published courses but Qdrant has {} embeddings. " +
+                            "Please run reindex-courses to sync.", dbCount, qdrantCount);
+                }
+            } catch (Exception e) {
+                log.debug("Could not check database count: {}", e.getMessage());
             }
 
         } catch (Exception e) {
             log.error("❌ Failed to get Qdrant stats", e);
+            stats.put("healthy", false);
+            stats.put("collections", new HashMap<>());
             stats.put("error", e.getMessage());
         }
 
