@@ -515,6 +515,33 @@ public class DatabaseInitializer implements CommandLineRunner {
                         Permission aiChatSessionDeletePerm = createPermission("AI_CHAT_SESSION_DELETE",
                                         "Delete AI Chat Session",
                                         "/api/ai/chat/sessions/{sessionId}", PermissionMethod.DELETE, "AI");
+                        Permission aiChatSessionMessagesPerm = createPermission("AI_CHAT_SESSION_MESSAGES",
+                                        "Get AI Chat Session Messages",
+                                        "/api/ai/chat/sessions/{sessionId}/messages", PermissionMethod.GET, "AI");
+
+                        // AI Drafts Management
+                        Permission aiDraftsExercisesPerm = createPermission("AI_DRAFTS_EXERCISES",
+                                        "Get Exercise Drafts",
+                                        "/api/ai/drafts/exercises", PermissionMethod.GET, "AI");
+                        Permission aiDraftsExercisesLatestPerm = createPermission("AI_DRAFTS_EXERCISES_LATEST",
+                                        "Get Latest Exercise Draft",
+                                        "/api/ai/drafts/exercises/latest", PermissionMethod.GET, "AI");
+                        Permission aiDraftsDetailPerm = createPermission("AI_DRAFTS_DETAIL",
+                                        "Get Draft by ID",
+                                        "/api/ai/drafts/{taskId}", PermissionMethod.GET, "AI");
+                        Permission aiDraftsLearningPathsPerm = createPermission("AI_DRAFTS_LEARNING_PATHS",
+                                        "Get Learning Path Drafts",
+                                        "/api/ai/drafts/learning-paths", PermissionMethod.GET, "AI");
+                        Permission aiDraftsApproveExercisePerm = createPermission("AI_DRAFTS_APPROVE_EXERCISE",
+                                        "Approve Exercise Draft",
+                                        "/api/ai/drafts/{taskId}/approve-exercise", PermissionMethod.POST, "AI");
+                        Permission aiDraftsApproveLearningPathPerm = createPermission("AI_DRAFTS_APPROVE_LEARNING_PATH",
+                                        "Approve Learning Path Draft",
+                                        "/api/ai/drafts/{taskId}/approve-learning-path", PermissionMethod.POST, "AI");
+                        Permission aiDraftsRejectPerm = createPermission("AI_DRAFTS_REJECT",
+                                        "Reject Draft",
+                                        "/api/ai/drafts/{taskId}/reject", PermissionMethod.POST, "AI");
+
                         Permission reindexCoursesPerm = createPermission("AI_REINDEX_COURSES", "Reindex courses",
                                         "/api/ai/admin/reindex-courses", PermissionMethod.POST, "AI");
                         Permission reindexLessonsPerm = createPermission("AI_REINDEX_LESSONS", "Reindex lessons",
@@ -646,7 +673,12 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         generateExercisesPerm, generateLearningPathPerm, recommendRealtimePerm,
                                         recommendScheduledPerm,
                                         aiChatPerm, aiChatSessionsPerm, aiChatSessionCreatePerm,
-                                        aiChatSessionDetailPerm, aiChatSessionDeletePerm,
+                                        aiChatSessionDetailPerm, aiChatSessionDeletePerm, aiChatSessionMessagesPerm,
+                                        // AI Drafts
+                                        aiDraftsExercisesPerm, aiDraftsExercisesLatestPerm, aiDraftsDetailPerm,
+                                        aiDraftsLearningPathsPerm, aiDraftsApproveExercisePerm,
+                                        aiDraftsApproveLearningPathPerm, aiDraftsRejectPerm,
+                                        // AI Admin
                                         reindexCoursesPerm, reindexLessonsPerm, reindexAllPerm,
                                         qdrantStatsPerm,
                                         // Notification Services
@@ -731,7 +763,11 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "AI_GENERATE_EXERCISES", "AI_GENERATE_LEARNING_PATH", "AI_RECOMMEND_REALTIME",
                                         "AI_RECOMMEND_SCHEDULED", "AI_CHAT", "AI_CHAT_SESSIONS",
                                         "AI_CHAT_SESSION_CREATE",
-                                        "AI_CHAT_SESSION_DETAIL", "AI_CHAT_SESSION_DELETE",
+                                        "AI_CHAT_SESSION_DETAIL", "AI_CHAT_SESSION_DELETE", "AI_CHAT_SESSION_MESSAGES",
+                                        // AI Drafts - Instructor can manage drafts
+                                        "AI_DRAFTS_EXERCISES", "AI_DRAFTS_EXERCISES_LATEST", "AI_DRAFTS_DETAIL",
+                                        "AI_DRAFTS_LEARNING_PATHS", "AI_DRAFTS_APPROVE_EXERCISE",
+                                        "AI_DRAFTS_APPROVE_LEARNING_PATH", "AI_DRAFTS_REJECT",
                                         // Notifications
                                         "NOTIFICATION_READ_ALL", "NOTIFICATION_UNREAD_COUNT", "NOTIFICATION_MARK_READ",
                                         "NOTIFICATION_MARK_ALL_READ",
@@ -782,7 +818,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         // AI - Basic AI features
                                         "AI_RECOMMEND_REALTIME", "AI_CHAT", "AI_CHAT_SESSIONS",
                                         "AI_CHAT_SESSION_CREATE",
-                                        "AI_CHAT_SESSION_DETAIL", "AI_CHAT_SESSION_DELETE",
+                                        "AI_CHAT_SESSION_DETAIL", "AI_CHAT_SESSION_DELETE", "AI_CHAT_SESSION_MESSAGES",
                                         // Notifications
                                         "NOTIFICATION_READ_ALL", "NOTIFICATION_UNREAD_COUNT", "NOTIFICATION_MARK_READ",
                                         "NOTIFICATION_MARK_ALL_READ",
