@@ -70,6 +70,12 @@ jobs:
           chmod +x mvnw
           ./mvnw -B -DskipTests clean install
 
+      - name: Build proxy-client (shared library)
+        working-directory: ./proxy-client
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -DskipTests clean install
+
       - name: Build ${{ matrix.service.name }}
         working-directory: ${{ matrix.service.context }}
         run: |
