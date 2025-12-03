@@ -158,7 +158,7 @@ public class ChatStreamingService {
                 for (Map<String, Object> course : relevantCourses) {
                     Map<String, Object> payload = (Map<String, Object>) course.get("payload");
                     if (payload != null) {
-                        Object courseId = payload.get("course_id");
+                        Object courseId = payload.get("id");
                         prompt.append(String.format("**%d. %s**\n", ++count, payload.get("title")));
                         prompt.append("   - Mô tả: ").append(payload.get("description")).append("\n");
                         prompt.append("   - Trình độ: ").append(payload.get("level")).append("\n");

@@ -257,7 +257,7 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
                 int index = 1;
                 for (Map<String, Object> course : courses) {
                     String courseName = (String) course.get("course_name");
-                    String courseId = (String) course.get("course_id");
+                    String courseId = (String) course.get("id");  // Changed from course_id to id
                     String description = (String) course.get("description");
                     String level = (String) course.get("level");
 
@@ -325,7 +325,7 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
                         prompt.append(String.format("%d. %s\n", ++count, payload.get("title")));
                         prompt.append("   Mô tả: ").append(payload.get("description")).append("\n");
                         prompt.append("   Trình độ: ").append(payload.get("level")).append("\n");
-                        prompt.append("   Course ID: ").append(payload.get("course_id")).append("\n\n");
+                        prompt.append("   Course ID: ").append(payload.get("id")).append("\n\n");
                     }
                 }
             } else {

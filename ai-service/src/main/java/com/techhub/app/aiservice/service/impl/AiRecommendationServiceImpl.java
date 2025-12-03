@@ -114,7 +114,7 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
                 Map<String, Object> payload = (Map<String, Object>) course.get("payload");
                 if (payload != null) {
                     joiner.add(String.format("%d. Course: %s", ++count, payload.get("title")));
-                    joiner.add("   ID: " + payload.get("course_id"));
+                    joiner.add("   ID: " + payload.get("id"));
                     joiner.add("   Description: " + payload.get("description"));
                     joiner.add("   Level: " + payload.get("level"));
                     joiner.add("   Language: " + payload.get("language"));
