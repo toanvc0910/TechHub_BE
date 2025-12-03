@@ -17,6 +17,7 @@ public class GatewayCorsConfiguration {
         config.addAllowedOriginPattern("http://localhost:*"); // Allow localhost with any port
         config.addAllowedOriginPattern("https://localhost:*"); // Allow HTTPS localhost
         config.addAllowedOriginPattern("https://inova.id.vn"); // Allow HTTPS localhost
+        config.addAllowedOriginPattern("https://techhub.inova.id.vn"); // Allow HTTPS localhost
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         config.setAllowCredentials(true); // Enable credentials for JWT tokens
