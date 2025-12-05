@@ -26,6 +26,7 @@ public class JwtUtil {
     @Value("${jwt.refresh-expiration:604800000}") // 7 days
     private long refreshExpiration;
 
+
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -116,5 +117,34 @@ public class JwtUtil {
             return authHeader.substring(7);
         }
         return null;
+    }
+
+    public boolean validateRefreshToken(String token) {
+        try {
+            Claims claims = getAllClaimsFromToken(token);
+            String type = claims.get("type", String.class);
+            return "refresh".equals(type) && !isTokenExpired(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            log.error("Refresh token validation failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean isRefreshToken(String token) {
+        try {
+            Claims claims = getAllClaimsFromToken(token);
+            String type = claims.get("type", String.class);
+            return "refresh".equals(type);
+        } catch (JwtException | IllegalArgumentException e) {
+            log.error("Failed to check token type: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public java.time.LocalDateTime getExpirationDateFromRefreshToken(String token) {
+        Date expiration = getExpirationDateFromToken(token);
+        return expiration.toInstant()
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDateTime();
     }
 }

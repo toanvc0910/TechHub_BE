@@ -4,7 +4,9 @@ import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.userservice.dto.request.CreateUserRequest;
 import com.techhub.app.userservice.dto.request.LoginRequest;
+import com.techhub.app.userservice.dto.request.RefreshTokenRequest;
 import com.techhub.app.userservice.dto.request.ResendCodeRequest;
+import com.techhub.app.userservice.dto.request.SaveRefreshTokenRequest;
 import com.techhub.app.userservice.dto.request.VerifyEmailRequest;
 import com.techhub.app.userservice.dto.response.AuthResponse;
 import com.techhub.app.userservice.dto.response.UserResponse;
@@ -101,6 +103,30 @@ public class AuthController {
         public ResponseEntity<GlobalResponse<String>> health(HttpServletRequest httpRequest) {
                 return ResponseEntity.ok(
                                 GlobalResponse.success("User service is running", "OK")
+                                                .withPath(httpRequest.getRequestURI()));
+        }
+
+        @PostMapping("/refresh-token")
+        public ResponseEntity<GlobalResponse<AuthResponse>> refreshToken(
+                        @Valid @RequestBody RefreshTokenRequest request,
+                        HttpServletRequest httpRequest) {
+                log.info("Refresh token request");
+                AuthResponse authResponse = authService.refreshToken(request);
+
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Token refreshed successfully", authResponse)
+                                                .withPath(httpRequest.getRequestURI()));
+        }
+
+        @PostMapping("/save-refresh-token")
+        public ResponseEntity<GlobalResponse<String>> saveRefreshToken(
+                        @Valid @RequestBody SaveRefreshTokenRequest request,
+                        HttpServletRequest httpRequest) {
+                log.info("Save refresh token request for user {}", request.getUserId());
+                authService.saveRefreshToken(request);
+
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Refresh token saved successfully", "Token saved")
                                                 .withPath(httpRequest.getRequestURI()));
         }
 }

@@ -49,6 +49,12 @@ public class AuthProxyController {
         return userServiceClient.logout(authHeader);
     }
 
+    @PostMapping("/refresh-token")
+    public ResponseEntity<String> refreshToken(@RequestBody Object refreshTokenRequest) {
+        log.info("Refresh token request forwarded to user-service");
+        return userServiceClient.refreshToken(refreshTokenRequest);
+    }
+
     @PostMapping("/validate")
     public ResponseEntity<String> validateToken(@RequestHeader("Authorization") String authHeader) {
         return userServiceClient.validateToken(authHeader);
@@ -160,6 +166,26 @@ public class AuthProxyController {
             // Issue access/refresh tokens with resolved roles
             String accessToken = jwtUtil.generateToken(userId, email, roles);
             String refreshToken = jwtUtil.generateRefreshToken(userId, email);
+
+            // Save refresh token to user-service
+            try {
+                // Determine provider from payload (GOOGLE, GITHUB, FACEBOOK)
+                String provider = payload.getOrDefault("provider", "GOOGLE").toString().toUpperCase();
+                java.time.LocalDateTime expiresAt = jwtUtil.getExpirationDateFromRefreshToken(refreshToken);
+                
+                Map<String, Object> saveRefreshTokenRequest = Map.of(
+                    "userId", userId.toString(),
+                    "provider", provider,
+                    "refreshToken", refreshToken,
+                    "expiresAt", expiresAt.toString()
+                );
+                
+                userServiceClient.saveRefreshToken(saveRefreshTokenRequest);
+                log.info("Saved refresh token for OAuth2 user {} with provider {}", userId, provider);
+            } catch (Exception e) {
+                log.error("Failed to save refresh token for OAuth2 user: {}", e.getMessage(), e);
+                // Continue anyway - user can still login, just won't have refresh token
+            }
 
             return ResponseEntity.ok(Map.of(
                     "success", true,

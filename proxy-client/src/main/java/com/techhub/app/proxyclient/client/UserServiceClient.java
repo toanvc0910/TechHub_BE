@@ -22,6 +22,12 @@ public interface UserServiceClient {
         @PostMapping("/api/auth/logout")
         ResponseEntity<String> logout(@RequestHeader("Authorization") String authHeader);
 
+        @PostMapping("/api/auth/refresh-token")
+        ResponseEntity<String> refreshToken(@RequestBody Object refreshTokenRequest);
+
+        @PostMapping("/api/auth/save-refresh-token")
+        ResponseEntity<String> saveRefreshToken(@RequestBody Object saveRefreshTokenRequest);
+
         @PostMapping("/api/auth/validate")
         ResponseEntity<String> validateToken(@RequestHeader("Authorization") String authHeader);
 

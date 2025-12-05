@@ -189,7 +189,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         authProvider.setUserId(userId);
         authProvider.setProvider(
                 AuthProviderEnum.valueOf(oAuth2UserRequest.getClientRegistration().getRegistrationId().toUpperCase()));
-        authProvider.setAccessToken(oAuth2UserRequest.getAccessToken().getTokenValue());
+        // Do not save provider access token - only track the provider type
         authProvider.setCreated(LocalDateTime.now());
         authProvider.setUpdated(LocalDateTime.now());
         authProvider.setIsActive(true);
