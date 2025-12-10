@@ -7,10 +7,13 @@ import com.techhub.app.aiservice.entity.ChatMessage;
 import com.techhub.app.aiservice.entity.ChatSession;
 import com.techhub.app.aiservice.enums.ChatMode;
 import com.techhub.app.aiservice.enums.ChatSender;
+import com.techhub.app.aiservice.exception.RateLimitExceededException;
 import com.techhub.app.aiservice.repository.ChatMessageRepository;
 import com.techhub.app.aiservice.repository.ChatSessionRepository;
 import com.techhub.app.aiservice.service.ChatOrchestrationService;
 import com.techhub.app.aiservice.service.OpenAiGateway;
+import com.techhub.app.aiservice.service.PromptSanitizationService;
+import com.techhub.app.aiservice.service.RateLimitingService;
 import com.techhub.app.aiservice.service.VectorService;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -34,19 +37,37 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
     private final ChatMessageRepository chatMessageRepository;
     private final OpenAiGateway openAiGateway;
     private final VectorService vectorService;
+    private final PromptSanitizationService sanitizationService;
+    private final RateLimitingService rateLimitingService;
 
     @Override
     @Transactional
     public ChatMessageResponse sendMessage(ChatMessageRequest request) {
+        // 1. Check rate limiting first
+        if (!rateLimitingService.isAllowed(request.getUserId())) {
+            int remainingPerMin = rateLimitingService.getRemainingRequestsPerMinute(request.getUserId());
+            int remainingPerHour = rateLimitingService.getRemainingRequestsPerHour(request.getUserId());
+            log.warn("Rate limit exceeded for user {}", request.getUserId());
+            throw new RateLimitExceededException(
+                    "Too many requests. Please try again later.",
+                    remainingPerMin,
+                    remainingPerHour);
+        }
+
+        // 2. Sanitize user input (additional layer beyond @SafePrompt validation)
+        String sanitizedMessage = sanitizationService.sanitize(request.getMessage());
+        log.debug("Message sanitized for user {}", request.getUserId());
+
         ChatSession session = loadOrCreateSession(request);
 
         ChatMessage userMessage = new ChatMessage();
         userMessage.setSession(session);
         userMessage.setSender(ChatSender.USER);
-        userMessage.setContent(request.getMessage());
+        userMessage.setContent(sanitizedMessage); // Use sanitized message
         chatMessageRepository.save(userMessage);
 
-        String prompt = buildPrompt(request, session);
+        // 3. Build prompt with sanitized input
+        String prompt = buildPrompt(sanitizedMessage, request.getMode(), session);
         Object aiResponse = openAiGateway.generateStructuredJson(prompt, request.getContext());
 
         // Extract clean text from OpenAI response
@@ -257,7 +278,7 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
                 int index = 1;
                 for (Map<String, Object> course : courses) {
                     String courseName = (String) course.get("course_name");
-                    String courseId = (String) course.get("id");  // Changed from course_id to id
+                    String courseId = (String) course.get("id"); // Changed from course_id to id
                     String description = (String) course.get("description");
                     String level = (String) course.get("level");
 
@@ -294,10 +315,10 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
         return chatSessionRepository.save(session);
     }
 
-    private String buildPrompt(ChatMessageRequest request, ChatSession session) {
+    private String buildPrompt(String sanitizedMessage, ChatMode mode, ChatSession session) {
         StringBuilder prompt = new StringBuilder();
 
-        if (request.getMode() == ChatMode.ADVISOR) {
+        if (mode == ChatMode.ADVISOR) {
             // Advisor Mode: Search Qdrant for relevant courses
             prompt.append("Bạn là cố vấn học tập thông minh của TechHub.\n");
             prompt.append(
@@ -305,11 +326,11 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
             prompt.append(
                     "Format response: Trả về JSON với cấu trúc {\"message\": \"...\", \"suggestions\": [{\"course_name\": \"...\", \"course_id\": \"...\", \"description\": \"...\", \"level\": \"...\"}]}\n\n");
 
-            log.info("🔍 [ADVISOR MODE] Searching Qdrant for: {}", request.getMessage());
+            log.info("🔍 [ADVISOR MODE] Searching Qdrant for: {}", sanitizedMessage);
 
             List<Map<String, Object>> relevantCourses = null;
             try {
-                relevantCourses = vectorService.searchCourses(request.getMessage(), 5);
+                relevantCourses = vectorService.searchCourses(sanitizedMessage, 5);
             } catch (Exception e) {
                 log.error("Failed to search courses from Qdrant: {}", e.getMessage(), e);
                 relevantCourses = List.of();
@@ -322,17 +343,23 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> payload = (Map<String, Object>) course.get("payload");
                     if (payload != null) {
-                        prompt.append(String.format("%d. %s\n", ++count, payload.get("title")));
-                        prompt.append("   Mô tả: ").append(payload.get("description")).append("\n");
-                        prompt.append("   Trình độ: ").append(payload.get("level")).append("\n");
-                        prompt.append("   Course ID: ").append(payload.get("id")).append("\n\n");
+                        // Sanitize database content as well
+                        String title = sanitizeDbContent(String.valueOf(payload.get("title")));
+                        String description = sanitizeDbContent(String.valueOf(payload.get("description")));
+                        String level = sanitizeDbContent(String.valueOf(payload.get("level")));
+                        String id = sanitizeDbContent(String.valueOf(payload.get("id")));
+
+                        prompt.append(String.format("%d. %s\n", ++count, title));
+                        prompt.append("   Mô tả: ").append(description).append("\n");
+                        prompt.append("   Trình độ: ").append(level).append("\n");
+                        prompt.append("   Course ID: ").append(id).append("\n\n");
                     }
                 }
             } else {
                 prompt.append("(Không tìm thấy khóa học phù hợp trong database. Hãy tư vấn chung về chủ đề này.)\n\n");
             }
 
-            prompt.append("Câu hỏi của user: ").append(request.getMessage()).append("\n\n");
+            prompt.append("Câu hỏi của user: ").append(sanitizedMessage).append("\n\n");
             prompt.append("Hãy trả lời thân thiện và gợi ý khóa học cụ thể nếu có (bao gồm course_name và course_id).");
 
         } else {
@@ -342,12 +369,25 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
                     "Format response: Trả về JSON với cấu trúc có \"response\" object chứa thông tin chi tiết.\n");
             prompt.append(
                     "Ví dụ: {\"response\": {\"definition\": \"...\", \"purpose\": \"...\", \"languages\": [...], \"key_concepts\": [...]}}\n\n");
-            prompt.append("Câu hỏi: ").append(request.getMessage()).append("\n\n");
+            prompt.append("Câu hỏi: ").append(sanitizedMessage).append("\n\n");
             prompt.append("Hãy trả lời chi tiết, có cấu trúc và dễ hiểu.");
         }
 
-        log.debug("Built prompt for mode {}: {}", request.getMode(), prompt.toString());
+        log.debug("Built prompt for mode {}: {}", mode, prompt.toString());
         return prompt.toString();
+    }
+
+    /**
+     * Sanitize database content to prevent indirect prompt injection
+     */
+    private String sanitizeDbContent(String content) {
+        if (content == null || content.equals("null")) {
+            return "";
+        }
+        // Remove control characters and normalize whitespace
+        return content.replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
+                .replaceAll("\n{3,}", "\n\n")
+                .trim();
     }
 
     @Override

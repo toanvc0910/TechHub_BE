@@ -6,6 +6,7 @@ import com.techhub.app.aiservice.entity.ChatMessage;
 import com.techhub.app.aiservice.entity.ChatSession;
 import com.techhub.app.aiservice.enums.ChatMode;
 import com.techhub.app.aiservice.enums.ChatSender;
+import com.techhub.app.aiservice.exception.RateLimitExceededException;
 import com.techhub.app.aiservice.repository.ChatMessageRepository;
 import com.techhub.app.aiservice.repository.ChatSessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,8 @@ public class ChatStreamingService {
     private final OpenAiGateway openAiGateway;
     private final ChatbotProperties chatbotProperties;
     private final VectorService vectorService;
+    private final PromptSanitizationService sanitizationService;
+    private final RateLimitingService rateLimitingService;
 
     /**
      * Send a streaming chat message and return Flux of response chunks
@@ -38,20 +41,41 @@ public class ChatStreamingService {
                 request.getUserId(), request.getSessionId(), request.getMode());
         log.info("📨 [ChatStreamingService] Message: {}", request.getMessage());
 
+        // 1. Check rate limiting
+        if (!rateLimitingService.isAllowed(request.getUserId())) {
+            int remainingPerMin = rateLimitingService.getRemainingRequestsPerMinute(request.getUserId());
+            int remainingPerHour = rateLimitingService.getRemainingRequestsPerHour(request.getUserId());
+            log.warn("Rate limit exceeded for user {} in streaming mode", request.getUserId());
+            return Flux.error(new RateLimitExceededException(
+                    "Too many requests. Please try again later.",
+                    remainingPerMin,
+                    remainingPerHour));
+        }
+
+        // 2. Sanitize user input
+        String sanitizedMessage;
+        try {
+            sanitizedMessage = sanitizationService.sanitize(request.getMessage());
+            log.debug("Message sanitized for streaming request");
+        } catch (IllegalArgumentException e) {
+            log.warn("Prompt injection detected in streaming request: {}", e.getMessage());
+            return Flux.error(e);
+        }
+
         // Load or create session
         ChatSession session = loadOrCreateSession(request);
         log.info("📨 [ChatStreamingService] Session loaded/created: {}", session.getId());
 
-        // Save user message
+        // Save user message with sanitized content
         ChatMessage userMessage = new ChatMessage();
         userMessage.setSession(session);
         userMessage.setSender(ChatSender.USER);
-        userMessage.setContent(request.getMessage());
+        userMessage.setContent(sanitizedMessage);
         chatMessageRepository.save(userMessage);
         log.info("📨 [ChatStreamingService] User message saved");
 
         // Build messages list for OpenAI with embedding context
-        List<Map<String, String>> messages = buildMessageHistoryWithContext(session, request);
+        List<Map<String, String>> messages = buildMessageHistoryWithContext(session, request, sanitizedMessage);
         log.info("📨 [ChatStreamingService] Message history built with context, {} messages", messages.size());
 
         // Accumulate response for saving
@@ -104,11 +128,12 @@ public class ChatStreamingService {
      * Build message history with embedding context for ADVISOR mode
      */
     @SuppressWarnings("unchecked")
-    private List<Map<String, String>> buildMessageHistoryWithContext(ChatSession session, ChatMessageRequest request) {
+    private List<Map<String, String>> buildMessageHistoryWithContext(ChatSession session, ChatMessageRequest request,
+            String sanitizedMessage) {
         List<Map<String, String>> messages = new ArrayList<>();
 
         // Build system prompt with context based on mode
-        String systemPrompt = buildSystemPromptWithContext(request);
+        String systemPrompt = buildSystemPromptWithContext(request, sanitizedMessage);
         messages.add(Map.of("role", "system", "content", systemPrompt));
 
         // Get recent conversation history (last 10 messages)
@@ -128,7 +153,7 @@ public class ChatStreamingService {
      * Build system prompt with embedding context for course recommendations
      */
     @SuppressWarnings("unchecked")
-    private String buildSystemPromptWithContext(ChatMessageRequest request) {
+    private String buildSystemPromptWithContext(ChatMessageRequest request, String sanitizedMessage) {
         StringBuilder prompt = new StringBuilder();
 
         if (request.getMode() == ChatMode.ADVISOR) {
@@ -140,11 +165,11 @@ public class ChatStreamingService {
             prompt.append(
                     "⚠️ QUAN TRỌNG: Khi gợi ý khóa học, BẮT BUỘC phải bao gồm link dạng markdown: [Xem khóa học](/courses/{course_id})\n\n");
 
-            log.info("🔍 [ADVISOR MODE - Streaming] Searching Qdrant for: {}", request.getMessage());
+            log.info("🔍 [ADVISOR MODE - Streaming] Searching Qdrant for: {}", sanitizedMessage);
 
             List<Map<String, Object>> relevantCourses = null;
             try {
-                relevantCourses = vectorService.searchCourses(request.getMessage(), 5);
+                relevantCourses = vectorService.searchCourses(sanitizedMessage, 5);
                 log.info("🔍 [ADVISOR MODE - Streaming] Found {} relevant courses",
                         relevantCourses != null ? relevantCourses.size() : 0);
             } catch (Exception e) {
@@ -158,10 +183,15 @@ public class ChatStreamingService {
                 for (Map<String, Object> course : relevantCourses) {
                     Map<String, Object> payload = (Map<String, Object>) course.get("payload");
                     if (payload != null) {
+                        // Sanitize database content
+                        String title = sanitizeDbContent(String.valueOf(payload.get("title")));
+                        String description = sanitizeDbContent(String.valueOf(payload.get("description")));
+                        String level = sanitizeDbContent(String.valueOf(payload.get("level")));
                         Object courseId = payload.get("id");
-                        prompt.append(String.format("**%d. %s**\n", ++count, payload.get("title")));
-                        prompt.append("   - Mô tả: ").append(payload.get("description")).append("\n");
-                        prompt.append("   - Trình độ: ").append(payload.get("level")).append("\n");
+
+                        prompt.append(String.format("**%d. %s**\n", ++count, title));
+                        prompt.append("   - Mô tả: ").append(description).append("\n");
+                        prompt.append("   - Trình độ: ").append(level).append("\n");
                         prompt.append("   - Course ID: ").append(courseId).append("\n");
                         prompt.append("   - 🔗 Link: [Xem khóa học](/courses/").append(courseId).append(")\n\n");
                     }
@@ -182,6 +212,19 @@ public class ChatStreamingService {
         }
 
         return prompt.toString();
+    }
+
+    /**
+     * Sanitize database content to prevent indirect prompt injection
+     */
+    private String sanitizeDbContent(String content) {
+        if (content == null || content.equals("null")) {
+            return "";
+        }
+        // Remove control characters and normalize whitespace
+        return content.replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
+                .replaceAll("\n{3,}", "\n\n")
+                .trim();
     }
 
     private void saveBotMessage(ChatSession session, String content) {

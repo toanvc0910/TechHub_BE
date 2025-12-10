@@ -678,10 +678,11 @@ CREATE INDEX idx_tags_name ON tags(name);
 CREATE INDEX idx_tags_is_active ON tags(is_active);
 -- Course Skills Join Table
 CREATE TABLE course_skills (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
     assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (course_id, skill_id)
+    UNIQUE (course_id, skill_id)  -- Prevent duplicate course-skill pairs
 );
 CREATE INDEX idx_course_skills_course_id ON course_skills(course_id);
 CREATE INDEX idx_course_skills_skill_id ON course_skills(skill_id);

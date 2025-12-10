@@ -64,7 +64,7 @@ chatbot:
   mock-embeddings: ${CHATBOT_MOCK_EMBEDDINGS:true}
   system-prompt: |
     Bạn là TechHub AI - trợ lý học tập thông minh cho nền tảng học trực tuyến TechHub.
-    
+
     Hướng dẫn:
     - Trả lời bằng tiếng Việt, rõ ràng và thân thiện
     - Sử dụng emoji phù hợp để làm sinh động câu trả lời
@@ -86,6 +86,18 @@ ai:
   chat:
     cleanup:
       days-to-keep: ${AI_CHAT_CLEANUP_DAYS:30} # Auto-delete sessions older than 30 days
+
+  # Security Configuration
+  security:
+    rate-limit:
+      enabled: true
+      max-requests-per-minute: 20
+      max-requests-per-hour: 100
+    prompt-validation:
+      enabled: true
+      max-message-length: 2000
+      max-consecutive-special-chars: 5
+      log-attempts: true
 
 logging:
   level:
