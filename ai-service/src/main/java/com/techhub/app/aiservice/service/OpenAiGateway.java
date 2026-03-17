@@ -24,12 +24,13 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class OpenAiGateway {
+public class OpenAiGateway implements AiGateway {
 
     private final RestTemplate restTemplate;
     private final WebClient webClient;
     private final OpenAiProperties openAiProperties;
     private final ChatbotProperties chatbotProperties;
+    private final AiProviderConfigService aiProviderConfigService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -45,8 +46,9 @@ public class OpenAiGateway {
         headers.setBearerAuth(openAiProperties.getApiKey());
         headers.setContentType(MediaType.APPLICATION_JSON);
 
+        String model = aiProviderConfigService.getModelForProvider("openai");
         Map<String, Object> body = new HashMap<>();
-        body.put("model", openAiProperties.getChat().getModel());
+        body.put("model", model);
         body.put("messages", List.of(
                 Map.of("role", "system", "content", chatbotProperties.getSystemPrompt()),
                 Map.of("role", "user", "content", prompt)));
@@ -79,8 +81,9 @@ public class OpenAiGateway {
             return createMockStream(prompt);
         }
 
+        String model = aiProviderConfigService.getModelForProvider("openai");
         Map<String, Object> body = new HashMap<>();
-        body.put("model", openAiProperties.getChat().getModel());
+        body.put("model", model);
         body.put("messages", List.of(
                 Map.of("role", "system", "content",
                         systemPrompt != null ? systemPrompt : chatbotProperties.getSystemPrompt()),
@@ -130,8 +133,9 @@ public class OpenAiGateway {
             return createMockStream(lastUserMessage);
         }
 
+        String model = aiProviderConfigService.getModelForProvider("openai");
         Map<String, Object> body = new HashMap<>();
-        body.put("model", openAiProperties.getChat().getModel());
+        body.put("model", model);
         body.put("messages", messages);
         body.put("temperature", 0.3);
         body.put("max_tokens", openAiProperties.getChat().getMaxOutputTokens());

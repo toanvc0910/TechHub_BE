@@ -28,6 +28,16 @@ public class FileResponse {
     private String cloudinaryPublicId;
     private String cloudinaryUrl;
     private String cloudinarySecureUrl;
+    private String storageProvider;
+    private String bucketName;
+    private String objectKey;
+    private String publicUrl;
+    private String secureUrl;
+    private String thumbnailObjectKey;
+    private String thumbnailUrl;
+    private String processingStatus;
+    private String processingError;
+    private LocalDateTime processedAt;
     private Integer width;
     private Integer height;
     private Integer duration;

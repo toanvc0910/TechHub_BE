@@ -10,6 +10,7 @@ import com.techhub.app.blogservice.repository.BlogCommentRepository;
 import com.techhub.app.blogservice.repository.BlogRepository;
 import com.techhub.app.blogservice.service.BlogCommentService;
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
@@ -33,8 +34,8 @@ import java.util.UUID;
 @Transactional
 public class BlogCommentServiceImpl implements BlogCommentService {
 
-    private static final String ROLE_ADMIN = "ADMIN";
-    private static final String ROLE_INSTRUCTOR = "INSTRUCTOR";
+    private static final String ROLE_ADMIN = UserRole.ADMIN.name();
+    private static final String ROLE_INSTRUCTOR = UserRole.INSTRUCTOR.name();
 
     private final BlogRepository blogRepository;
     private final BlogCommentRepository blogCommentRepository;
@@ -69,15 +70,15 @@ public class BlogCommentServiceImpl implements BlogCommentService {
 
         BlogComment saved = blogCommentRepository.save(comment);
         log.info("Comment {} created on blog {} by {}", saved.getId(), blogId, currentUserId);
-        
+
         // Build response
         CommentResponse response = toResponse(saved, new ArrayList<>());
-        
+
         // Broadcast to all subscribers via WebSocket
         String destination = "/topic/blog/" + blogId + "/comments";
         log.info(">>> Broadcasting new comment to WebSocket: {}", destination);
         messagingTemplate.convertAndSend(destination, response);
-        
+
         return response;
     }
 

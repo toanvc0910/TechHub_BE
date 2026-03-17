@@ -1,6 +1,6 @@
 package com.techhub.app.learningpathservice.entity;
 
-import com.techhub.app.learningpathservice.enums.SkillCategory;
+import com.techhub.app.commonservice.enums.SkillCategory;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,6 +28,6 @@ public class Skill {
 
     @Column(name = "category", columnDefinition = "skill_category")
     @Enumerated(EnumType.STRING)
-    @org.hibernate.annotations.Type(type = "com.techhub.app.learningpathservice.util.PostgreSQLEnumType")
+    @org.hibernate.annotations.Type(type = "com.techhub.app.commonservice.jpa.PostgreSQLEnumType", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.commonservice.enums.SkillCategory"))
     private SkillCategory category;
 }

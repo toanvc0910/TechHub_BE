@@ -33,11 +33,6 @@ spring:
     consumer:
       group-id: notification-service-v3
       auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        spring.json.add.type.headers: false
   mail:
     host: smtp.gmail.com
     port: 587

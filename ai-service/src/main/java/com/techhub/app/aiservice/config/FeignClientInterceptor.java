@@ -24,30 +24,41 @@ public class FeignClientInterceptor implements RequestInterceptor {
             String authorization = request.getHeader("Authorization");
             if (authorization != null) {
                 template.header("Authorization", authorization);
-                log.debug("✅ Forwarding Authorization header to Feign client");
             }
 
             // Forward X-User-Id header if exists
             String userId = request.getHeader("X-User-Id");
             if (userId != null) {
                 template.header("X-User-Id", userId);
-                log.debug("✅ Forwarding X-User-Id header to Feign client");
             }
+
+            // Forward X-User-Email header
+            String userEmail = request.getHeader("X-User-Email");
+            if (userEmail != null) {
+                template.header("X-User-Email", userEmail);
+            }
+
+            // Forward X-User-Roles header
+            String userRoles = request.getHeader("X-User-Roles");
+            if (userRoles != null) {
+                template.header("X-User-Roles", userRoles);
+            }
+
+            // Identify request source for UserContextInterceptor validation
+            template.header("X-Request-Source", "ai-service");
 
             // Forward Content-Type header
             String contentType = request.getHeader("Content-Type");
             if (contentType != null) {
                 template.header("Content-Type", contentType);
-                log.debug("✅ Forwarding Content-Type header to Feign client: {}", contentType);
             } else {
                 // Set default Content-Type for POST/PUT requests
                 if ("POST".equalsIgnoreCase(template.method()) || "PUT".equalsIgnoreCase(template.method())) {
                     template.header("Content-Type", "application/json");
-                    log.debug("✅ Setting default Content-Type: application/json");
                 }
             }
         } else {
-            log.warn("⚠️ No request attributes found - cannot forward headers");
+            log.warn("No request attributes found - cannot forward headers");
         }
     }
 }

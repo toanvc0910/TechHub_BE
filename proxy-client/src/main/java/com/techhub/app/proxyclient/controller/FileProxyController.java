@@ -31,15 +31,10 @@ public class FileProxyController {
 
         log.info("[PROXY] Uploading file: {} by user: {}", file.getOriginalFilename(), userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.uploadFile(
-                    file, userId, folderId, tags, description);
-            log.info("[PROXY] File uploaded successfully: {}", file.getOriginalFilename());
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error uploading file: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.uploadFile(
+                file, userId, folderId, tags, description);
+        log.info("[PROXY] File uploaded successfully: {}", file.getOriginalFilename());
+        return response;
     }
 
     @PostMapping("/upload/multiple")
@@ -52,15 +47,10 @@ public class FileProxyController {
 
         log.info("[PROXY] Uploading {} files by user: {}", files.size(), userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.uploadMultipleFiles(
-                    files, userId, folderId, tags, description);
-            log.info("[PROXY] {} files uploaded successfully", files.size());
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error uploading files: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.uploadMultipleFiles(
+                files, userId, folderId, tags, description);
+        log.info("[PROXY] {} files uploaded successfully", files.size());
+        return response;
     }
 
     @GetMapping("/{fileId}")
@@ -69,14 +59,9 @@ public class FileProxyController {
             @RequestParam UUID userId) {
         log.info("[PROXY] Getting file: {} for user: {}", fileId, userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.getFile(fileId, userId);
-            log.info("[PROXY] File retrieved: {}", fileId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error getting file: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.getFile(fileId, userId);
+        log.info("[PROXY] File retrieved: {}", fileId);
+        return response;
     }
 
     @GetMapping
@@ -86,14 +71,9 @@ public class FileProxyController {
             @RequestParam(defaultValue = "20") int size) {
         log.info("[PROXY] Listing files for user: {}", userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.listFiles(userId, page, size);
-            log.info("[PROXY] Files listed for user: {}", userId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error listing files: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.listFiles(userId, page, size);
+        log.info("[PROXY] Files listed for user: {}", userId);
+        return response;
     }
 
     @GetMapping("/folder/{folderId}")
@@ -102,14 +82,9 @@ public class FileProxyController {
             @RequestParam UUID userId) {
         log.info("[PROXY] Getting files in folder: {} for user: {}", folderId, userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.getFilesByFolder(folderId, userId);
-            log.info("[PROXY] Files retrieved for folder: {}", folderId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error getting files by folder: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.getFilesByFolder(folderId, userId);
+        log.info("[PROXY] Files retrieved for folder: {}", folderId);
+        return response;
     }
 
     @DeleteMapping("/{fileId}")
@@ -118,28 +93,18 @@ public class FileProxyController {
             @RequestParam UUID userId) {
         log.info("[PROXY] Deleting file: {} by user: {}", fileId, userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.deleteFile(fileId, userId);
-            log.info("[PROXY] File deleted successfully: {}", fileId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error deleting file: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.deleteFile(fileId, userId);
+        log.info("[PROXY] File deleted successfully: {}", fileId);
+        return response;
     }
 
     @GetMapping("/statistics")
     public ResponseEntity<Map<String, Object>> getStatistics(@RequestParam UUID userId) {
         log.info("[PROXY] Getting file statistics for user: {}", userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.getStatistics(userId);
-            log.info("[PROXY] Statistics retrieved for user: {}", userId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error getting statistics: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.getStatistics(userId);
+        log.info("[PROXY] Statistics retrieved for user: {}", userId);
+        return response;
     }
 
     // ==================== FOLDER MANAGEMENT ====================
@@ -148,28 +113,18 @@ public class FileProxyController {
     public ResponseEntity<Map<String, Object>> createFolder(@RequestBody Map<String, Object> request) {
         log.info("[PROXY] Creating folder: {}", request.get("name"));
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.createFolder(request);
-            log.info("[PROXY] Folder created successfully");
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error creating folder: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.createFolder(request);
+        log.info("[PROXY] Folder created successfully");
+        return response;
     }
 
     @GetMapping("/folders/user/{userId}")
     public ResponseEntity<Map<String, Object>> getFoldersByUser(@PathVariable UUID userId) {
         log.info("[PROXY] Getting folders for user: {}", userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.getFoldersByUser(userId);
-            log.info("[PROXY] Folders retrieved for user: {}", userId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error getting folders: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.getFoldersByUser(userId);
+        log.info("[PROXY] Folders retrieved for user: {}", userId);
+        return response;
     }
 
     @GetMapping("/folders/{folderId}")
@@ -178,14 +133,9 @@ public class FileProxyController {
             @RequestParam UUID userId) {
         log.info("[PROXY] Getting folder: {} for user: {}", folderId, userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.getFolder(folderId, userId);
-            log.info("[PROXY] Folder retrieved: {}", folderId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error getting folder: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.getFolder(folderId, userId);
+        log.info("[PROXY] Folder retrieved: {}", folderId);
+        return response;
     }
 
     @GetMapping("/folders/{folderId}/tree")
@@ -194,14 +144,9 @@ public class FileProxyController {
             @RequestParam UUID userId) {
         log.info("[PROXY] Getting folder tree: {} for user: {}", folderId, userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.getFolderTree(folderId, userId);
-            log.info("[PROXY] Folder tree retrieved: {}", folderId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error getting folder tree: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.getFolderTree(folderId, userId);
+        log.info("[PROXY] Folder tree retrieved: {}", folderId);
+        return response;
     }
 
     @PutMapping("/folders/{folderId}")
@@ -211,14 +156,9 @@ public class FileProxyController {
             @RequestBody Map<String, Object> request) {
         log.info("[PROXY] Updating folder: {} by user: {}", folderId, userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.updateFolder(folderId, userId, request);
-            log.info("[PROXY] Folder updated successfully: {}", folderId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error updating folder: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.updateFolder(folderId, userId, request);
+        log.info("[PROXY] Folder updated successfully: {}", folderId);
+        return response;
     }
 
     @DeleteMapping("/folders/{folderId}")
@@ -227,14 +167,9 @@ public class FileProxyController {
             @RequestParam UUID userId) {
         log.info("[PROXY] Deleting folder: {} by user: {}", folderId, userId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.deleteFolder(folderId, userId);
-            log.info("[PROXY] Folder deleted successfully: {}", folderId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error deleting folder: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.deleteFolder(folderId, userId);
+        log.info("[PROXY] Folder deleted successfully: {}", folderId);
+        return response;
     }
 
     // ==================== FILE USAGE TRACKING ====================
@@ -244,14 +179,9 @@ public class FileProxyController {
         log.info("[PROXY] Tracking file usage: file={}, type={}, id={}",
                 request.get("fileId"), request.get("usedInType"), request.get("usedInId"));
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.trackFileUsage(request);
-            log.info("[PROXY] File usage tracked successfully");
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error tracking file usage: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.trackFileUsage(request);
+        log.info("[PROXY] File usage tracked successfully");
+        return response;
     }
 
     @DeleteMapping("/usage/remove")
@@ -261,15 +191,10 @@ public class FileProxyController {
             @RequestParam UUID usedInId) {
         log.info("[PROXY] Removing file usage: file={}, type={}, id={}", fileId, usedInType, usedInId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.removeFileUsage(
-                    fileId, usedInType, usedInId);
-            log.info("[PROXY] File usage removed successfully");
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error removing file usage: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.removeFileUsage(
+                fileId, usedInType, usedInId);
+        log.info("[PROXY] File usage removed successfully");
+        return response;
     }
 
     @DeleteMapping("/usage/remove-all")
@@ -278,28 +203,18 @@ public class FileProxyController {
             @RequestParam UUID usedInId) {
         log.info("[PROXY] Removing all file usages: type={}, id={}", usedInType, usedInId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.removeAllFileUsage(
-                    usedInType, usedInId);
-            log.info("[PROXY] All file usages removed successfully");
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error removing all file usages: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.removeAllFileUsage(
+                usedInType, usedInId);
+        log.info("[PROXY] All file usages removed successfully");
+        return response;
     }
 
     @GetMapping("/usage/file/{fileId}")
     public ResponseEntity<Map<String, Object>> listFileUsages(@PathVariable UUID fileId) {
         log.info("[PROXY] Listing file usages for file: {}", fileId);
 
-        try {
-            ResponseEntity<Map<String, Object>> response = fileServiceClient.listFileUsages(fileId);
-            log.info("[PROXY] File usages retrieved for file: {}", fileId);
-            return response;
-        } catch (Exception e) {
-            log.error("[PROXY] Error listing file usages: {}", e.getMessage(), e);
-            throw e;
-        }
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.listFileUsages(fileId);
+        log.info("[PROXY] File usages retrieved for file: {}", fileId);
+        return response;
     }
 }

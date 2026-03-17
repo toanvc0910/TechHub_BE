@@ -1,6 +1,6 @@
 package com.techhub.app.proxyclient.dto;
 
-import com.techhub.app.proxyclient.constant.SkillCategory;
+import com.techhub.app.commonservice.enums.SkillCategory;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;

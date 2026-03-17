@@ -1,6 +1,7 @@
 package com.techhub.app.courseservice.service.impl;
 
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
@@ -69,8 +70,8 @@ import java.util.stream.Collectors;
 @Transactional
 public class CourseServiceImpl implements CourseService {
 
-    private static final String ROLE_ADMIN = "ADMIN";
-    private static final String ROLE_INSTRUCTOR = "INSTRUCTOR";
+    private static final String ROLE_ADMIN = UserRole.ADMIN.name();
+    private static final String ROLE_INSTRUCTOR = UserRole.INSTRUCTOR.name();
 
     private final CourseRepository courseRepository;
     private final ChapterRepository chapterRepository;
@@ -513,7 +514,7 @@ public class CourseServiceImpl implements CourseService {
         courseMapper.updateLesson(lesson, request, currentUserId);
         lessonRepository.save(lesson);
         log.info("Lesson {} updated in chapter {}", lessonId, chapterId);
-        
+
         // Publish lesson event for AI indexing
         try {
             LessonEvent lessonEvent = LessonEvent.builder()
@@ -531,7 +532,7 @@ public class CourseServiceImpl implements CourseService {
         } catch (Exception e) {
             log.warn("Failed to publish lesson event for indexing", e);
         }
-        
+
         return buildLessonResponse(lesson, course, null);
     }
 
@@ -553,7 +554,7 @@ public class CourseServiceImpl implements CourseService {
         // ✅ HARD DELETE - Xóa cứng luôn
         lessonRepository.delete(lesson);
         log.info("✅ Lesson {} hard-deleted (CASCADE will delete all assets & progress)", lessonId);
-        
+
         // Publish lesson delete event for AI indexing (remove from vector DB)
         try {
             LessonEvent lessonEvent = LessonEvent.builder()

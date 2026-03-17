@@ -1,6 +1,7 @@
 package com.techhub.app.courseservice.service.impl;
 
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
@@ -94,7 +95,7 @@ public class CourseRatingServiceImpl implements CourseRatingService {
 
     private void ensureCanRate(Course course, UUID userId) {
         // Only ADMIN can bypass enrollment check
-        if (UserContext.hasAnyRole("ADMIN")) {
+        if (UserContext.hasAnyRole(UserRole.ADMIN.name())) {
             return;
         }
 

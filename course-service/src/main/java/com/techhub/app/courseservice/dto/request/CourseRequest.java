@@ -2,7 +2,7 @@ package com.techhub.app.courseservice.dto.request;
 
 import com.techhub.app.courseservice.enums.CourseLevel;
 import com.techhub.app.courseservice.enums.CourseStatus;
-import com.techhub.app.courseservice.enums.Language;
+import com.techhub.app.commonservice.enums.Language;
 import lombok.Getter;
 import lombok.Setter;
 

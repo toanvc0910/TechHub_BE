@@ -3,21 +3,17 @@ package com.techhub.app.commonservice.jpa;
 import org.hibernate.dialect.PostgreSQL10Dialect;
 
 import java.sql.Types;
-import java.util.Arrays;
-import java.util.List;
 
+/**
+ * Custom PostgreSQL dialect that maps Types.OTHER (used by PostgreSQL ENUMs)
+ * to varchar. This handles ALL PostgreSQL enum types generically without
+ * needing to register each one individually.
+ */
 public class PostgreSQLEnumDialect extends PostgreSQL10Dialect {
-
-    private static final List<String> DEFAULT_ENUM_TYPES = Arrays.asList(
-            "permission_method",
-            "user_status",
-            "user_role",
-            "blog_status",
-            "comment_target"
-    );
 
     public PostgreSQLEnumDialect() {
         super();
-        DEFAULT_ENUM_TYPES.forEach(enumName -> registerColumnType(Types.OTHER, enumName));
+        // Map all Types.OTHER columns (PostgreSQL ENUMs) as varchar
+        registerColumnType(Types.OTHER, "varchar");
     }
 }

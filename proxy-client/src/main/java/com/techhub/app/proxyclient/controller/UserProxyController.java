@@ -1,5 +1,7 @@
 package com.techhub.app.proxyclient.controller;
 
+import com.techhub.app.commonservice.exception.BadRequestException;
+import com.techhub.app.commonservice.exception.UnauthorizedException;
 import com.techhub.app.proxyclient.client.UserServiceClient;
 import com.techhub.app.commonservice.jwt.JwtUtil;
 import java.util.UUID;
@@ -68,19 +70,17 @@ public class UserProxyController {
     public ResponseEntity<String> changePassword(
             @RequestBody Object changePasswordRequest,
             @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        UUID userId;
         try {
-            // Extract userId from JWT token
-            String token = authHeader.replace("Bearer ", "");
-            UUID userId = jwtUtil.getUserIdFromToken(token);
-
-            log.info("Change password request for user: {}", userId);
-            return userServiceClient.changePassword(changePasswordRequest, userId.toString());
-        } catch (Exception e) {
-            log.error("Error processing change password request", e);
-            return ResponseEntity.badRequest().body(
-                    String.format("{\"success\":false,\"message\":\"Failed to process change password request: %s\"}",
-                            e.getMessage()));
+            userId = jwtUtil.getUserIdFromToken(token);
+        } catch (RuntimeException e) {
+            log.warn("Invalid token while processing change password", e);
+            throw new UnauthorizedException("Invalid or expired token");
         }
+
+        log.info("Change password request for user: {}", userId);
+        return userServiceClient.changePassword(changePasswordRequest, userId.toString());
     }
 
     @PostMapping("/forgot-password")
@@ -128,7 +128,7 @@ public class UserProxyController {
         Object userEmail = request.getAttribute("userEmail");
 
         if (userId == null || userEmail == null) {
-            return ResponseEntity.badRequest().body("{\"error\": \"User context missing\"}");
+            throw new BadRequestException("User context missing");
         }
 
         return userServiceClient.getCurrentUserProfile(authHeader, userId.toString(), userEmail.toString());

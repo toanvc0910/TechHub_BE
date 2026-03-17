@@ -10,7 +10,7 @@ import com.techhub.app.courseservice.entity.Lesson;
 import com.techhub.app.courseservice.entity.LessonAsset;
 import com.techhub.app.courseservice.enums.CourseLevel;
 import com.techhub.app.courseservice.enums.CourseStatus;
-import com.techhub.app.courseservice.enums.Language;
+import com.techhub.app.commonservice.enums.Language;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

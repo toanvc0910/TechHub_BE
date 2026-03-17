@@ -1,6 +1,7 @@
 package com.techhub.app.courseservice.service.impl;
 
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
@@ -125,8 +126,9 @@ public class CourseProgressServiceImpl implements CourseProgressService {
             course = courseRepository.findById(courseId)
                     .orElseThrow(() -> new NotFoundException("Course not found"));
         }
-        boolean isAdmin = UserContext.hasAnyRole("ADMIN");
-        boolean isInstructor = UserContext.hasAnyRole("INSTRUCTOR") && userId.equals(course.getInstructorId());
+        boolean isAdmin = UserContext.hasAnyRole(UserRole.ADMIN.name());
+        boolean isInstructor = UserContext.hasAnyRole(UserRole.INSTRUCTOR.name())
+                && userId.equals(course.getInstructorId());
         if (isAdmin || isInstructor) {
             return;
         }

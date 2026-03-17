@@ -1,6 +1,7 @@
 package com.techhub.app.courseservice.service.impl;
 
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
@@ -64,20 +65,21 @@ public class CourseCommentServiceImpl implements CourseCommentService {
                 .orElseThrow(() -> new NotFoundException("Course not found"));
         Comment parent = request.getParentId() != null
                 ? commentRepository.findByIdAndIsActiveTrue(request.getParentId())
-                    .orElseThrow(() -> new NotFoundException("Parent comment not found"))
+                        .orElseThrow(() -> new NotFoundException("Parent comment not found"))
                 : null;
 
-        if (parent != null && (!parent.getTargetId().equals(course.getId()) || parent.getTargetType() != CommentTarget.COURSE)) {
+        if (parent != null
+                && (!parent.getTargetId().equals(course.getId()) || parent.getTargetType() != CommentTarget.COURSE)) {
             throw new ForbiddenException("Parent comment belongs to a different course");
         }
 
         Comment comment = createComment(request, course.getId(), CommentTarget.COURSE, parent);
         commentRepository.save(comment);
         log.debug("Course comment {} created by {}", comment.getId(), comment.getUserId());
-        
+
         // Build response
         CommentResponse response = mapToResponse(comment);
-        
+
         // Broadcast via WebSocket
         CommentWebSocketMessage wsMessage = CommentWebSocketMessage.builder()
                 .eventType(CommentEventType.CREATED)
@@ -89,7 +91,7 @@ public class CourseCommentServiceImpl implements CourseCommentService {
                 .createdAt(comment.getCreated())
                 .build();
         webSocketService.broadcastCommentCreated(wsMessage);
-        
+
         return response;
     }
 
@@ -98,7 +100,7 @@ public class CourseCommentServiceImpl implements CourseCommentService {
         Lesson lesson = resolveLesson(courseId, lessonId);
         Comment parent = request.getParentId() != null
                 ? commentRepository.findByIdAndIsActiveTrue(request.getParentId())
-                    .orElseThrow(() -> new NotFoundException("Parent comment not found"))
+                        .orElseThrow(() -> new NotFoundException("Parent comment not found"))
                 : null;
 
         if (parent != null && !parent.getTargetId().equals(lesson.getId())) {
@@ -108,10 +110,10 @@ public class CourseCommentServiceImpl implements CourseCommentService {
         Comment comment = createComment(request, lesson.getId(), CommentTarget.LESSON, parent);
         commentRepository.save(comment);
         log.debug("Lesson comment {} created by {}", comment.getId(), comment.getUserId());
-        
+
         // Build response
         CommentResponse response = mapToResponse(comment);
-        
+
         // Broadcast via WebSocket
         CommentWebSocketMessage wsMessage = CommentWebSocketMessage.builder()
                 .eventType(CommentEventType.CREATED)
@@ -123,7 +125,7 @@ public class CourseCommentServiceImpl implements CourseCommentService {
                 .createdAt(comment.getCreated())
                 .build();
         webSocketService.broadcastCommentCreated(wsMessage);
-        
+
         return response;
     }
 
@@ -140,10 +142,11 @@ public class CourseCommentServiceImpl implements CourseCommentService {
         Lesson lesson = resolveLesson(courseId, lessonId);
         Comment parent = request.getParentId() != null
                 ? commentRepository.findByIdAndIsActiveTrue(request.getParentId())
-                    .orElseThrow(() -> new NotFoundException("Parent comment not found"))
+                        .orElseThrow(() -> new NotFoundException("Parent comment not found"))
                 : null;
 
-        if (parent != null && (!parent.getTargetId().equals(lesson.getId()) || parent.getTargetType() != CommentTarget.CODE)) {
+        if (parent != null
+                && (!parent.getTargetId().equals(lesson.getId()) || parent.getTargetType() != CommentTarget.CODE)) {
             throw new ForbiddenException("Parent comment belongs to a different code workspace");
         }
 
@@ -175,8 +178,8 @@ public class CourseCommentServiceImpl implements CourseCommentService {
 
         UUID currentUserId = requireCurrentUser();
         boolean isOwner = currentUserId.equals(comment.getUserId());
-        boolean isAdmin = UserContext.hasAnyRole("ADMIN");
-        boolean isInstructor = UserContext.hasAnyRole("INSTRUCTOR") && course.getInstructorId() != null
+        boolean isAdmin = UserContext.hasAnyRole(UserRole.ADMIN.name());
+        boolean isInstructor = UserContext.hasAnyRole(UserRole.INSTRUCTOR.name()) && course.getInstructorId() != null
                 && course.getInstructorId().equals(currentUserId);
 
         if (!isOwner && !isAdmin && !isInstructor) {

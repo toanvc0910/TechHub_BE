@@ -1,8 +1,10 @@
 package com.techhub.app.paymentservice.controller;
 
+import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.paymentservice.config.PayPalConfig;
 import com.techhub.app.paymentservice.service.PayPalPaymentService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
@@ -26,9 +28,10 @@ public class PayPalPaymentController {
     }
 
     @PostMapping("/create")
-    public Map<String, Object> createOrder(@RequestParam Double amount,
-                                          @RequestParam(required = false) String userId,
-                                          @RequestParam(required = false) String courseId) throws Exception {
+    public ResponseEntity<GlobalResponse<Map<String, Object>>> createOrder(@RequestParam Double amount,
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String courseId,
+            javax.servlet.http.HttpServletRequest request) throws Exception {
         log.info("Creating PayPal order with amount: {}, userId: {}, courseId: {}", amount, userId, courseId);
 
         UUID userUUID = null;
@@ -64,13 +67,16 @@ public class PayPalPaymentController {
             throw new IllegalArgumentException("courseId parameter is required for PayPal payment");
         }
 
-        return payPalService.createOrder(amount, "USD", userUUID, courseUUID);
+        Map<String, Object> order = payPalService.createOrder(amount, "USD", userUUID, courseUUID);
+        return ResponseEntity.ok(
+                GlobalResponse.success("PayPal order created", order)
+                        .withPath(request.getRequestURI()));
     }
 
     @GetMapping("/success")
     public void success(@RequestParam String token,
-                       @RequestParam(required = false) String PayerID,
-                       HttpServletResponse response) throws IOException {
+            @RequestParam(required = false) String PayerID,
+            HttpServletResponse response) throws IOException {
         try {
             // Capture payment from PayPal
             Map<String, Object> result = payPalService.captureOrder(token);
@@ -122,7 +128,7 @@ public class PayPalPaymentController {
 
     @GetMapping("/cancel")
     public void cancel(@RequestParam(required = false) String token,
-                      HttpServletResponse response) throws IOException {
+            HttpServletResponse response) throws IOException {
         log.info("PayPal payment cancelled. Token: {}", token);
 
         // Redirect to frontend with cancelled status

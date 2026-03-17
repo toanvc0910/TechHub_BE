@@ -1,8 +1,8 @@
 package com.techhub.app.userservice.entity;
 
 import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
+import com.techhub.app.commonservice.enums.OtpType;
 import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
-import com.techhub.app.userservice.enums.OTPTypeEnum;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -34,9 +34,9 @@ public class OTPCode {
     @Column(name = "code", nullable = false, length = 6)
     private String code;
 
-    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.OTPTypeEnum"))
+    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.commonservice.enums.OtpType"))
     @Column(name = "type", nullable = false, columnDefinition = "otp_type")
-    private OTPTypeEnum type;
+    private OtpType type;
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;

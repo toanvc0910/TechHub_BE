@@ -48,7 +48,7 @@ kafka:
     enrollment-events: ${KAFKA_ENROLLMENT_EVENTS_TOPIC:enrollment-events}
   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:103.188.83.154:9092}
 
-# OpenAI Configuration
+# OpenAI Configuration (kept for reference — not active)
 openai:
   base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
   api-key: ${OPENAI_API_KEY:}
@@ -56,10 +56,20 @@ openai:
     model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
     max-output-tokens: ${OPENAI_CHAT_MAX_OUTPUT_TOKENS:8192}
 
+# Gemini AI Configuration (active provider)
+gemini:
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
+  api-key: ${GEMINI_API_KEY:}
+  chat:
+    model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
+    max-output-tokens: ${GEMINI_CHAT_MAX_OUTPUT_TOKENS:8192}
+
 # Chatbot & Embedding Configuration
 chatbot:
   embedding:
-    model-id: ${CHATBOT_EMBEDDING_MODEL:text-embedding-3-small}
+    model-id: ${CHATBOT_EMBEDDING_MODEL:}
+    openai-model-id: ${CHATBOT_OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+    gemini-model-id: ${CHATBOT_GEMINI_EMBEDDING_MODEL:text-embedding-004}
     max-sources: ${CHATBOT_EMBEDDING_MAX_SOURCES:3}
   mock-embeddings: ${CHATBOT_MOCK_EMBEDDINGS:true}
   system-prompt: |
@@ -83,6 +93,7 @@ qdrant:
 
 # AI Chat Session Configuration
 ai:
+  provider: ${AI_PROVIDER:gemini} # openai | gemini
   chat:
     cleanup:
       days-to-keep: ${AI_CHAT_CLEANUP_DAYS:30} # Auto-delete sessions older than 30 days

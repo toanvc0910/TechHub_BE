@@ -49,10 +49,20 @@ CREATE TABLE files (
     cloudinary_public_id VARCHAR(500) NOT NULL UNIQUE,
     cloudinary_url TEXT NOT NULL,
     cloudinary_secure_url TEXT NOT NULL,
+    storage_provider VARCHAR(50) NOT NULL DEFAULT 'MINIO',
+    bucket_name VARCHAR(255),
+    object_key VARCHAR(1000),
+    public_url TEXT,
+    secure_url TEXT,
+    thumbnail_object_key VARCHAR(1000),
+    thumbnail_url TEXT,
+    processing_status VARCHAR(20) NOT NULL DEFAULT 'READY' CHECK (processing_status IN ('PENDING', 'READY', 'FAILED')),
+    processing_error TEXT,
+    processed_at TIMESTAMP WITH TIME ZONE,
     
     file_type file_type_enum NOT NULL,
     mime_type VARCHAR(100) NOT NULL,
-    size BIGINT NOT NULL,
+    file_size BIGINT NOT NULL,
     width INTEGER,
     height INTEGER,
     duration INTEGER,
@@ -77,6 +87,8 @@ CREATE INDEX idx_files_user_id ON files(user_id);
 CREATE INDEX idx_files_folder_id ON files(folder_id);
 CREATE INDEX idx_files_file_type ON files(file_type);
 CREATE INDEX idx_files_cloudinary_public_id ON files(cloudinary_public_id);
+CREATE INDEX idx_files_processing_status ON files(processing_status);
+CREATE INDEX idx_files_object_key ON files(object_key);
 CREATE INDEX idx_files_tags_gin ON files USING GIN (tags);
 CREATE INDEX idx_files_created ON files(created);
 CREATE INDEX idx_files_is_active ON files(is_active);

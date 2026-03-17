@@ -11,7 +11,7 @@ import com.techhub.app.aiservice.exception.RateLimitExceededException;
 import com.techhub.app.aiservice.repository.ChatMessageRepository;
 import com.techhub.app.aiservice.repository.ChatSessionRepository;
 import com.techhub.app.aiservice.service.ChatOrchestrationService;
-import com.techhub.app.aiservice.service.OpenAiGateway;
+import com.techhub.app.aiservice.service.SwitchableAiGateway;
 import com.techhub.app.aiservice.service.PromptSanitizationService;
 import com.techhub.app.aiservice.service.RateLimitingService;
 import com.techhub.app.aiservice.service.VectorService;
@@ -35,7 +35,7 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
-    private final OpenAiGateway openAiGateway;
+    private final SwitchableAiGateway aiGateway;
     private final VectorService vectorService;
     private final PromptSanitizationService sanitizationService;
     private final RateLimitingService rateLimitingService;
@@ -68,7 +68,7 @@ public class ChatOrchestrationServiceImpl implements ChatOrchestrationService {
 
         // 3. Build prompt with sanitized input
         String prompt = buildPrompt(sanitizedMessage, request.getMode(), session);
-        Object aiResponse = openAiGateway.generateStructuredJson(prompt, request.getContext());
+        Object aiResponse = aiGateway.generateStructuredJson(prompt, request.getContext());
 
         // Extract clean text from OpenAI response
         String cleanAnswer = extractTextFromResponse(aiResponse);

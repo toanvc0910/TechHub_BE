@@ -1,7 +1,7 @@
 package com.techhub.app.userservice.entity;
 
+import com.techhub.app.commonservice.enums.OtpType;
 import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
-import com.techhub.app.userservice.enums.OtpType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

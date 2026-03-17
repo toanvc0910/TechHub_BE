@@ -10,7 +10,7 @@ import com.techhub.app.aiservice.enums.RecommendationMode;
 import com.techhub.app.aiservice.repository.AiGenerationTaskRepository;
 import com.techhub.app.aiservice.repository.RecommendationRepository;
 import com.techhub.app.aiservice.service.AiRecommendationService;
-import com.techhub.app.aiservice.service.OpenAiGateway;
+import com.techhub.app.aiservice.service.SwitchableAiGateway;
 import com.techhub.app.aiservice.service.VectorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
 
     private final AiGenerationTaskRepository aiGenerationTaskRepository;
     private final RecommendationRepository recommendationRepository;
-    private final OpenAiGateway openAiGateway;
+    private final SwitchableAiGateway aiGateway;
     private final VectorService vectorService;
 
     @Override
@@ -59,7 +59,7 @@ public class AiRecommendationServiceImpl implements AiRecommendationService {
         aiGenerationTaskRepository.save(task);
 
         // Step 3: Ask OpenAI to rank and explain recommendations
-        Object aiResponse = openAiGateway.generateStructuredJson(prompt, request);
+        Object aiResponse = aiGateway.generateStructuredJson(prompt, request);
         task.setResultPayload(aiResponse);
         task.setStatus(AiTaskStatus.COMPLETED);
         aiGenerationTaskRepository.save(task);

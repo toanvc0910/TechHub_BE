@@ -7,7 +7,7 @@ import com.techhub.app.aiservice.enums.AiTaskStatus;
 import com.techhub.app.aiservice.enums.AiTaskType;
 import com.techhub.app.aiservice.repository.AiGenerationTaskRepository;
 import com.techhub.app.aiservice.service.AiExerciseService;
-import com.techhub.app.aiservice.service.OpenAiGateway;
+import com.techhub.app.aiservice.service.SwitchableAiGateway;
 import com.techhub.app.aiservice.service.VectorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +22,7 @@ import java.util.Map;
 public class AiExerciseServiceImpl implements AiExerciseService {
 
     private final AiGenerationTaskRepository aiGenerationTaskRepository;
-    private final OpenAiGateway openAiGateway;
+    private final SwitchableAiGateway aiGateway;
     private final VectorService vectorService;
 
     @Override
@@ -54,7 +54,7 @@ public class AiExerciseServiceImpl implements AiExerciseService {
 
         try {
             // 3. Call OpenAI
-            Object aiResponse = openAiGateway.generateStructuredJson(prompt, request);
+            Object aiResponse = aiGateway.generateStructuredJson(prompt, request);
 
             // 4. Save result as DRAFT - chờ admin approve
             task.setResultPayload(aiResponse);

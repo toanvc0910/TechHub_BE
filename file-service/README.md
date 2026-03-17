@@ -1,17 +1,17 @@
 # File Service - TechHub Backend
 
-Service quản lý upload và lưu trữ file (images, videos, documents) lên Cloudinary.
+Service quản lý upload và lưu trữ file (images, videos, documents) lên MinIO.
 
 ## Features
 
 - Upload single/multiple files
 - Store file metadata in PostgreSQL
-- Store actual files in Cloudinary
+- Store actual files in MinIO
 - Support images (JPEG, PNG, GIF, WEBP)
 - Support videos (MP4, MPEG, QuickTime, WEBM)
 - Max file size: 100MB
 - File validation
-- Delete files from Cloudinary and database
+- Delete files from MinIO and database
 
 ## Setup
 
@@ -33,25 +33,31 @@ Or create manually:
 CREATE DATABASE techhub_file;
 ```
 
-### 2. Configure Cloudinary
+### 2. Configure MinIO
 
-1. Sign up for free account at https://cloudinary.com
-2. Get your credentials from Dashboard
+1. Start MinIO and create bucket `techhub`
+2. Make the bucket publicly readable for object GET requests
 3. Update `application.yml`:
 
 ```yaml
-cloudinary:
-  cloud-name: your_cloud_name
-  api-key: your_api_key
-  api-secret: your_api_secret
+minio:
+  endpoint: http://your-minio-host:9000
+  access-key: your_minio_access_key
+  secret-key: your_minio_secret_key
+  bucket: your_bucket_name
+  public-url: https://your-public-file-host
+  secure: false
 ```
 
 Or use environment variables:
 
 ```bash
-export CLOUDINARY_CLOUD_NAME=your_cloud_name
-export CLOUDINARY_API_KEY=your_api_key
-export CLOUDINARY_API_SECRET=your_api_secret
+export MINIO_ENDPOINT=http://your-minio-host:9000
+export MINIO_ACCESS_KEY=your_minio_access_key
+export MINIO_SECRET_KEY=your_minio_secret_key
+export MINIO_BUCKET=your_bucket_name
+export MINIO_PUBLIC_URL=https://your-public-file-host
+export MINIO_SECURE=false
 ```
 
 ### 3. Update Database Connection
@@ -102,14 +108,12 @@ Form fields:
   "message": "File uploaded successfully",
   "data": {
     "id": 1,
-    "url": "https://res.cloudinary.com/.../image.jpg",
-    "publicId": "techhub/blogs/abc123",
+    "cloudinaryUrl": "https://your-public-file-host/your_bucket_name/users/.../image.jpg",
+    "cloudinaryPublicId": "users/.../image.jpg",
     "originalFilename": "image.jpg",
     "fileType": "IMAGE",
-    "size": 102400,
-    "format": "jpg",
-    "folder": "blogs",
-    "uploadedAt": "2024-01-15T10:30:00"
+    "fileSize": 102400,
+    "created": "2024-01-15T10:30:00"
   }
 }
 ```
@@ -165,18 +169,17 @@ async function uploadFile(file: File, folder: string = "uploads") {
   });
 
   const result = await response.json();
-  return result.data.url; // Cloudinary URL
+  return result.data.cloudinarySecureUrl; // MinIO public URL via compatibility fields
 }
 ```
 
 ## Folder Structure
 
-Files are organized in Cloudinary by folder:
+Files are organized in MinIO by object key:
 
-- `techhub/blogs` - Blog images and videos
-- `techhub/courses` - Course materials
-- `techhub/avatars` - User avatars
-- `techhub/uploads` - General uploads
+- `users/{userId}/image/*` - User images
+- `users/{userId}/video/*` - User videos
+- `users/{userId}/document/*` - Documents and other uploads
 
 ## Database Schema
 
@@ -212,9 +215,10 @@ kill -9 <PID>
 - Verify database exists: `psql -U postgres -l`
 - Check credentials in application.yml
 
-### Cloudinary upload error
+### MinIO upload error
 
-- Verify credentials are correct
+- Verify MinIO endpoint and credentials are correct
+- Verify bucket `techhub` exists and has public read policy
 - Check network connection
 - Ensure file size < 100MB
 - Verify file type is supported
@@ -224,9 +228,12 @@ kill -9 <PID>
 1. **Use environment variables** for sensitive data:
 
 ```bash
-export CLOUDINARY_CLOUD_NAME=prod_cloud_name
-export CLOUDINARY_API_KEY=prod_api_key
-export CLOUDINARY_API_SECRET=prod_api_secret
+export MINIO_ENDPOINT=http://your-minio-internal-host:9000
+export MINIO_ACCESS_KEY=prod_access_key
+export MINIO_SECRET_KEY=prod_secret_key
+export MINIO_BUCKET=prod_bucket_name
+export MINIO_PUBLIC_URL=https://files.example.com
+export MINIO_SECURE=true
 export DB_URL=jdbc:postgresql://prod-db:5432/techhub_file
 export DB_USERNAME=prod_user
 export DB_PASSWORD=prod_password
@@ -236,14 +243,14 @@ export DB_PASSWORD=prod_password
 
 3. **Configure API Gateway** to route `/api/files/*` to file-service
 
-4. **Monitor Cloudinary usage** to stay within free tier limits (25GB storage, 25GB bandwidth/month)
+4. **Monitor MinIO usage** and bucket growth
 
 ## Tech Stack
 
 - Spring Boot 2.5.14
 - Spring Cloud Netflix Eureka
 - PostgreSQL
-- Cloudinary Java SDK 1.38.0
+- MinIO Java SDK 8.5.17
 - Lombok
 - Maven
 

@@ -1,6 +1,7 @@
 package com.techhub.app.courseservice.service.impl;
 
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
@@ -120,10 +121,11 @@ public class UserWorkspaceServiceImpl implements UserWorkspaceService {
         if (course.getInstructorId() != null && course.getInstructorId().equals(userId)) {
             return;
         }
-        if (UserContext.hasAnyRole("ADMIN")) {
+        if (UserContext.hasAnyRole(UserRole.ADMIN.name())) {
             return;
         }
-        boolean enrolled = enrollmentRepository.findByUserIdAndCourse_IdAndIsActiveTrue(userId, course.getId()).isPresent();
+        boolean enrolled = enrollmentRepository.findByUserIdAndCourse_IdAndIsActiveTrue(userId, course.getId())
+                .isPresent();
         if (!enrolled) {
             throw new ForbiddenException("User is not enrolled in this course");
         }

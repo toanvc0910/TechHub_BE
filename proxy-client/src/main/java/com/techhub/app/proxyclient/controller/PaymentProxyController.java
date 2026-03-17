@@ -2,6 +2,7 @@ package com.techhub.app.proxyclient.controller;
 
 import com.techhub.app.proxyclient.client.PaymentServiceClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,8 @@ import java.io.IOException;
 public class PaymentProxyController {
 
     private final PaymentServiceClient paymentServiceClient;
+    @Value("${PAYMENT_SERVICE_BASE_URL:http://localhost:8084}")
+    private String paymentServiceBaseUrl;
 
     // ===== PAYPAL ENDPOINTS =====
 
@@ -28,21 +31,21 @@ public class PaymentProxyController {
 
     @GetMapping("/paypal/success")
     public void paypalSuccess(@RequestParam String token,
-                             @RequestParam(required = false) String PayerID,
-                             HttpServletResponse response) throws IOException {
+            @RequestParam(required = false) String PayerID,
+            HttpServletResponse response) throws IOException {
         // Forward all parameters to payment service
         String queryParams = "token=" + token;
         if (PayerID != null) {
             queryParams += "&PayerID=" + PayerID;
         }
-        response.sendRedirect("http://103.188.83.154:8084/api/v1/payment/paypal/success?" + queryParams);
+        response.sendRedirect(buildRedirectUrl("/api/v1/payment/paypal/success", queryParams));
     }
 
     @GetMapping("/paypal/cancel")
     public void paypalCancel(@RequestParam(required = false) String token,
-                            HttpServletResponse response) throws IOException {
+            HttpServletResponse response) throws IOException {
         String queryParams = token != null ? "token=" + token : "";
-        response.sendRedirect("http://103.188.83.154:8084/api/v1/payment/paypal/cancel?" + queryParams);
+        response.sendRedirect(buildRedirectUrl("/api/v1/payment/paypal/cancel", queryParams));
     }
 
     // ===== VNPAY ENDPOINTS =====
@@ -59,23 +62,35 @@ public class PaymentProxyController {
 
     @GetMapping("/vn-pay-callback")
     public void vnPayCallback(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        // VNPay callback redirects directly - we forward to the payment service callback URL
+        // VNPay callback redirects directly - we forward to the payment service
+        // callback URL
         // This is handled by VNPayPaymentController in payment-service
         String queryString = request.getQueryString();
-        response.sendRedirect("http://103.188.83.154:8084/api/v1/payment/vn-pay-callback?" + queryString);
+        response.sendRedirect(buildRedirectUrl("/api/v1/payment/vn-pay-callback", queryString));
+    }
+
+    private String buildRedirectUrl(String path, String query) {
+        String normalizedBaseUrl = paymentServiceBaseUrl.endsWith("/")
+                ? paymentServiceBaseUrl.substring(0, paymentServiceBaseUrl.length() - 1)
+                : paymentServiceBaseUrl;
+
+        if (query == null || query.isBlank()) {
+            return normalizedBaseUrl + path;
+        }
+        return normalizedBaseUrl + path + "?" + query;
     }
 
     // ===== GENERIC PAYMENT ENDPOINTS =====
 
     @PostMapping("/create")
     public ResponseEntity<String> createPayment(@RequestBody Object paymentRequest,
-                                              @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         return paymentServiceClient.createPayment(paymentRequest, authHeader);
     }
 
     @GetMapping("/{paymentId}")
     public ResponseEntity<String> getPaymentStatus(@PathVariable String paymentId,
-                                                  @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         return paymentServiceClient.getPaymentStatus(paymentId, authHeader);
     }
 
@@ -91,8 +106,8 @@ public class PaymentProxyController {
 
     @GetMapping("/history")
     public ResponseEntity<String> getPaymentHistory(@RequestParam(defaultValue = "0") int page,
-                                                   @RequestParam(defaultValue = "10") int size,
-                                                   @RequestHeader("Authorization") String authHeader) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestHeader("Authorization") String authHeader) {
         return paymentServiceClient.getPaymentHistory(page, size, authHeader);
     }
 }

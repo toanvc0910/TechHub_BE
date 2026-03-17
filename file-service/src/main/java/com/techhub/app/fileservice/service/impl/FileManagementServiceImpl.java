@@ -1,16 +1,17 @@
 package com.techhub.app.fileservice.service.impl;
 
-import com.cloudinary.Cloudinary;
-import com.cloudinary.utils.ObjectUtils;
 import com.techhub.app.fileservice.dto.response.FileResponse;
 import com.techhub.app.fileservice.dto.response.FileStatisticsResponse;
 import com.techhub.app.fileservice.entity.FileEntity;
 import com.techhub.app.fileservice.entity.FileFolderEntity;
 import com.techhub.app.fileservice.enums.FileTypeEnum;
+import com.techhub.app.fileservice.kafka.FileEventPublisher;
+import com.techhub.app.fileservice.kafka.FileUploadedEvent;
 import com.techhub.app.fileservice.repository.FileFolderRepository;
 import com.techhub.app.fileservice.repository.FileRepository;
 import com.techhub.app.fileservice.repository.FileUsageRepository;
 import com.techhub.app.fileservice.service.FileManagementService;
+import com.techhub.app.fileservice.service.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -29,10 +32,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FileManagementServiceImpl implements FileManagementService {
 
-    private final Cloudinary cloudinary;
+    private final ObjectStorageService objectStorageService;
     private final FileRepository fileRepository;
     private final FileFolderRepository folderRepository;
     private final FileUsageRepository usageRepository;
+    private final FileEventPublisher fileEventPublisher;
 
     @Override
     @Transactional
@@ -45,25 +49,9 @@ public class FileManagementServiceImpl implements FileManagementService {
                         .orElseThrow(() -> new RuntimeException("Folder not found"));
             }
 
-            // Determine file type and resource type for Cloudinary
             FileTypeEnum fileType = determineFileType(file.getContentType());
-            String resourceType = "auto"; // auto, image, video, raw
-
-            // Set resource type based on file type
-            if (fileType == FileTypeEnum.VIDEO) {
-                resourceType = "video";
-            } else if (fileType == FileTypeEnum.IMAGE) {
-                resourceType = "image";
-            } else if (fileType == FileTypeEnum.AUDIO) {
-                resourceType = "video"; // Cloudinary uses 'video' for audio files
-            } else {
-                resourceType = "raw"; // For documents and other files
-            }
-
-            // Upload to Cloudinary with proper resource type
-            Map<String, Object> uploadParams = ObjectUtils.asMap(
-                    "resource_type", resourceType);
-            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), uploadParams);
+            String objectKey = buildObjectKey(userId, fileType, file.getOriginalFilename());
+            StoredObjectDetails storedObject = objectStorageService.upload(file, objectKey);
 
             // Create file entity
             FileEntity fileEntity = new FileEntity();
@@ -74,28 +62,26 @@ public class FileManagementServiceImpl implements FileManagementService {
             fileEntity.setFileType(fileType); // Use pre-determined file type
             fileEntity.setMimeType(file.getContentType());
             fileEntity.setFileSize(file.getSize());
-            fileEntity.setCloudinaryPublicId(uploadResult.get("public_id").toString());
-            fileEntity.setCloudinaryUrl(uploadResult.get("url").toString());
-            fileEntity.setCloudinarySecureUrl(uploadResult.get("secure_url").toString());
+            fileEntity.setCloudinaryPublicId(storedObject.getObjectKey());
+            fileEntity.setCloudinaryUrl(storedObject.getPublicUrl());
+            fileEntity.setCloudinarySecureUrl(storedObject.getPublicUrl());
+            fileEntity.setStorageProvider("MINIO");
+            fileEntity.setBucketName(storedObject.getBucket());
+            fileEntity.setObjectKey(storedObject.getObjectKey());
+            fileEntity.setPublicUrl(storedObject.getPublicUrl());
+            fileEntity.setSecureUrl(storedObject.getPublicUrl());
 
-            // Set dimensions for images/videos
-            if (uploadResult.containsKey("width")) {
-                fileEntity.setWidth((Integer) uploadResult.get("width"));
-            }
-            if (uploadResult.containsKey("height")) {
-                fileEntity.setHeight((Integer) uploadResult.get("height"));
-            }
-            if (uploadResult.containsKey("duration")) {
-                fileEntity.setDuration(((Double) uploadResult.get("duration")).intValue());
-            }
+            populateImageMetadata(file, fileType, fileEntity);
 
             fileEntity.setTags(tags);
             fileEntity.setDescription(description);
             fileEntity.setIsActive("Y");
             fileEntity.setCreatedBy(userId);
             fileEntity.setUploadSource("DIRECT");
+            initializeProcessingState(fileEntity);
 
             FileEntity saved = fileRepository.save(fileEntity);
+            publishProcessingEventIfNeeded(saved);
             log.info("File uploaded successfully: {}", saved.getId());
 
             return mapToResponse(saved);
@@ -207,8 +193,11 @@ public class FileManagementServiceImpl implements FileManagementService {
         }
 
         try {
-            // Delete from Cloudinary
-            cloudinary.uploader().destroy(file.getCloudinaryPublicId(), ObjectUtils.emptyMap());
+            objectStorageService.delete(file.getCloudinaryPublicId());
+            if (file.getThumbnailObjectKey() != null
+                    && !file.getThumbnailObjectKey().equals(file.getCloudinaryPublicId())) {
+                objectStorageService.delete(file.getThumbnailObjectKey());
+            }
 
             // Soft delete from database
             file.setIsActive("N");
@@ -216,8 +205,8 @@ public class FileManagementServiceImpl implements FileManagementService {
             fileRepository.save(file);
 
             log.info("File deleted successfully: {}", fileId);
-        } catch (IOException e) {
-            log.error("Failed to delete file from Cloudinary", e);
+        } catch (RuntimeException e) {
+            log.error("Failed to delete file from MinIO", e);
             throw new RuntimeException("Failed to delete file: " + e.getMessage());
         }
     }
@@ -275,6 +264,65 @@ public class FileManagementServiceImpl implements FileManagementService {
         }
     }
 
+    private String buildObjectKey(UUID userId, FileTypeEnum fileType, String originalFilename) {
+        String safeFilename = Optional.ofNullable(originalFilename)
+                .map(name -> name.replaceAll("[^a-zA-Z0-9._-]", "_"))
+                .filter(name -> !name.isBlank())
+                .orElse("file");
+        return String.format(
+                "users/%s/%s/%s-%s",
+                userId,
+                fileType.name().toLowerCase(Locale.ROOT),
+                UUID.randomUUID(),
+                safeFilename);
+    }
+
+    private void populateImageMetadata(MultipartFile file, FileTypeEnum fileType, FileEntity fileEntity)
+            throws IOException {
+        if (fileType != FileTypeEnum.IMAGE) {
+            return;
+        }
+
+        BufferedImage image = ImageIO.read(file.getInputStream());
+        if (image == null) {
+            return;
+        }
+
+        fileEntity.setWidth(image.getWidth());
+        fileEntity.setHeight(image.getHeight());
+    }
+
+    private void initializeProcessingState(FileEntity fileEntity) {
+        if (fileEntity.getFileType() == FileTypeEnum.VIDEO) {
+            fileEntity.setProcessingStatus("PENDING");
+            return;
+        }
+
+        fileEntity.setProcessingStatus("READY");
+        fileEntity.setProcessedAt(LocalDateTime.now());
+        if (fileEntity.getFileType() == FileTypeEnum.IMAGE) {
+            fileEntity.setThumbnailObjectKey(fileEntity.getObjectKey());
+            fileEntity.setThumbnailUrl(fileEntity.getPublicUrl());
+        }
+    }
+
+    private void publishProcessingEventIfNeeded(FileEntity saved) {
+        if (saved.getFileType() != FileTypeEnum.VIDEO) {
+            return;
+        }
+
+        fileEventPublisher.publishFileUploaded(
+                FileUploadedEvent.builder()
+                        .fileId(saved.getId())
+                        .userId(saved.getUserId())
+                        .bucketName(saved.getBucketName())
+                        .objectKey(saved.getObjectKey())
+                        .fileType(saved.getFileType().name())
+                        .mimeType(saved.getMimeType())
+                        .publicUrl(saved.getPublicUrl())
+                        .build());
+    }
+
     private FileResponse mapToResponse(FileEntity file) {
         String folderName = null;
         if (file.getFolderId() != null) {
@@ -296,6 +344,16 @@ public class FileManagementServiceImpl implements FileManagementService {
                 .cloudinaryPublicId(file.getCloudinaryPublicId())
                 .cloudinaryUrl(file.getCloudinaryUrl())
                 .cloudinarySecureUrl(file.getCloudinarySecureUrl())
+                .storageProvider(file.getStorageProvider())
+                .bucketName(file.getBucketName())
+                .objectKey(file.getObjectKey())
+                .publicUrl(file.getPublicUrl())
+                .secureUrl(file.getSecureUrl())
+                .thumbnailObjectKey(file.getThumbnailObjectKey())
+                .thumbnailUrl(file.getThumbnailUrl())
+                .processingStatus(file.getProcessingStatus())
+                .processingError(file.getProcessingError())
+                .processedAt(file.getProcessedAt())
                 .width(file.getWidth())
                 .height(file.getHeight())
                 .duration(file.getDuration())

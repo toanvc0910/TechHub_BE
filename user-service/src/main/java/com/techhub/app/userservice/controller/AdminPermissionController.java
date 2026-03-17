@@ -1,5 +1,6 @@
 package com.techhub.app.userservice.controller;
 
+import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.userservice.dto.request.PermissionUpsertRequest;
 import com.techhub.app.userservice.dto.request.RolePermissionRequest;
@@ -101,17 +102,11 @@ public class AdminPermissionController {
                         HttpServletRequest request) {
                 UUID actor = parseUuid(actorHeader);
                 log.info("[DELETE PERMISSION] Starting deletion - PermissionId: {}, ActorId: {}", permissionId, actor);
-                try {
-                        permissionService.deletePermission(permissionId, actor);
-                        log.info("[DELETE PERMISSION] Successfully deleted - PermissionId: {}", permissionId);
-                        return ResponseEntity.ok(
-                                        GlobalResponse.success("Permission deleted", null)
-                                                        .withPath(request.getRequestURI()));
-                } catch (Exception e) {
-                        log.error("[DELETE PERMISSION] Failed - PermissionId: {}, Error: {}", permissionId,
-                                        e.getMessage(), e);
-                        throw e;
-                }
+                permissionService.deletePermission(permissionId, actor);
+                log.info("[DELETE PERMISSION] Successfully deleted - PermissionId: {}", permissionId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Permission deleted", null)
+                                                .withPath(request.getRequestURI()));
         }
 
         // ===== Role CRUD + assign permissions =====
@@ -171,23 +166,18 @@ public class AdminPermissionController {
                                 actorHeader, actor, authHeader != null ? "Bearer ***" : "null");
                 log.info("[UPDATE ROLE] Request URI: {}, Method: {}", request.getRequestURI(), request.getMethod());
 
-                try {
-                        RoleResponse res = permissionService.updateRole(
-                                        roleId,
-                                        body.getName(),
-                                        body.getDescription(),
-                                        Boolean.TRUE.equals(body.getActive()),
-                                        actor,
-                                        body.getPermissionIds());
-                        log.info("[UPDATE ROLE] Successfully updated - RoleId: {}, Name: {}", res.getId(),
-                                        res.getName());
-                        return ResponseEntity.ok(
-                                        GlobalResponse.success("Role updated", res)
-                                                        .withPath(request.getRequestURI()));
-                } catch (Exception e) {
-                        log.error("[UPDATE ROLE] Failed - RoleId: {}, Error: {}", roleId, e.getMessage(), e);
-                        throw e;
-                }
+                RoleResponse res = permissionService.updateRole(
+                                roleId,
+                                body.getName(),
+                                body.getDescription(),
+                                Boolean.TRUE.equals(body.getActive()),
+                                actor,
+                                body.getPermissionIds());
+                log.info("[UPDATE ROLE] Successfully updated - RoleId: {}, Name: {}", res.getId(),
+                                res.getName());
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Role updated", res)
+                                                .withPath(request.getRequestURI()));
         }
 
         @DeleteMapping("/roles/{roleId}")
@@ -197,16 +187,11 @@ public class AdminPermissionController {
                         HttpServletRequest request) {
                 UUID actor = parseUuid(actorHeader);
                 log.info("[DELETE ROLE] Starting deletion - RoleId: {}, ActorId: {}", roleId, actor);
-                try {
-                        permissionService.deleteRole(roleId, actor);
-                        log.info("[DELETE ROLE] Successfully deleted - RoleId: {}", roleId);
-                        return ResponseEntity.ok(
-                                        GlobalResponse.success("Role deleted", null)
-                                                        .withPath(request.getRequestURI()));
-                } catch (Exception e) {
-                        log.error("[DELETE ROLE] Failed - RoleId: {}, Error: {}", roleId, e.getMessage(), e);
-                        throw e;
-                }
+                permissionService.deleteRole(roleId, actor);
+                log.info("[DELETE ROLE] Successfully deleted - RoleId: {}", roleId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Role deleted", null)
+                                                .withPath(request.getRequestURI()));
         }
 
         @PostMapping("/roles/{roleId}/permissions")
@@ -274,11 +259,13 @@ public class AdminPermissionController {
         }
 
         private UUID parseUuid(String raw) {
-                try {
-                        return raw != null && !raw.isBlank() ? UUID.fromString(raw) : null;
-                } catch (IllegalArgumentException e) {
-                        log.warn("Invalid UUID in header: {}", raw);
+                if (raw == null || raw.isBlank()) {
                         return null;
+                }
+                try {
+                        return UUID.fromString(raw);
+                } catch (IllegalArgumentException exception) {
+                        throw new BadRequestException("Invalid X-User-Id header format");
                 }
         }
 }

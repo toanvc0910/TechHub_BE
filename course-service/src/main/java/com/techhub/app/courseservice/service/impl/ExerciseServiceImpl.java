@@ -3,6 +3,7 @@ package com.techhub.app.courseservice.service.impl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
@@ -512,10 +513,10 @@ public class ExerciseServiceImpl implements ExerciseService {
         if (currentUserId == null) {
             return false;
         }
-        if (UserContext.hasAnyRole("ADMIN")) {
+        if (UserContext.hasAnyRole(UserRole.ADMIN.name())) {
             return true;
         }
-        return UserContext.hasAnyRole("INSTRUCTOR") && course.getInstructorId() != null
+        return UserContext.hasAnyRole(UserRole.INSTRUCTOR.name()) && course.getInstructorId() != null
                 && course.getInstructorId().equals(currentUserId);
     }
 

@@ -1,12 +1,12 @@
 package com.techhub.app.paymentservice.controller;
 
-import com.techhub.app.paymentservice.config.RestResponseObject;
+import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.paymentservice.config.VNPAYConfig;
 import com.techhub.app.paymentservice.dto.response.VNPayPaymentDTO;
 import com.techhub.app.paymentservice.service.VNPayPaymentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +19,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.UUID;
@@ -38,13 +39,13 @@ public class VNPayPaymentController {
     }
 
     @GetMapping("/vn-pay")
-    public RestResponseObject<VNPayPaymentDTO.VNPayResponse> pay(
+    public ResponseEntity<GlobalResponse<VNPayPaymentDTO.VNPayResponse>> pay(
             HttpServletRequest request,
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String courseId) {
 
-//        log.info("Creating VNPay payment with amount: {}, userId: {}",
-//                request.getParameter("amount"), userId);
+        // log.info("Creating VNPay payment with amount: {}, userId: {}",
+        // request.getParameter("amount"), userId);
 
         // Validate userId is provided
         if (userId == null || userId.isEmpty()) {
@@ -78,7 +79,7 @@ public class VNPayPaymentController {
         request.setAttribute("userId", userId);
         request.setAttribute("courseId", courseId);
 
-        return new RestResponseObject<>(HttpStatus.OK, "Success", paymentService.createVnPayPayment(request));
+        return ResponseEntity.ok(GlobalResponse.success(paymentService.createVnPayPayment(request)));
     }
 
     @GetMapping("/vn-pay-callback")
@@ -87,8 +88,7 @@ public class VNPayPaymentController {
         Map<String, String> params = request.getParameterMap().entrySet().stream()
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
-                        entry -> entry.getValue()[0]
-                ));
+                        entry -> entry.getValue()[0]));
 
         // Lấy các tham số quan trọng
         String vnp_SecureHash = params.get("vnp_SecureHash");
@@ -102,7 +102,7 @@ public class VNPayPaymentController {
         // Lưu lịch sử giao dịch vào database
         try {
             paymentService.handlePaymentCallback(params, isValid, vnp_TransactionStatus);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Error saving payment history: {}", e.getMessage(), e);
         }
 
@@ -117,8 +117,9 @@ public class VNPayPaymentController {
                 "&amount=" + URLEncoder.encode(vnp_Amount != null ? vnp_Amount : "0", StandardCharsets.UTF_8);
 
         // Ghi log để gỡ lỗi
-//        log.info("VNPay Callback - Valid: {}, Status: {}, TxnRef: {}", isValid, status, vnp_TxnRef);
-//        log.info("Redirecting to frontend: {}", redirectUrl);
+        // log.info("VNPay Callback - Valid: {}, Status: {}, TxnRef: {}", isValid,
+        // status, vnp_TxnRef);
+        // log.info("Redirecting to frontend: {}", redirectUrl);
 
         // Chuyển hướng đến trang frontend
         response.sendRedirect(redirectUrl);
@@ -127,14 +128,14 @@ public class VNPayPaymentController {
     private boolean verifySecureHash(Map<String, String> params, String secureHash, String secretKey) {
         // Loại bỏ các tham số không cần thiết và sắp xếp theo khóa
         Map<String, String> sortedParams = params.entrySet().stream()
-                .filter(entry -> !entry.getKey().equals("vnp_SecureHash") && !entry.getKey().equals("vnp_SecureHashType"))
+                .filter(entry -> !entry.getKey().equals("vnp_SecureHash")
+                        && !entry.getKey().equals("vnp_SecureHashType"))
                 .sorted(Comparator.comparing(Map.Entry::getKey)) // Sửa lỗi bằng Comparator.comparing
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
                         Map.Entry::getValue,
                         (e1, e2) -> e1,
-                        java.util.LinkedHashMap::new
-                ));
+                        java.util.LinkedHashMap::new));
 
         // Tạo chuỗi ký tự để hash
         String signData = sortedParams.entrySet().stream()
@@ -148,7 +149,7 @@ public class VNPayPaymentController {
             byte[] hashBytes = mac.doFinal(signData.getBytes(StandardCharsets.UTF_8));
             String calculatedHash = bytesToHex(hashBytes);
             return calculatedHash.equalsIgnoreCase(secureHash);
-        } catch (Exception e) {
+        } catch (GeneralSecurityException e) {
             System.err.println("Error verifying secure hash: " + e.getMessage());
             return false;
         }

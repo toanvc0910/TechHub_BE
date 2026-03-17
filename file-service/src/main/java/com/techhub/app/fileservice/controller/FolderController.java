@@ -1,20 +1,19 @@
 package com.techhub.app.fileservice.controller;
 
+import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.fileservice.dto.request.CreateFolderRequest;
 import com.techhub.app.fileservice.dto.request.UpdateFolderRequest;
 import com.techhub.app.fileservice.dto.response.FolderResponse;
 import com.techhub.app.fileservice.service.FolderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
+import javax.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/folders")
@@ -26,138 +25,73 @@ public class FolderController {
     private final FolderService folderService;
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> createFolder(@Valid @RequestBody CreateFolderRequest request) {
+    public ResponseEntity<GlobalResponse<FolderResponse>> createFolder(@Valid @RequestBody CreateFolderRequest request,
+            HttpServletRequest httpRequest) {
         log.info("Creating folder: {} for user: {}", request.getName(), request.getUserId());
+        FolderResponse response = folderService.createFolder(request);
 
-        try {
-            FolderResponse response = folderService.createFolder(request);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("message", "Folder created successfully");
-            result.put("data", response);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error creating folder", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to create folder: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("Folder created successfully", response)
+                        .withPath(httpRequest.getRequestURI()));
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<Map<String, Object>> getFoldersByUser(@PathVariable UUID userId) {
+    public ResponseEntity<GlobalResponse<List<FolderResponse>>> getFoldersByUser(@PathVariable UUID userId,
+            HttpServletRequest request) {
         log.info("Getting folders for user: {}", userId);
+        List<FolderResponse> folders = folderService.getFoldersByUser(userId);
 
-        try {
-            List<FolderResponse> folders = folderService.getFoldersByUser(userId);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("data", folders);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error getting folders", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to get folders: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("Folders retrieved successfully", folders)
+                        .withPath(request.getRequestURI()));
     }
 
     @GetMapping("/{folderId}")
-    public ResponseEntity<Map<String, Object>> getFolder(@PathVariable UUID folderId, @RequestParam UUID userId) {
+    public ResponseEntity<GlobalResponse<FolderResponse>> getFolder(@PathVariable UUID folderId,
+            @RequestParam UUID userId,
+            HttpServletRequest request) {
         log.info("Getting folder: {} for user: {}", folderId, userId);
+        FolderResponse folder = folderService.getFolderById(userId, folderId);
 
-        try {
-            FolderResponse folder = folderService.getFolderById(userId, folderId);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("data", folder);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error getting folder", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to get folder: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("Folder retrieved successfully", folder)
+                        .withPath(request.getRequestURI()));
     }
 
     @GetMapping("/{folderId}/tree")
-    public ResponseEntity<Map<String, Object>> getFolderTree(@PathVariable UUID folderId, @RequestParam UUID userId) {
+    public ResponseEntity<GlobalResponse<FolderResponse>> getFolderTree(@PathVariable UUID folderId,
+            @RequestParam UUID userId,
+            HttpServletRequest request) {
         log.info("Getting folder tree: {} for user: {}", folderId, userId);
+        FolderResponse folderTree = folderService.getFolderTree(userId, folderId);
 
-        try {
-            FolderResponse folderTree = folderService.getFolderTree(userId, folderId);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("data", folderTree);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error getting folder tree", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to get folder tree: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("Folder tree retrieved successfully", folderTree)
+                        .withPath(request.getRequestURI()));
     }
 
     @PutMapping("/{folderId}")
-    public ResponseEntity<Map<String, Object>> updateFolder(@PathVariable UUID folderId,
+    public ResponseEntity<GlobalResponse<FolderResponse>> updateFolder(@PathVariable UUID folderId,
             @RequestParam UUID userId,
-            @RequestBody UpdateFolderRequest request) {
+            @RequestBody UpdateFolderRequest request,
+            HttpServletRequest httpRequest) {
         log.info("Updating folder: {} by user: {}", folderId, userId);
+        FolderResponse response = folderService.updateFolder(userId, folderId, request);
 
-        try {
-            FolderResponse response = folderService.updateFolder(userId, folderId, request);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("message", "Folder updated successfully");
-            result.put("data", response);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error updating folder", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to update folder: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("Folder updated successfully", response)
+                        .withPath(httpRequest.getRequestURI()));
     }
 
     @DeleteMapping("/{folderId}")
-    public ResponseEntity<Map<String, Object>> deleteFolder(@PathVariable UUID folderId, @RequestParam UUID userId) {
+    public ResponseEntity<GlobalResponse<Void>> deleteFolder(@PathVariable UUID folderId,
+            @RequestParam UUID userId,
+            HttpServletRequest request) {
         log.info("Deleting folder: {} by user: {}", folderId, userId);
+        folderService.deleteFolder(userId, folderId);
 
-        try {
-            folderService.deleteFolder(userId, folderId);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("message", "Folder deleted successfully");
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error deleting folder", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to delete folder: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.<Void>success("Folder deleted successfully", null)
+                        .withPath(request.getRequestURI()));
     }
 }

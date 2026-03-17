@@ -13,6 +13,9 @@ public final class KafkaTopics {
     // Permission Cache Invalidation Topic
     public static final String PERMISSION_UPDATED_TOPIC = "permission-updated";
 
+    // Endpoint Security Policy Cache Invalidation Topic
+    public static final String ENDPOINT_SECURITY_UPDATED_TOPIC = "endpoint-security-updated";
+
     private KafkaTopics() {
         // Utility class
     }

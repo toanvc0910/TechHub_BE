@@ -68,6 +68,36 @@ public class FileEntity {
     @Column(name = "cloudinary_secure_url", columnDefinition = "TEXT")
     private String cloudinarySecureUrl;
 
+    @Column(name = "storage_provider", length = 50)
+    private String storageProvider;
+
+    @Column(name = "bucket_name", length = 255)
+    private String bucketName;
+
+    @Column(name = "object_key", length = 1000)
+    private String objectKey;
+
+    @Column(name = "public_url", columnDefinition = "TEXT")
+    private String publicUrl;
+
+    @Column(name = "secure_url", columnDefinition = "TEXT")
+    private String secureUrl;
+
+    @Column(name = "thumbnail_object_key", length = 1000)
+    private String thumbnailObjectKey;
+
+    @Column(name = "thumbnail_url", columnDefinition = "TEXT")
+    private String thumbnailUrl;
+
+    @Column(name = "processing_status", length = 20)
+    private String processingStatus;
+
+    @Column(name = "processing_error", columnDefinition = "TEXT")
+    private String processingError;
+
+    @Column(name = "processed_at")
+    private LocalDateTime processedAt;
+
     @Column(name = "width")
     private Integer width;
 
@@ -121,6 +151,12 @@ public class FileEntity {
         updated = now;
         if (uploadSource == null) {
             uploadSource = "DIRECT";
+        }
+        if (storageProvider == null) {
+            storageProvider = "MINIO";
+        }
+        if (processingStatus == null) {
+            processingStatus = "READY";
         }
         if (isActive == null) {
             isActive = "Y";

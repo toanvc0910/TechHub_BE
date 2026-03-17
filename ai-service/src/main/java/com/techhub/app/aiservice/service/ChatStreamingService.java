@@ -25,7 +25,7 @@ public class ChatStreamingService {
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
-    private final OpenAiGateway openAiGateway;
+    private final SwitchableAiGateway aiGateway;
     private final ChatbotProperties chatbotProperties;
     private final VectorService vectorService;
     private final PromptSanitizationService sanitizationService;
@@ -81,10 +81,10 @@ public class ChatStreamingService {
         // Accumulate response for saving
         StringBuilder fullResponse = new StringBuilder();
 
-        log.info("📨 [ChatStreamingService] Calling OpenAiGateway.generateStreamingResponseWithHistory...");
-        return openAiGateway.generateStreamingResponseWithHistory(messages)
+        log.info("📨 [ChatStreamingService] Calling SwitchableAiGateway.generateStreamingResponseWithHistory...");
+        return aiGateway.generateStreamingResponseWithHistory(messages)
                 .doOnNext(chunk -> {
-                    log.info("📦 [ChatStreamingService] Received chunk from OpenAI: {}", chunk);
+                    log.info("📦 [ChatStreamingService] Received chunk from Gemini: {}", chunk);
                     fullResponse.append(chunk);
                 })
                 .doOnComplete(() -> {
@@ -105,7 +105,7 @@ public class ChatStreamingService {
     public Flux<String> streamSimpleResponse(String message, UUID userId) {
         log.info("📨 Processing simple streaming for user: {}", userId);
 
-        return openAiGateway.generateStreamingResponse(message, chatbotProperties.getSystemPrompt());
+        return aiGateway.generateStreamingResponse(message, chatbotProperties.getSystemPrompt());
     }
 
     private ChatSession loadOrCreateSession(ChatMessageRequest request) {

@@ -1,6 +1,7 @@
 package com.techhub.app.aiservice.service;
 
 import com.techhub.app.aiservice.config.ChatbotProperties;
+import com.techhub.app.aiservice.config.GeminiProperties;
 import com.techhub.app.aiservice.config.OpenAiProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +13,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Service to generate embeddings using OpenAI Embedding API
+ * Service to generate embeddings using Gemini Embedding API
+ * (text-embedding-004).
  */
 @Service
 @RequiredArgsConstructor
@@ -20,170 +22,228 @@ import java.util.stream.Collectors;
 public class EmbeddingService {
 
     private final RestTemplate restTemplate;
+    private final GeminiProperties geminiProperties;
     private final OpenAiProperties openAiProperties;
     private final ChatbotProperties chatbotProperties;
+    private final AiProviderConfigService aiProviderConfigService;
 
-    private static final int EMBEDDING_DIMENSION = 1536;
+    private static final int GEMINI_EMBEDDING_DIMENSION = 768;
+    private static final int OPENAI_EMBEDDING_DIMENSION = 1536;
 
-    /**
-     * Generate embedding vector from text
-     * 
-     * @param text Input text to embed
-     * @return List of doubles representing the embedding vector
-     */
     public List<Double> generateEmbedding(String text) {
         if (text == null || text.trim().isEmpty()) {
-            log.warn("⚠️ Cannot generate embedding for empty text");
+            log.warn("Cannot generate embedding for empty text");
             return Collections.emptyList();
         }
 
         if (chatbotProperties.isMockEmbeddings()) {
-            log.warn("🧠 Mock embeddings enabled, returning dummy embedding");
+            log.warn("Mock embeddings enabled, returning dummy embedding");
             return generateDummyEmbedding();
         }
 
-        String url = openAiProperties.getBaseUrl() + "/embeddings";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(getApiKey());
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("model", chatbotProperties.getEmbedding().getModelId());
-        body.put("input", text);
+        String provider = currentProvider();
 
         try {
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    new HttpEntity<>(body, headers),
-                    Map.class);
+            List<Double> embedding = "openai".equals(provider)
+                    ? generateOpenAiEmbedding(text)
+                    : generateGeminiEmbedding(text);
 
-            Map<String, Object> responseBody = response.getBody();
-            if (responseBody != null && responseBody.containsKey("data")) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) responseBody.get("data");
-                if (!data.isEmpty()) {
-                    List<Double> embedding = (List<Double>) data.get(0).get("embedding");
-                    log.debug("✅ Generated embedding with {} dimensions", embedding.size());
-                    return embedding;
-                }
+            if (embedding != null && !embedding.isEmpty()) {
+                log.debug("Generated embedding with {} dimensions via {}", embedding.size(), provider);
+                return embedding;
             }
 
-            log.error("❌ Invalid response from OpenAI Embedding API");
+            log.error("Invalid response from {} Embedding API", provider);
             return generateDummyEmbedding();
-
         } catch (Exception e) {
-            log.error("❌ Failed to generate embedding from OpenAI", e);
+            log.error("Failed to generate embedding from {}", provider, e);
             return generateDummyEmbedding();
         }
     }
 
-    /**
-     * Generate embeddings for multiple texts in batch
-     */
     public List<List<Double>> generateEmbeddingsBatch(List<String> texts) {
         if (texts == null || texts.isEmpty()) {
             return Collections.emptyList();
         }
 
         if (chatbotProperties.isMockEmbeddings()) {
-            log.warn("🧠 Mock embeddings enabled, returning dummy embeddings");
-            return texts.stream()
-                    .map(t -> generateDummyEmbedding())
-                    .collect(Collectors.toList());
+            log.warn("Mock embeddings enabled, returning dummy embeddings");
+            return texts.stream().map(t -> generateDummyEmbedding()).collect(Collectors.toList());
         }
 
+        String provider = currentProvider();
+
+        try {
+            List<List<Double>> embeddings;
+            if ("openai".equals(provider)) {
+                embeddings = generateOpenAiEmbeddingsBatch(texts);
+            } else {
+                embeddings = generateGeminiEmbeddingsBatch(texts);
+            }
+
+            if (embeddings != null && !embeddings.isEmpty()) {
+                log.info("Generated {} embeddings", embeddings.size());
+                return embeddings;
+            }
+
+            log.error("Invalid response from {} Embedding API", provider);
+            return texts.stream().map(t -> generateDummyEmbedding()).collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Failed to generate batch embeddings from {}", provider, e);
+            return texts.stream().map(t -> generateDummyEmbedding()).collect(Collectors.toList());
+        }
+    }
+
+    public int getEmbeddingDimension() {
+        return "openai".equals(currentProvider()) ? OPENAI_EMBEDDING_DIMENSION : GEMINI_EMBEDDING_DIMENSION;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Double> generateGeminiEmbedding(String text) {
+        String model = resolveGeminiEmbeddingModel();
+        String url = geminiProperties.getBaseUrl() + "/models/" + model + ":embedContent?key="
+                + geminiProperties.getApiKey();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map<String, Object> body = new HashMap<>();
+        body.put("content", Map.of("parts", List.of(Map.of("text", text))));
+
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers),
+                Map.class);
+        Map<String, Object> responseBody = response.getBody();
+        if (responseBody != null && responseBody.containsKey("embedding")) {
+            Map<String, Object> embObj = (Map<String, Object>) responseBody.get("embedding");
+            return (List<Double>) embObj.get("values");
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<List<Double>> generateGeminiEmbeddingsBatch(List<String> texts) {
+        String model = resolveGeminiEmbeddingModel();
+        String url = geminiProperties.getBaseUrl() + "/models/" + model + ":batchEmbedContents?key="
+                + geminiProperties.getApiKey();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        List<Map<String, Object>> requests = texts.stream()
+                .map(t -> Map.<String, Object>of("content", Map.of("parts", List.of(Map.of("text", t)))))
+                .collect(Collectors.toList());
+        Map<String, Object> body = new HashMap<>();
+        body.put("requests", requests);
+
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers),
+                Map.class);
+        Map<String, Object> responseBody = response.getBody();
+        if (responseBody != null && responseBody.containsKey("embeddings")) {
+            List<Map<String, Object>> embList = (List<Map<String, Object>>) responseBody.get("embeddings");
+            return embList.stream().map(e -> (List<Double>) e.get("values")).collect(Collectors.toList());
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Double> generateOpenAiEmbedding(String text) {
+        String model = resolveOpenAiEmbeddingModel();
         String url = openAiProperties.getBaseUrl() + "/embeddings";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(getApiKey());
+        headers.setBearerAuth(openAiProperties.getApiKey());
 
         Map<String, Object> body = new HashMap<>();
-        body.put("model", chatbotProperties.getEmbedding().getModelId());
+        body.put("model", model);
+        body.put("input", text);
+
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers),
+                Map.class);
+        Map<String, Object> responseBody = response.getBody();
+        if (responseBody != null && responseBody.containsKey("data")) {
+            List<Map<String, Object>> data = (List<Map<String, Object>>) responseBody.get("data");
+            if (!data.isEmpty()) {
+                return (List<Double>) data.get(0).get("embedding");
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<List<Double>> generateOpenAiEmbeddingsBatch(List<String> texts) {
+        String model = resolveOpenAiEmbeddingModel();
+        String url = openAiProperties.getBaseUrl() + "/embeddings";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(openAiProperties.getApiKey());
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", model);
         body.put("input", texts);
 
-        try {
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    new HttpEntity<>(body, headers),
-                    Map.class);
-
-            Map<String, Object> responseBody = response.getBody();
-            if (responseBody != null && responseBody.containsKey("data")) {
-                List<Map<String, Object>> data = (List<Map<String, Object>>) responseBody.get("data");
-                List<List<Double>> embeddings = data.stream()
-                        .map(item -> (List<Double>) item.get("embedding"))
-                        .collect(Collectors.toList());
-                log.info("✅ Generated {} embeddings", embeddings.size());
-                return embeddings;
-            }
-
-            log.error("❌ Invalid response from OpenAI Embedding API");
-            return texts.stream().map(t -> generateDummyEmbedding()).collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("❌ Failed to generate batch embeddings from OpenAI", e);
-            return texts.stream().map(t -> generateDummyEmbedding()).collect(Collectors.toList());
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers),
+                Map.class);
+        Map<String, Object> responseBody = response.getBody();
+        if (responseBody != null && responseBody.containsKey("data")) {
+            List<Map<String, Object>> data = (List<Map<String, Object>>) responseBody.get("data");
+            return data.stream().map(item -> (List<Double>) item.get("embedding")).collect(Collectors.toList());
         }
+        return null;
     }
 
-    /**
-     * Get embedding dimension for collection creation
-     */
-    public int getEmbeddingDimension() {
-        return EMBEDDING_DIMENSION;
+    private String currentProvider() {
+        return aiProviderConfigService.getProvider();
     }
 
-    /**
-     * Build text representation for course to embed
-     */
+    private String resolveOpenAiEmbeddingModel() {
+        String explicitModel = chatbotProperties.getEmbedding().getModelId();
+        if (explicitModel != null && !explicitModel.isBlank()) {
+            return explicitModel;
+        }
+        String configured = chatbotProperties.getEmbedding().getOpenaiModelId();
+        return (configured == null || configured.isBlank()) ? "text-embedding-3-small" : configured;
+    }
+
+    private String resolveGeminiEmbeddingModel() {
+        String explicitModel = chatbotProperties.getEmbedding().getModelId();
+        if (explicitModel != null && !explicitModel.isBlank()) {
+            return explicitModel;
+        }
+        String configured = chatbotProperties.getEmbedding().getGeminiModelId();
+        return (configured == null || configured.isBlank()) ? "text-embedding-004" : configured;
+    }
+
     public String buildCourseText(String title, String description, String objectives, String requirements) {
         StringBuilder sb = new StringBuilder();
         sb.append("Course: ").append(title).append("\n");
-        if (description != null && !description.isEmpty()) {
+        if (description != null && !description.isEmpty())
             sb.append("Description: ").append(description).append("\n");
-        }
-        if (objectives != null && !objectives.isEmpty()) {
+        if (objectives != null && !objectives.isEmpty())
             sb.append("Objectives: ").append(objectives).append("\n");
-        }
-        if (requirements != null && !requirements.isEmpty()) {
+        if (requirements != null && !requirements.isEmpty())
             sb.append("Requirements: ").append(requirements);
-        }
         return sb.toString();
     }
 
-    /**
-     * Build text representation for user profile to embed
-     */
     public String buildUserProfileText(String userId, String skills, String interests, String completedCourses) {
         StringBuilder sb = new StringBuilder();
         sb.append("User ID: ").append(userId).append("\n");
-        if (skills != null && !skills.isEmpty()) {
+        if (skills != null && !skills.isEmpty())
             sb.append("Skills: ").append(skills).append("\n");
-        }
-        if (interests != null && !interests.isEmpty()) {
+        if (interests != null && !interests.isEmpty())
             sb.append("Interests: ").append(interests).append("\n");
-        }
-        if (completedCourses != null && !completedCourses.isEmpty()) {
+        if (completedCourses != null && !completedCourses.isEmpty())
             sb.append("Completed: ").append(completedCourses);
-        }
         return sb.toString();
     }
 
-    private String getApiKey() {
-        return openAiProperties.getApiKey();
-    }
-
-    /**
-     * Generate dummy embedding for testing when OpenAI is disabled
-     */
     private List<Double> generateDummyEmbedding() {
         Random random = new Random();
-        List<Double> dummy = new ArrayList<>(EMBEDDING_DIMENSION);
-        for (int i = 0; i < EMBEDDING_DIMENSION; i++) {
-            dummy.add(random.nextDouble() * 2 - 1); // Random values between -1 and 1
+        int dim = getEmbeddingDimension();
+        List<Double> dummy = new ArrayList<>(dim);
+        for (int i = 0; i < dim; i++) {
+            dummy.add(random.nextDouble() * 2 - 1);
         }
         return dummy;
     }

@@ -1,6 +1,6 @@
 package com.techhub.app.paymentservice.entity;
 
-import com.techhub.app.paymentservice.config.PostgreSQLEnumType;
+import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
 import com.techhub.app.paymentservice.entity.enums.TransactionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -39,7 +39,7 @@ public class Transaction {
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum")
+    @Type(type = "pgsql_enum", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.paymentservice.entity.enums.TransactionStatus"))
     @Column(name = "status", nullable = false)
     private TransactionStatus status;
 

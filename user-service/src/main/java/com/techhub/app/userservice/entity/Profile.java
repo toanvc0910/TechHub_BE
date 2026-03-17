@@ -1,7 +1,7 @@
 package com.techhub.app.userservice.entity;
 
 import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
-import com.techhub.app.userservice.enums.Language;
+import com.techhub.app.commonservice.enums.Language;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -45,7 +45,7 @@ public class Profile {
     private String location;
 
     @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.userservice.enums.Language"))
+    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.commonservice.enums.Language"))
     @Column(name = "preferred_language", columnDefinition = "lang")
     private Language preferredLanguage = Language.VI;
 

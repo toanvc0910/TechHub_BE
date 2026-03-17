@@ -5,6 +5,7 @@ import com.techhub.app.commonservice.exception.ConflictException;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
+import com.techhub.app.commonservice.enums.OtpType;
 import com.techhub.app.userservice.dto.request.ChangePasswordRequest;
 import com.techhub.app.userservice.dto.request.CreateUserRequest;
 import com.techhub.app.userservice.dto.request.ForgotPasswordRequest;
@@ -15,7 +16,6 @@ import com.techhub.app.userservice.dto.response.UserResponse;
 import com.techhub.app.userservice.entity.Role;
 import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.entity.UserRole;
-import com.techhub.app.userservice.enums.OTPTypeEnum;
 import com.techhub.app.userservice.enums.UserStatus;
 import com.techhub.app.userservice.repository.RoleRepository;
 import com.techhub.app.userservice.repository.UserRepository;
@@ -61,8 +61,8 @@ public class UserServiceImpl implements UserService {
         assignDefaultRole(user);
 
         String otp = otpService.generateOTP();
-        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.REGISTER);
-        emailService.sendOTPEmail(user.getEmail(), otp, OTPTypeEnum.REGISTER.name());
+        otpService.saveOTP(user.getId(), otp, OtpType.REGISTER);
+        emailService.sendOTPEmail(user.getEmail(), otp, OtpType.REGISTER.name());
 
         log.info("User {} {} for registration", user.getEmail(), reactivated ? "reactivated" : "created");
         return convertToUserResponse(user);
@@ -84,7 +84,7 @@ public class UserServiceImpl implements UserService {
             throw new ConflictException("Account already verified");
         }
 
-        boolean validOtp = otpService.validateOTP(user.getId(), request.getCode(), OTPTypeEnum.REGISTER);
+        boolean validOtp = otpService.validateOTP(user.getId(), request.getCode(), OtpType.REGISTER);
         if (!validOtp) {
             throw new BadRequestException("Invalid or expired verification code");
         }
@@ -92,7 +92,7 @@ public class UserServiceImpl implements UserService {
         user.setStatus(UserStatus.ACTIVE);
         user.setUpdated(LocalDateTime.now());
         User saved = userRepository.save(user);
-        otpService.deleteOTP(user.getId(), OTPTypeEnum.REGISTER);
+        otpService.deleteOTP(user.getId(), OtpType.REGISTER);
 
         emailService.sendAccountActivationEmail(saved.getId(), saved.getEmail(), saved.getUsername());
         emailService.sendWelcomeEmail(saved.getId(), saved.getEmail(), saved.getUsername());
@@ -119,8 +119,8 @@ public class UserServiceImpl implements UserService {
 
         // Generate new OTP and send email
         String otp = otpService.generateOTP();
-        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.REGISTER);
-        emailService.sendOTPEmail(user.getEmail(), otp, OTPTypeEnum.REGISTER.name());
+        otpService.saveOTP(user.getId(), otp, OtpType.REGISTER);
+        emailService.sendOTPEmail(user.getEmail(), otp, OtpType.REGISTER.name());
 
         log.info("Verification code resent to user {}", user.getEmail());
     }
@@ -242,7 +242,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new NotFoundException("User not found with email: " + request.getEmail()));
 
         String otp = otpService.generateOTP();
-        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.RESET);
+        otpService.saveOTP(user.getId(), otp, OtpType.RESET);
         emailService.sendPasswordResetEmail(user.getEmail(), otp);
 
         // Send in-app notification for security awareness
@@ -258,7 +258,7 @@ public class UserServiceImpl implements UserService {
 
         // Generate new OTP and send email
         String otp = otpService.generateOTP();
-        otpService.saveOTP(user.getId(), otp, OTPTypeEnum.RESET);
+        otpService.saveOTP(user.getId(), otp, OtpType.RESET);
         emailService.sendPasswordResetEmail(user.getEmail(), otp);
 
         log.info("Password reset OTP resent to user {}", user.getEmail());
@@ -270,7 +270,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmailAndIsActiveTrue(email)
                 .orElseThrow(() -> new NotFoundException("User not found with email: " + email));
 
-        if (!otpService.validateOTP(user.getId(), request.getOtp(), OTPTypeEnum.RESET)) {
+        if (!otpService.validateOTP(user.getId(), request.getOtp(), OtpType.RESET)) {
             throw new BadRequestException("Invalid or expired OTP code");
         }
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
@@ -280,7 +280,7 @@ public class UserServiceImpl implements UserService {
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setUpdated(LocalDateTime.now());
         userRepository.save(user);
-        otpService.deleteOTP(user.getId(), OTPTypeEnum.RESET);
+        otpService.deleteOTP(user.getId(), OtpType.RESET);
 
         // Send password reset success notification
         emailService.sendPasswordResetSuccessNotification(user.getId(), user.getEmail(), user.getUsername());

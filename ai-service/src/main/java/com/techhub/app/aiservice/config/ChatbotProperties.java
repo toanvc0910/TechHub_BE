@@ -15,6 +15,8 @@ public class ChatbotProperties {
     @Data
     public static class Embedding {
         private String modelId;
+        private String openaiModelId;
+        private String geminiModelId;
         private int maxSources;
     }
 }

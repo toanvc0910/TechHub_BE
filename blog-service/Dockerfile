@@ -12,7 +12,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /home/app
 
 # Copy file JAR vào container (đổi tên jar đúng với blog-service)
-COPY target/blog-service-v2.5.12.jar app.jar
+COPY target/blog-service-*.jar app.jar
 
 # Biến môi trường cho Spring profile
 ENV SPRING_PROFILES_ACTIVE=dev

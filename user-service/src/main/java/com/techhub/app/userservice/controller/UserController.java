@@ -1,7 +1,9 @@
 package com.techhub.app.userservice.controller;
 
+import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.commonservice.payload.PageGlobalResponse;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.userservice.dto.request.ChangePasswordRequest;
 import com.techhub.app.userservice.dto.request.CreateUserRequest;
 import com.techhub.app.userservice.dto.request.ForgotPasswordRequest;
@@ -37,97 +39,57 @@ public class UserController {
     @PostMapping
     public ResponseEntity<GlobalResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request,
             HttpServletRequest httpServletRequest) {
-        try {
-            UserResponse user = userService.createUser(request);
-            return ResponseEntity.status(201)
-                    .body(GlobalResponse.success("User created successfully", user)
-                            .withPath(httpServletRequest.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Error creating user", e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.error(e.getMessage()));
-        }
+        UserResponse user = userService.createUser(request);
+        return ResponseEntity.status(201)
+                .body(GlobalResponse.success("User created successfully", user)
+                        .withPath(httpServletRequest.getRequestURI()));
     }
 
     @GetMapping("/{userId}")
     public ResponseEntity<GlobalResponse<UserResponse>> getUserById(@PathVariable UUID userId,
             HttpServletRequest request) {
-        try {
-            UserResponse userResponse = userService.getUserById(userId);
+        UserResponse userResponse = userService.getUserById(userId);
 
-            return ResponseEntity.ok(
-                    GlobalResponse.success("User retrieved successfully", userResponse)
-                            .withPath(request.getRequestURI()));
-
-        } catch (Exception e) {
-            log.error("Error retrieving user with id: {}", userId, e);
-            return ResponseEntity.badRequest().body(
-                    GlobalResponse.<UserResponse>error("User not found", 404)
-                            .withPath(request.getRequestURI()));
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("User retrieved successfully", userResponse)
+                        .withPath(request.getRequestURI()));
     }
 
     @GetMapping("/email/{email}")
     public ResponseEntity<GlobalResponse<UserResponse>> getUserByEmail(@PathVariable @Email String email,
             HttpServletRequest request) {
-        try {
-            UserResponse userResponse = userService.getUserByEmail(email);
-            return ResponseEntity.ok(GlobalResponse.success(userResponse)
-                    .withPath(request.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Error getting user by email: {}", email, e);
-            return ResponseEntity.notFound().build();
-        }
+        UserResponse userResponse = userService.getUserByEmail(email);
+        return ResponseEntity.ok(GlobalResponse.success(userResponse)
+                .withPath(request.getRequestURI()));
     }
 
     @GetMapping("/username/{username}")
     public ResponseEntity<GlobalResponse<UserResponse>> getUserByUsername(@PathVariable String username,
             HttpServletRequest request) {
-        try {
-            UserResponse user = userService.getUserByUsername(username);
-            return ResponseEntity.ok(GlobalResponse.success(user)
-                    .withPath(request.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Error getting user by username: {}", username, e);
-            return ResponseEntity.notFound().build();
-        }
+        UserResponse user = userService.getUserByUsername(username);
+        return ResponseEntity.ok(GlobalResponse.success(user)
+                .withPath(request.getRequestURI()));
     }
 
     @PutMapping("/{userId}")
     public ResponseEntity<GlobalResponse<UserResponse>> updateUser(
             @PathVariable UUID userId,
             @Valid @RequestBody UpdateUserRequest request, HttpServletRequest httpServletRequest) {
-        try {
-            UserResponse userResponse = userService.updateUser(userId, request);
+        UserResponse userResponse = userService.updateUser(userId, request);
 
-            return ResponseEntity.ok(
-                    GlobalResponse.success("User updated successfully", userResponse)
-                            .withPath(httpServletRequest.getRequestURI()));
-
-        } catch (Exception e) {
-            log.error("Error updating user with id: {}", userId, e);
-            return ResponseEntity.badRequest().body(
-                    GlobalResponse.<UserResponse>error(e.getMessage(), 400)
-                            .withPath(httpServletRequest.getRequestURI()));
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("User updated successfully", userResponse)
+                        .withPath(httpServletRequest.getRequestURI()));
     }
 
     @DeleteMapping("/{userId}")
     public ResponseEntity<GlobalResponse<String>> deleteUser(@PathVariable UUID userId,
             HttpServletRequest httpServletRequest) {
-        try {
-            userService.deleteUser(userId);
+        userService.deleteUser(userId);
 
-            return ResponseEntity.ok(
-                    GlobalResponse.success("User deleted successfully", "User with id " + userId + " has been deleted")
-                            .withPath(httpServletRequest.getRequestURI()));
-
-        } catch (Exception e) {
-            log.error("Error deleting user with id: {}", userId, e);
-            return ResponseEntity.badRequest().body(
-                    GlobalResponse.<String>error(e.getMessage(), 400)
-                            .withPath(httpServletRequest.getRequestURI()));
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("User deleted successfully", "User with id " + userId + " has been deleted")
+                        .withPath(httpServletRequest.getRequestURI()));
     }
 
     @PostMapping("/change-password")
@@ -135,112 +97,55 @@ public class UserController {
             @Valid @RequestBody ChangePasswordRequest request,
             HttpServletRequest httpServletRequest,
             @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
-        try {
-            UUID userId = null;
+        UUID userId = parseRequiredUserId(userIdHeader, "Authentication required - missing X-User-Id header");
 
-            // Get user ID from X-User-Id header
-            if (userIdHeader != null && !userIdHeader.isEmpty()) {
-                userId = UUID.fromString(userIdHeader);
-            } else {
-                return ResponseEntity.badRequest().body(
-                        GlobalResponse.<Void>error("Authentication required - missing X-User-Id header", 400)
-                                .withPath(httpServletRequest.getRequestURI()));
-            }
-
-            userService.changePassword(userId, request);
-            return ResponseEntity.ok(
-                    GlobalResponse.<Void>success("Password changed successfully", null)
-                            .withPath(httpServletRequest.getRequestURI()));
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid UUID format in X-User-Id header: {}", userIdHeader, e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.<Void>error("Invalid user ID format", 400)
-                            .withPath(httpServletRequest.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Error changing password for user: {}", userIdHeader, e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.<Void>error(e.getMessage(), 400)
-                            .withPath(httpServletRequest.getRequestURI()));
-        }
+        userService.changePassword(userId, request);
+        return ResponseEntity.ok(
+                GlobalResponse.<Void>success("Password changed successfully", null)
+                        .withPath(httpServletRequest.getRequestURI()));
     }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<GlobalResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        try {
-            userService.forgotPassword(request);
-            return ResponseEntity.ok(GlobalResponse.success("Password reset email sent", null));
-        } catch (Exception e) {
-            log.error("Error processing forgot password request", e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.error(e.getMessage()));
-        }
+        userService.forgotPassword(request);
+        return ResponseEntity.ok(GlobalResponse.success("Password reset email sent", null));
     }
 
     @PostMapping("/resend-reset-code/{email}")
     public ResponseEntity<GlobalResponse<String>> resendResetPasswordCode(@PathVariable @Email String email,
             HttpServletRequest httpRequest) {
-        try {
-            userService.resendResetPasswordCode(email);
-            return ResponseEntity.ok(
-                    GlobalResponse.success("Reset password code resent successfully", "Code sent to email")
-                            .withPath(httpRequest.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Error resending reset password code for email: {}", email, e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.error(e.getMessage()));
-        }
+        userService.resendResetPasswordCode(email);
+        return ResponseEntity.ok(
+                GlobalResponse.success("Reset password code resent successfully", "Code sent to email")
+                        .withPath(httpRequest.getRequestURI()));
     }
 
     @PostMapping("/reset-password/{email}")
     public ResponseEntity<GlobalResponse<Void>> resetPassword(
             @PathVariable @Email String email,
             @Valid @RequestBody ResetPasswordRequest request) {
-        try {
-            userService.resetPassword(email, request);
-            return ResponseEntity.ok(GlobalResponse.success("Password reset successfully", null));
-        } catch (Exception e) {
-            log.error("Error resetting password for email: {}", email, e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.error(e.getMessage()));
-        }
+        userService.resetPassword(email, request);
+        return ResponseEntity.ok(GlobalResponse.success("Password reset successfully", null));
     }
 
     @PostMapping("/{userId}/activate")
     public ResponseEntity<GlobalResponse<Void>> activateUser(@PathVariable UUID userId) {
-        try {
-            userService.activateUser(userId);
-            return ResponseEntity.ok(GlobalResponse.success("User activated successfully", null));
-        } catch (Exception e) {
-            log.error("Error activating user: {}", userId, e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.error(e.getMessage()));
-        }
+        userService.activateUser(userId);
+        return ResponseEntity.ok(GlobalResponse.success("User activated successfully", null));
     }
 
     @PostMapping("/{userId}/deactivate")
     public ResponseEntity<GlobalResponse<Void>> deactivateUser(@PathVariable UUID userId) {
-        try {
-            userService.deactivateUser(userId);
-            return ResponseEntity.ok(GlobalResponse.success("User deactivated successfully", null));
-        } catch (Exception e) {
-            log.error("Error deactivating user: {}", userId, e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.error(e.getMessage()));
-        }
+        userService.deactivateUser(userId);
+        return ResponseEntity.ok(GlobalResponse.success("User deactivated successfully", null));
     }
 
     @PutMapping("/{userId}/status/{status}")
     public ResponseEntity<GlobalResponse<Void>> changeUserStatus(
             @PathVariable UUID userId,
             @PathVariable UserStatus status) {
-        try {
-            userService.changeUserStatus(userId, status);
-            return ResponseEntity.ok(GlobalResponse.success("User status changed successfully", null));
-        } catch (Exception e) {
-            log.error("Error changing user status: {}", userId, e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.error(e.getMessage()));
-        }
+        userService.changeUserStatus(userId, status);
+        return ResponseEntity.ok(GlobalResponse.success("User status changed successfully", null));
     }
 
     @GetMapping
@@ -250,38 +155,29 @@ public class UserController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
             HttpServletRequest request) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<UserResponse> userPage;
 
-        try {
-            Pageable pageable = PageRequest.of(page, size);
-            Page<UserResponse> userPage;
-
-            if (search != null && !search.trim().isEmpty()) {
-                userPage = userService.searchUsers(search.trim(), pageable);
-            } else {
-                userPage = userService.getAllUsers(pageable);
-            }
-
-            PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
-                    .page(userPage.getNumber())
-                    .size(userPage.getSize())
-                    .totalElements(userPage.getTotalElements())
-                    .totalPages(userPage.getTotalPages())
-                    .first(userPage.isFirst())
-                    .last(userPage.isLast())
-                    .hasNext(userPage.hasNext())
-                    .hasPrevious(userPage.hasPrevious())
-                    .build();
-
-            return ResponseEntity.ok(
-                    PageGlobalResponse.success("Users retrieved successfully", userPage.getContent(), paginationInfo)
-                            .withPath(request.getRequestURI()));
-
-        } catch (Exception e) {
-            log.error("Error retrieving users", e);
-            return ResponseEntity.badRequest().body(
-                    PageGlobalResponse.<UserResponse>error("Failed to retrieve users")
-                            .withPath(request.getRequestURI()));
+        if (search != null && !search.trim().isEmpty()) {
+            userPage = userService.searchUsers(search.trim(), pageable);
+        } else {
+            userPage = userService.getAllUsers(pageable);
         }
+
+        PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                .page(userPage.getNumber())
+                .size(userPage.getSize())
+                .totalElements(userPage.getTotalElements())
+                .totalPages(userPage.getTotalPages())
+                .first(userPage.isFirst())
+                .last(userPage.isLast())
+                .hasNext(userPage.hasNext())
+                .hasPrevious(userPage.hasPrevious())
+                .build();
+
+        return ResponseEntity.ok(
+                PageGlobalResponse.success("Users retrieved successfully", userPage.getContent(), paginationInfo)
+                        .withPath(request.getRequestURI()));
     }
 
     @GetMapping("/public/instructors")
@@ -289,32 +185,24 @@ public class UserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "4") int size,
             HttpServletRequest request) {
-        try {
-            Pageable pageable = PageRequest.of(page, size);
-            Page<UserResponse> instructorPage = userService.getInstructorsByRole("INSTRUCTOR", pageable);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<UserResponse> instructorPage = userService.getInstructorsByRole(UserRole.INSTRUCTOR.name(), pageable);
 
-            PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
-                    .page(instructorPage.getNumber())
-                    .size(instructorPage.getSize())
-                    .totalElements(instructorPage.getTotalElements())
-                    .totalPages(instructorPage.getTotalPages())
-                    .first(instructorPage.isFirst())
-                    .last(instructorPage.isLast())
-                    .hasNext(instructorPage.hasNext())
-                    .hasPrevious(instructorPage.hasPrevious())
-                    .build();
+        PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                .page(instructorPage.getNumber())
+                .size(instructorPage.getSize())
+                .totalElements(instructorPage.getTotalElements())
+                .totalPages(instructorPage.getTotalPages())
+                .first(instructorPage.isFirst())
+                .last(instructorPage.isLast())
+                .hasNext(instructorPage.hasNext())
+                .hasPrevious(instructorPage.hasPrevious())
+                .build();
 
-            return ResponseEntity.ok(
-                    PageGlobalResponse
-                            .success("Instructors retrieved successfully", instructorPage.getContent(), paginationInfo)
-                            .withPath(request.getRequestURI()));
-
-        } catch (Exception e) {
-            log.error("Error retrieving public instructors", e);
-            return ResponseEntity.badRequest().body(
-                    PageGlobalResponse.<UserResponse>error("Failed to retrieve instructors")
-                            .withPath(request.getRequestURI()));
-        }
+        return ResponseEntity.ok(
+                PageGlobalResponse
+                        .success("Instructors retrieved successfully", instructorPage.getContent(), paginationInfo)
+                        .withPath(request.getRequestURI()));
     }
 
     @GetMapping("/profile")
@@ -322,58 +210,25 @@ public class UserController {
             HttpServletRequest request,
             @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        UUID userId = parseUserIdForProfile(userIdHeader, authHeader);
+
+        UserResponse userResponse = userService.getUserById(userId);
 
         try {
-            UUID userId = null;
-
-            // Ưu tiên lấy từ header X-User-Id (từ Proxy-Client)
-            if (userIdHeader != null && !userIdHeader.isEmpty()) {
-                userId = UUID.fromString(userIdHeader);
-            }
-            // Fallback: Lấy từ JWT token nếu không có header
-            else if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                // TODO: Extract user ID from JWT token if needed
-                return ResponseEntity.badRequest().body(
-                        GlobalResponse.<UserResponse>error(
-                                "Profile access requires going through Proxy-Client or provide X-User-Id header", 400)
-                                .withPath(request.getRequestURI()));
-            } else {
-                return ResponseEntity.badRequest().body(
-                        GlobalResponse.<UserResponse>error(
-                                "Authentication required - missing X-User-Id header or Authorization token", 400)
-                                .withPath(request.getRequestURI()));
-            }
-
-            UserResponse userResponse = userService.getUserById(userId);
-
-            // Log user's effective permissions
-            try {
-                log.info("🔍 [UserController] Getting effective permissions for user: {}", userId);
-                var permissions = permissionService.getEffectivePermissions(userId);
-                log.info("📋 [UserController] User {} has {} effective permissions:", userId, permissions.size());
-                permissions.forEach(p -> {
-                    log.info("   ✓ {} {} - {} (source: {}, allowed: {})",
-                            p.getMethod(), p.getUrl(), p.getName(), p.getSource(), p.getAllowed());
-                });
-            } catch (Exception e) {
-                log.warn("⚠️ [UserController] Failed to log user permissions: {}", e.getMessage());
-            }
-
-            return ResponseEntity.ok(
-                    GlobalResponse.success("Profile retrieved successfully", userResponse)
-                            .withPath(request.getRequestURI()));
-
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid UUID format in X-User-Id header: {}", userIdHeader, e);
-            return ResponseEntity.badRequest().body(
-                    GlobalResponse.<UserResponse>error("Invalid user ID format", 400)
-                            .withPath(request.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Error retrieving current user profile", e);
-            return ResponseEntity.badRequest().body(
-                    GlobalResponse.<UserResponse>error("Failed to retrieve profile: " + e.getMessage(), 400)
-                            .withPath(request.getRequestURI()));
+            log.info("🔍 [UserController] Getting effective permissions for user: {}", userId);
+            var permissions = permissionService.getEffectivePermissions(userId);
+            log.info("📋 [UserController] User {} has {} effective permissions:", userId, permissions.size());
+            permissions.forEach(p -> {
+                log.info("   ✓ {} {} - {} (source: {}, allowed: {})",
+                        p.getMethod(), p.getUrl(), p.getName(), p.getSource(), p.getAllowed());
+            });
+        } catch (RuntimeException e) {
+            log.warn("⚠️ [UserController] Failed to log user permissions: {}", e.getMessage());
         }
+
+        return ResponseEntity.ok(
+                GlobalResponse.success("Profile retrieved successfully", userResponse)
+                        .withPath(request.getRequestURI()));
     }
 
     @PutMapping("/profile")
@@ -381,36 +236,13 @@ public class UserController {
             @Valid @RequestBody UpdateUserRequest request,
             HttpServletRequest httpServletRequest,
             @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
+        UUID userId = parseRequiredUserId(userIdHeader, "Authentication required - missing X-User-Id header");
 
-        try {
-            UUID userId = null;
+        UserResponse userResponse = userService.updateUser(userId, request);
 
-            // Get user ID from X-User-Id header
-            if (userIdHeader != null && !userIdHeader.isEmpty()) {
-                userId = UUID.fromString(userIdHeader);
-            } else {
-                return ResponseEntity.badRequest().body(
-                        GlobalResponse.<UserResponse>error("Authentication required - missing X-User-Id header", 400)
-                                .withPath(httpServletRequest.getRequestURI()));
-            }
-
-            UserResponse userResponse = userService.updateUser(userId, request);
-
-            return ResponseEntity.ok(
-                    GlobalResponse.success("Profile updated successfully", userResponse)
-                            .withPath(httpServletRequest.getRequestURI()));
-
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid UUID format in X-User-Id header: {}", userIdHeader, e);
-            return ResponseEntity.badRequest().body(
-                    GlobalResponse.<UserResponse>error("Invalid user ID format", 400)
-                            .withPath(httpServletRequest.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Error updating current user profile", e);
-            return ResponseEntity.badRequest().body(
-                    GlobalResponse.<UserResponse>error("Failed to update profile: " + e.getMessage(), 400)
-                            .withPath(httpServletRequest.getRequestURI()));
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("Profile updated successfully", userResponse)
+                        .withPath(httpServletRequest.getRequestURI()));
     }
 
     /**
@@ -421,17 +253,34 @@ public class UserController {
     @GetMapping("/internal/all-user-ids")
     public ResponseEntity<GlobalResponse<java.util.List<UUID>>> getAllActiveUserIds(
             HttpServletRequest httpServletRequest) {
-        try {
-            java.util.List<UUID> userIds = userService.getAllActiveUserIds();
-            log.info("Returning {} active user IDs for broadcast", userIds.size());
-            return ResponseEntity.ok(
-                    GlobalResponse.success("Active user IDs retrieved successfully", userIds)
-                            .withPath(httpServletRequest.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Error fetching all active user IDs", e);
-            return ResponseEntity.internalServerError().body(
-                    GlobalResponse.<java.util.List<UUID>>error("Failed to fetch user IDs: " + e.getMessage(), 500)
-                            .withPath(httpServletRequest.getRequestURI()));
+        java.util.List<UUID> userIds = userService.getAllActiveUserIds();
+        log.info("Returning {} active user IDs for broadcast", userIds.size());
+        return ResponseEntity.ok(
+                GlobalResponse.success("Active user IDs retrieved successfully", userIds)
+                        .withPath(httpServletRequest.getRequestURI()));
+    }
+
+    private UUID parseRequiredUserId(String userIdHeader, String missingHeaderMessage) {
+        if (userIdHeader == null || userIdHeader.isBlank()) {
+            throw new BadRequestException(missingHeaderMessage);
         }
+        try {
+            return UUID.fromString(userIdHeader);
+        } catch (IllegalArgumentException exception) {
+            throw new BadRequestException("Invalid user ID format");
+        }
+    }
+
+    private UUID parseUserIdForProfile(String userIdHeader, String authHeader) {
+        if (userIdHeader != null && !userIdHeader.isBlank()) {
+            return parseRequiredUserId(userIdHeader, "Authentication required - missing X-User-Id header");
+        }
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            throw new BadRequestException(
+                    "Profile access requires going through Proxy-Client or provide X-User-Id header");
+        }
+
+        throw new BadRequestException("Authentication required - missing X-User-Id header or Authorization token");
     }
 }
