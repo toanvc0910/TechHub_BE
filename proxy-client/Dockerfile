@@ -1,5 +1,5 @@
 # Sử dụng image Java JRE nhẹ
-FROM eclipse-temurin:11-jre
+FROM eclipse-temurin:17-jre
 
   # Biến truyền vào khi build
 ARG PROJECT_VERSION=0.1.0

@@ -1,5 +1,5 @@
 # Use OpenJDK JRE 11 as runtime base image
-FROM eclipse-temurin:11-jre
+FROM eclipse-temurin:17-jre
 
 # Optional build argument for traceability
 ARG PROJECT_VERSION=0.1.0
