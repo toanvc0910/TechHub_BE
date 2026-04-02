@@ -57,3 +57,12 @@ logging:
 kafka:
   topics:
     file-uploaded: ${KAFKA_FILE_UPLOADED_TOPIC:file-uploaded}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

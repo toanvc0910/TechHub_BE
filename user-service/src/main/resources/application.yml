@@ -115,3 +115,12 @@ app:
   oauth2:
     # Frontend URL to redirect after successful OAuth2 login
     authorized-redirect-uris: ${APP_OAUTH2_REDIRECT_URI}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

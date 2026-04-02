@@ -23,3 +23,12 @@ kafka:
     ack-mode: ${KAFKA_CONSUMER_ACK_MODE:MANUAL_IMMEDIATE}
     trusted-packages: ${KAFKA_CONSUMER_TRUSTED_PACKAGES:*}
     auto-startup: ${KAFKA_CONSUMER_AUTO_STARTUP:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

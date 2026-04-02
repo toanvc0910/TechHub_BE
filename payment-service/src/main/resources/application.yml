@@ -70,3 +70,12 @@ eureka:
 # Course Service - sử dụng service name thay vì hardcode URL
 course-service:
   name: COURSE-SERVICE  # Service name registered in Eureka
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
