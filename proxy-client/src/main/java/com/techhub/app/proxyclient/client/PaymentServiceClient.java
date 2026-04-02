@@ -62,14 +62,21 @@ public interface PaymentServiceClient {
             @RequestParam(value = "fromDate", required = false) String fromDate,
             @RequestParam(value = "toDate", required = false) String toDate);
 
-    @GetMapping("/api/v1/analytics/instructor/courses")
-    ResponseEntity<String> getInstructorRevenueByCourse(
+    @GetMapping("/api/v1/analytics/instructor/trends")
+    ResponseEntity<String> getInstructorRevenueTrends(
             @RequestHeader("X-User-Id") String userId,
             @RequestParam(value = "fromDate", required = false) String fromDate,
             @RequestParam(value = "toDate", required = false) String toDate);
 
     @GetMapping("/api/v1/analytics/admin/overview")
     ResponseEntity<String> getAdminRevenueOverview(
+            @RequestHeader(value = "X-User-Roles", required = false) String roles,
+            @RequestParam(value = "instructorId", required = false) String instructorId,
+            @RequestParam(value = "fromDate", required = false) String fromDate,
+            @RequestParam(value = "toDate", required = false) String toDate);
+
+    @GetMapping("/api/v1/analytics/admin/trends")
+    ResponseEntity<String> getAdminRevenueTrends(
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             @RequestParam(value = "instructorId", required = false) String instructorId,
             @RequestParam(value = "fromDate", required = false) String fromDate,

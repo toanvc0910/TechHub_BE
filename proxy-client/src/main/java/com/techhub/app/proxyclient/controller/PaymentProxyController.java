@@ -9,8 +9,6 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/proxy/payments")
@@ -114,31 +112,33 @@ public class PaymentProxyController {
     }
 
     @GetMapping("/analytics/instructor/overview")
-    public ResponseEntity<String> getInstructorRevenueOverview(
-            HttpServletRequest request,
+    public ResponseEntity<String> getInstructorRevenueOverview(HttpServletRequest request,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
-        String userId = getRequiredUserId(request);
-        return paymentServiceClient.getInstructorRevenueOverview(userId, fromDate, toDate);
+        return paymentServiceClient.getInstructorRevenueOverview(getRequiredUserId(request), fromDate, toDate);
     }
 
-    @GetMapping("/analytics/instructor/courses")
-    public ResponseEntity<String> getInstructorRevenueByCourse(
-            HttpServletRequest request,
+    @GetMapping("/analytics/instructor/trends")
+    public ResponseEntity<String> getInstructorRevenueTrends(HttpServletRequest request,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
-        String userId = getRequiredUserId(request);
-        return paymentServiceClient.getInstructorRevenueByCourse(userId, fromDate, toDate);
+        return paymentServiceClient.getInstructorRevenueTrends(getRequiredUserId(request), fromDate, toDate);
     }
 
     @GetMapping("/analytics/admin/overview")
-    public ResponseEntity<String> getAdminRevenueOverview(
-            HttpServletRequest request,
+    public ResponseEntity<String> getAdminRevenueOverview(HttpServletRequest request,
             @RequestParam(required = false) String instructorId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
-        String roles = getRolesHeader(request);
-        return paymentServiceClient.getAdminRevenueOverview(roles, instructorId, fromDate, toDate);
+        return paymentServiceClient.getAdminRevenueOverview(getRolesHeader(request), instructorId, fromDate, toDate);
+    }
+
+    @GetMapping("/analytics/admin/trends")
+    public ResponseEntity<String> getAdminRevenueTrends(HttpServletRequest request,
+            @RequestParam(required = false) String instructorId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        return paymentServiceClient.getAdminRevenueTrends(getRolesHeader(request), instructorId, fromDate, toDate);
     }
 
     private String getRequiredUserId(HttpServletRequest request) {
@@ -151,9 +151,6 @@ public class PaymentProxyController {
 
     private String getRolesHeader(HttpServletRequest request) {
         Object roles = request.getAttribute("userRoles");
-        if (roles instanceof List<?>) {
-            return ((List<?>) roles).stream().map(String::valueOf).collect(Collectors.joining(","));
-        }
         return roles == null ? "" : roles.toString();
     }
 }
