@@ -31,6 +31,11 @@ spring:
       hibernate:
         dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
         format_sql: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 # PayPal Configuration
 paypal:
@@ -55,6 +60,11 @@ vnpay:
 payment:
   frontend-result-url: ${PAYMENT_FRONTEND_RESULT_URL}
   frontend-vnpay-return-url: ${PAYMENT_FRONTEND_VNPAY_RETURN_URL}
+  revenue:
+    instructor-rate: ${INSTRUCTOR_REVENUE_RATE:0.7}
+  events:
+    topic: ${PAYMENT_EVENTS_TOPIC:payment.revenue.events}
+    dispatch-delay-ms: ${OUTBOX_DISPATCH_DELAY_MS:3000}
 
 # Eureka Configuration
 eureka:

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/proxy/payments")
@@ -109,5 +111,49 @@ public class PaymentProxyController {
             @RequestParam(defaultValue = "10") int size,
             @RequestHeader("Authorization") String authHeader) {
         return paymentServiceClient.getPaymentHistory(page, size, authHeader);
+    }
+
+    @GetMapping("/analytics/instructor/overview")
+    public ResponseEntity<String> getInstructorRevenueOverview(
+            HttpServletRequest request,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        String userId = getRequiredUserId(request);
+        return paymentServiceClient.getInstructorRevenueOverview(userId, fromDate, toDate);
+    }
+
+    @GetMapping("/analytics/instructor/courses")
+    public ResponseEntity<String> getInstructorRevenueByCourse(
+            HttpServletRequest request,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        String userId = getRequiredUserId(request);
+        return paymentServiceClient.getInstructorRevenueByCourse(userId, fromDate, toDate);
+    }
+
+    @GetMapping("/analytics/admin/overview")
+    public ResponseEntity<String> getAdminRevenueOverview(
+            HttpServletRequest request,
+            @RequestParam(required = false) String instructorId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        String roles = getRolesHeader(request);
+        return paymentServiceClient.getAdminRevenueOverview(roles, instructorId, fromDate, toDate);
+    }
+
+    private String getRequiredUserId(HttpServletRequest request) {
+        Object userId = request.getAttribute("userId");
+        if (userId == null) {
+            throw new IllegalStateException("Missing userId in request context");
+        }
+        return userId.toString();
+    }
+
+    private String getRolesHeader(HttpServletRequest request) {
+        Object roles = request.getAttribute("userRoles");
+        if (roles instanceof List<?>) {
+            return ((List<?>) roles).stream().map(String::valueOf).collect(Collectors.joining(","));
+        }
+        return roles == null ? "" : roles.toString();
     }
 }
