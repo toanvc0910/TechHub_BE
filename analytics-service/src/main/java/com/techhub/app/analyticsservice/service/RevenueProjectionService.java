@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -90,7 +91,32 @@ public class RevenueProjectionService {
 
     @Transactional(readOnly = true)
     public List<RevenueDailyTrendResponse> getAdminTrend(UUID instructorId, LocalDate fromDate, LocalDate toDate) {
-        return getInstructorTrend(instructorId, fromDate, toDate);
+        if (instructorId != null) {
+            return getInstructorTrend(instructorId, fromDate, toDate);
+        }
+
+        return revenueRepository.findByMetricDateBetweenOrderByMetricDateAsc(fromDate, toDate)
+                .stream()
+                .collect(Collectors.groupingBy(RevenueDailyAggregate::getMetricDate))
+                .entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> {
+                    List<RevenueDailyAggregate> dailyRows = entry.getValue();
+                    return RevenueDailyTrendResponse.builder()
+                            .metricDate(entry.getKey())
+                            .grossRevenue(safe(dailyRows.stream().map(RevenueDailyAggregate::getGrossRevenue)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add)))
+                            .instructorRevenue(safe(dailyRows.stream().map(RevenueDailyAggregate::getInstructorRevenue)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add)))
+                            .adminRevenue(safe(dailyRows.stream().map(RevenueDailyAggregate::getAdminRevenue)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add)))
+                            .totalOrders(safeLong(dailyRows.stream().mapToLong(row -> row.getOrderCount() == null ? 0L
+                                    : row.getOrderCount()).sum()))
+                            .totalItems(safeLong(dailyRows.stream().mapToLong(row -> row.getItemCount() == null ? 0L
+                                    : row.getItemCount()).sum()))
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 
     private BigDecimal safe(BigDecimal value) {

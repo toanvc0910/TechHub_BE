@@ -36,6 +36,23 @@ public class AnalyticsProxyController {
         return analyticsServiceClient.getAdminOverview(roles, instructorId, fromDate, toDate);
     }
 
+    @GetMapping("/instructor/trends")
+    public ResponseEntity<String> getInstructorTrends(HttpServletRequest request,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        String userId = getRequiredUserId(request);
+        return analyticsServiceClient.getInstructorTrends(userId, fromDate, toDate);
+    }
+
+    @GetMapping("/admin/trends")
+    public ResponseEntity<String> getAdminTrends(HttpServletRequest request,
+            @RequestParam(required = false) String instructorId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        String roles = getRolesHeader(request);
+        return analyticsServiceClient.getAdminTrends(roles, instructorId, fromDate, toDate);
+    }
+
     private String getRequiredUserId(HttpServletRequest request) {
         Object userId = request.getAttribute("userId");
         if (userId == null) {
