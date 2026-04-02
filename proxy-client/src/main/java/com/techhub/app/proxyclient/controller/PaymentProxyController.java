@@ -1,5 +1,6 @@
 package com.techhub.app.proxyclient.controller;
 
+import com.techhub.app.proxyclient.client.AnalyticsServiceClient;
 import com.techhub.app.proxyclient.client.PaymentServiceClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +17,7 @@ import java.io.IOException;
 public class PaymentProxyController {
 
     private final PaymentServiceClient paymentServiceClient;
+    private final AnalyticsServiceClient analyticsServiceClient;
     @Value("${PAYMENT_SERVICE_BASE_URL:http://localhost:8084}")
     private String paymentServiceBaseUrl;
 
@@ -115,14 +117,14 @@ public class PaymentProxyController {
     public ResponseEntity<String> getInstructorRevenueOverview(HttpServletRequest request,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
-        return paymentServiceClient.getInstructorRevenueOverview(getRequiredUserId(request), fromDate, toDate);
+        return analyticsServiceClient.getInstructorOverview(getRequiredUserId(request), fromDate, toDate);
     }
 
     @GetMapping("/analytics/instructor/trends")
     public ResponseEntity<String> getInstructorRevenueTrends(HttpServletRequest request,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
-        return paymentServiceClient.getInstructorRevenueTrends(getRequiredUserId(request), fromDate, toDate);
+        return analyticsServiceClient.getInstructorTrends(getRequiredUserId(request), fromDate, toDate);
     }
 
     @GetMapping("/analytics/admin/overview")
@@ -130,7 +132,7 @@ public class PaymentProxyController {
             @RequestParam(required = false) String instructorId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
-        return paymentServiceClient.getAdminRevenueOverview(getRolesHeader(request), instructorId, fromDate, toDate);
+        return analyticsServiceClient.getAdminOverview(getRolesHeader(request), instructorId, fromDate, toDate);
     }
 
     @GetMapping("/analytics/admin/trends")
@@ -138,7 +140,7 @@ public class PaymentProxyController {
             @RequestParam(required = false) String instructorId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
-        return paymentServiceClient.getAdminRevenueTrends(getRolesHeader(request), instructorId, fromDate, toDate);
+        return analyticsServiceClient.getAdminTrends(getRolesHeader(request), instructorId, fromDate, toDate);
     }
 
     private String getRequiredUserId(HttpServletRequest request) {
