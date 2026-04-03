@@ -51,6 +51,7 @@ public class EndpointSecurityCacheService {
             "/api/users/public/**",
             "/api/internal/endpoint-security-policies",
             "/actuator/**",
+            "/app/actuator/**",
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/oauth2/**");

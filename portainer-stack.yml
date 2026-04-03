@@ -80,7 +80,7 @@ services:
     mem_reservation: 256m
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8085/app/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
