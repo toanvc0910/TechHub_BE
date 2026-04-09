@@ -2,9 +2,11 @@ package com.techhub.app.fileservice.service.impl;
 
 import com.techhub.app.fileservice.config.MinioProperties;
 import com.techhub.app.fileservice.service.ObjectStorageService;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -18,6 +20,9 @@ import java.io.InputStream;
 @RequiredArgsConstructor
 @Slf4j
 public class MinioObjectStorageService implements ObjectStorageService {
+
+    private static final int MIN_EXPIRY_SECONDS = 1;
+    private static final int MAX_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 
     private final MinioClient minioClient;
     private final MinioProperties minioProperties;
@@ -65,6 +70,30 @@ public class MinioObjectStorageService implements ObjectStorageService {
         } catch (Exception e) {
             log.error("Failed to get object {} from MinIO", objectKey, e);
             throw new RuntimeException("Failed to read file from object storage", e);
+        }
+    }
+
+    @Override
+    public String getPresignedGetUrl(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return null;
+        }
+
+        int expirySeconds = Math.max(
+                MIN_EXPIRY_SECONDS,
+                Math.min(minioProperties.getPresignedExpirySeconds(), MAX_EXPIRY_SECONDS));
+
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(minioProperties.getBucket())
+                            .object(objectKey)
+                            .expiry(expirySeconds)
+                            .build());
+        } catch (Exception e) {
+            log.warn("Failed to generate presigned URL for object {}, fallback to public URL", objectKey, e);
+            return buildPublicUrl(objectKey);
         }
     }
 

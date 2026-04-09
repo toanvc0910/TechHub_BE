@@ -323,6 +323,40 @@ public class FileManagementServiceImpl implements FileManagementService {
                         .build());
     }
 
+    private String resolveSignedObjectUrl(FileEntity file) {
+        String fallbackUrl = firstNonBlank(file.getSecureUrl(), file.getCloudinarySecureUrl(), file.getPublicUrl());
+
+        if (!"MINIO".equalsIgnoreCase(file.getStorageProvider()) || file.getObjectKey() == null
+                || file.getObjectKey().isBlank()) {
+            return fallbackUrl;
+        }
+
+        String signedUrl = objectStorageService.getPresignedGetUrl(file.getObjectKey());
+        return firstNonBlank(signedUrl, fallbackUrl);
+    }
+
+    private String resolveSignedThumbnailUrl(FileEntity file, String signedObjectUrl) {
+        String fallbackThumbnailUrl = firstNonBlank(file.getThumbnailUrl(), signedObjectUrl);
+        String thumbnailObjectKey = file.getThumbnailObjectKey();
+        if (!"MINIO".equalsIgnoreCase(file.getStorageProvider()) || thumbnailObjectKey == null
+                || thumbnailObjectKey.isBlank()) {
+            return fallbackThumbnailUrl;
+        }
+
+        String signedUrl = objectStorageService.getPresignedGetUrl(thumbnailObjectKey);
+        return firstNonBlank(signedUrl, fallbackThumbnailUrl);
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
     private FileResponse mapToResponse(FileEntity file) {
         String folderName = null;
         if (file.getFolderId() != null) {
@@ -330,6 +364,9 @@ public class FileManagementServiceImpl implements FileManagementService {
                     .map(FileFolderEntity::getName)
                     .orElse(null);
         }
+
+        String signedObjectUrl = resolveSignedObjectUrl(file);
+        String signedThumbnailUrl = resolveSignedThumbnailUrl(file, signedObjectUrl);
 
         return FileResponse.builder()
                 .id(file.getId())
@@ -343,14 +380,14 @@ public class FileManagementServiceImpl implements FileManagementService {
                 .fileSize(file.getFileSize())
                 .cloudinaryPublicId(file.getCloudinaryPublicId())
                 .cloudinaryUrl(file.getCloudinaryUrl())
-                .cloudinarySecureUrl(file.getCloudinarySecureUrl())
+                .cloudinarySecureUrl(signedObjectUrl)
                 .storageProvider(file.getStorageProvider())
                 .bucketName(file.getBucketName())
                 .objectKey(file.getObjectKey())
                 .publicUrl(file.getPublicUrl())
-                .secureUrl(file.getSecureUrl())
+                .secureUrl(signedObjectUrl)
                 .thumbnailObjectKey(file.getThumbnailObjectKey())
-                .thumbnailUrl(file.getThumbnailUrl())
+                .thumbnailUrl(signedThumbnailUrl)
                 .processingStatus(file.getProcessingStatus())
                 .processingError(file.getProcessingError())
                 .processedAt(file.getProcessedAt())

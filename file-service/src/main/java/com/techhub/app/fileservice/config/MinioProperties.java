@@ -15,4 +15,5 @@ public class MinioProperties {
     private String bucket;
     private String publicUrl;
     private boolean secure;
+    private int presignedExpirySeconds = 86400;
 }

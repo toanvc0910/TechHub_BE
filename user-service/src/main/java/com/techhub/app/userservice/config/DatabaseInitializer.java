@@ -13,9 +13,11 @@ import com.techhub.app.userservice.repository.RoleRepository;
 import com.techhub.app.userservice.repository.UserRepository;
 import com.techhub.app.userservice.repository.UserRoleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -33,11 +35,28 @@ public class DatabaseInitializer implements CommandLineRunner {
         private final UserRoleRepository userRoleRepository;
         private final PasswordEncoder passwordEncoder;
 
+        @Value("${app.security.seed.force-reinit-permissions:false}")
+        private boolean forceReinitPermissions;
+
+        @Value("${app.security.bootstrap-admin.enabled:false}")
+        private boolean bootstrapAdminEnabled;
+
+        @Value("${app.security.bootstrap-admin.email:}")
+        private String bootstrapAdminEmail;
+
+        @Value("${app.security.bootstrap-admin.username:}")
+        private String bootstrapAdminUsername;
+
+        @Value("${app.security.bootstrap-admin.full-name:}")
+        private String bootstrapAdminFullName;
+
+        @Value("${app.security.bootstrap-admin.password:}")
+        private String bootstrapAdminPassword;
+
         @Override
         public void run(String... args) throws Exception {
-                // Set this to true to force re-initialize permissions (will delete all existing
-                // permissions and role assignments)
-                boolean FORCE_REINIT_PERMISSIONS = true;
+                // Disabled by default; can be explicitly enabled via env/property when needed.
+                boolean forceReinit = forceReinitPermissions;
 
                 // 1. Create Roles - Always ensure default roles exist
                 Role learnerRole = roleRepository.findByName("LEARNER").orElseGet(() -> {
@@ -80,8 +99,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                 List<Permission> permissions = null;
 
                 // Force re-initialize if flag is set
-                if (FORCE_REINIT_PERMISSIONS && permissionRepository.count() > 0) {
-                        System.out.println("🔄 FORCE_REINIT_PERMISSIONS = true");
+                if (forceReinit && permissionRepository.count() > 0) {
+                        System.out.println("🔄 app.security.seed.force-reinit-permissions = true");
                         System.out.println("🗑️ Deleting all existing role_permission and permission data...");
                         rolePermissionRepository.deleteAll();
                         permissionRepository.deleteAll();
@@ -833,30 +852,28 @@ public class DatabaseInitializer implements CommandLineRunner {
                                         "✅ LEARNER role assigned " + learnerPermissions.length + " permissions");
                 }
 
-                // 4. Create Sample Users
+                // 4. Optional bootstrap admin on empty DB (no hardcoded credentials)
                 if (userRepository.count() == 0) {
-                        // Admin User
-                        User adminUser = createUser("admin@techhub.com", "admin", "TechHub Admin", "admin123");
-                        adminUser = userRepository.save(adminUser);
-                        createUserRole(adminUser.getId(), adminRole.getId());
-
-                        // Instructor User
-                        User instructorUser = createUser("instructor@techhub.com", "instructor", "TechHub Instructor",
-                                        "instructor123");
-                        instructorUser = userRepository.save(instructorUser);
-                        createUserRole(instructorUser.getId(), instructorRole.getId());
-
-                        // Learner User
-                        User learnerUser = createUser("learner@techhub.com", "learner", "TechHub Learner",
-                                        "learner123");
-                        learnerUser = userRepository.save(learnerUser);
-                        createUserRole(learnerUser.getId(), learnerRole.getId());
-
-                        System.out.println("=== SAMPLE USERS CREATED ===");
-                        System.out.println("Admin: admin@techhub.com / admin123");
-                        System.out.println("Instructor: instructor@techhub.com / instructor123");
-                        System.out.println("Learner: learner@techhub.com / learner123");
-                        System.out.println("===============================");
+                        if (bootstrapAdminEnabled
+                                        && StringUtils.hasText(bootstrapAdminEmail)
+                                        && StringUtils.hasText(bootstrapAdminUsername)
+                                        && StringUtils.hasText(bootstrapAdminFullName)
+                                        && StringUtils.hasText(bootstrapAdminPassword)) {
+                                User adminUser = createUser(
+                                                bootstrapAdminEmail,
+                                                bootstrapAdminUsername,
+                                                bootstrapAdminFullName,
+                                                bootstrapAdminPassword);
+                                adminUser = userRepository.save(adminUser);
+                                createUserRole(adminUser.getId(), adminRole.getId());
+                                System.out.println("=== BOOTSTRAP ADMIN CREATED ===");
+                                System.out.println("Admin email: " + bootstrapAdminEmail);
+                                System.out.println("================================");
+                        } else {
+                                System.out.println("⚠️ No users found, but bootstrap admin is disabled or incomplete.");
+                                System.out.println(
+                                                "⚠️ Set app.security.bootstrap-admin.* properties to create first admin.");
+                        }
                 }
         }
 
