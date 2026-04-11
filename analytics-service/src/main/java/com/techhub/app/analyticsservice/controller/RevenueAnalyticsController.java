@@ -31,12 +31,23 @@ public class RevenueAnalyticsController {
     @GetMapping("/instructor/overview")
     public ResponseEntity<GlobalResponse<RevenueOverviewResponse>> getInstructorOverview(
             @RequestHeader("X-User-Id") String userIdHeader,
-            @RequestParam(required = false) LocalDate fromDate,
-            @RequestParam(required = false) LocalDate toDate) {
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
         log.info("[Analytics BE] GET /instructor/overview X-User-Id={} fromDate={} toDate={}", userIdHeader,
                 fromDate, toDate);
-        UUID instructorId = UUID.fromString(userIdHeader);
-        RevenueOverviewResponse response = projectionService.getInstructorOverview(instructorId, fromDate, toDate);
+        UUID instructorId;
+        LocalDate parsedFromDate;
+        LocalDate parsedToDate;
+        try {
+            instructorId = parseRequiredUuid(userIdHeader, "X-User-Id");
+            parsedFromDate = parseOptionalDate(fromDate);
+            parsedToDate = parseOptionalDate(toDate);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+        RevenueOverviewResponse response = projectionService.getInstructorOverview(instructorId, parsedFromDate,
+                parsedToDate);
         return ResponseEntity.ok(GlobalResponse.success("Instructor revenue overview", response));
     }
 
@@ -73,13 +84,24 @@ public class RevenueAnalyticsController {
     @GetMapping("/instructor/trends")
     public ResponseEntity<GlobalResponse<List<RevenueDailyTrendResponse>>> getInstructorTrend(
             @RequestHeader("X-User-Id") String userIdHeader,
-            @RequestParam(required = false) LocalDate fromDate,
-            @RequestParam(required = false) LocalDate toDate) {
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
         log.info("[Analytics BE] GET /instructor/trends X-User-Id={} fromDate={} toDate={}", userIdHeader,
                 fromDate, toDate);
-        UUID instructorId = UUID.fromString(userIdHeader);
-        List<RevenueDailyTrendResponse> response = projectionService.getInstructorTrend(instructorId, fromDate,
-                toDate);
+        UUID instructorId;
+        LocalDate parsedFromDate;
+        LocalDate parsedToDate;
+        try {
+            instructorId = parseRequiredUuid(userIdHeader, "X-User-Id");
+            parsedFromDate = parseOptionalDate(fromDate);
+            parsedToDate = parseOptionalDate(toDate);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+
+        List<RevenueDailyTrendResponse> response = projectionService.getInstructorTrend(instructorId, parsedFromDate,
+                parsedToDate);
         return ResponseEntity.ok(GlobalResponse.success("Instructor revenue trend", response));
     }
 
@@ -144,6 +166,17 @@ public class RevenueAnalyticsController {
         }
 
         throw new IllegalArgumentException("Invalid date format. Expected yyyy-MM-dd or MM/dd/yyyy.");
+    }
+
+    private UUID parseRequiredUuid(String value, String headerName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(headerName + " is required.");
+        }
+        try {
+            return UUID.fromString(value.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid " + headerName + " format. Expected UUID.");
+        }
     }
 
     private boolean hasAdminRole(String rolesHeader) {

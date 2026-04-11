@@ -49,11 +49,21 @@ public class EndpointSecurityCacheService {
             "/api/users/reset-password/**",
             "/api/users/resend-reset-code/**",
             "/api/users/public/**",
+            "/api/payments/paypal/success",
+            "/api/payments/paypal/cancel",
+            "/api/payments/vn-pay-callback",
+            "/api/v1/payment/paypal/success",
+            "/api/v1/payment/paypal/cancel",
+            "/api/v1/payment/vn-pay-callback",
             "/api/internal/endpoint-security-policies",
             "/actuator/**",
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/oauth2/**");
+
+    private static final List<String> BOOTSTRAP_AUTHENTICATED_PATTERNS = Arrays.asList(
+            "/api/analytics/instructor/**",
+            "/api/payments/**");
 
     @EventListener(ApplicationReadyEvent.class)
     public void loadOnStartup() {
@@ -107,6 +117,10 @@ public class EndpointSecurityCacheService {
             return SecurityLevel.PUBLIC;
         }
 
+        if (isBootstrapAuthenticated(url, method)) {
+            return SecurityLevel.AUTHENTICATED;
+        }
+
         return SecurityLevel.AUTHORIZED;
     }
 
@@ -130,5 +144,13 @@ public class EndpointSecurityCacheService {
         }
 
         return BOOTSTRAP_PUBLIC_PATTERNS.stream().anyMatch(pattern -> pathMatcher.match(pattern, url));
+    }
+
+    private boolean isBootstrapAuthenticated(String url, String method) {
+        if (!"GET".equalsIgnoreCase(method)) {
+            return false;
+        }
+
+        return BOOTSTRAP_AUTHENTICATED_PATTERNS.stream().anyMatch(pattern -> pathMatcher.match(pattern, url));
     }
 }

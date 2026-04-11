@@ -87,7 +87,7 @@ public interface TransactionItemRepository extends JpaRepository<TransactionItem
                         "COALESCE(ti.quantity, 1) AS quantity " +
                         "FROM transaction_items ti " +
                         "JOIN courses c ON c.id = ti.course_id " +
-                        "WHERE ti.transaction_id = CAST(:transactionId AS TEXT) " +
+                        "WHERE ti.transaction_id = :transactionId " +
                         "AND ti.is_active = 'Y' " +
                         "AND c.is_active = 'Y'", nativeQuery = true)
         List<RevenueSplitItemProjection> getRevenueSplitItemsByTransactionId(
