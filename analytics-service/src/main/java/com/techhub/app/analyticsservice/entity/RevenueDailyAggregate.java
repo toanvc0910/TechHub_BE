@@ -39,7 +39,7 @@ public class RevenueDailyAggregate {
     private LocalDate metricDate;
 
     @Column(name = "instructor_id", nullable = false)
-    private UUID instructorId;
+    private String instructorId;
 
     @Column(name = "gross_revenue", nullable = false, precision = 14, scale = 2)
     private BigDecimal grossRevenue;

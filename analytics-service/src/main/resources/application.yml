@@ -25,7 +25,7 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     listener:
-      auto-startup: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:false}
+      auto-startup: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:true}
     consumer:
       group-id: ${ANALYTICS_REVENUE_GROUP:analytics-revenue-group}
       auto-offset-reset: earliest
@@ -38,7 +38,7 @@ analytics:
 
 kafka:
   consumer:
-    auto-startup: ${KAFKA_CONSUMER_AUTO_STARTUP:false}
+    auto-startup: ${KAFKA_CONSUMER_AUTO_STARTUP:true}
 
 eureka:
   client:

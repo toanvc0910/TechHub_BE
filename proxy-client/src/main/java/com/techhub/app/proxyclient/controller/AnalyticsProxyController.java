@@ -2,6 +2,7 @@ package com.techhub.app.proxyclient.controller;
 
 import com.techhub.app.proxyclient.client.AnalyticsServiceClient;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/proxy/analytics")
 @RequiredArgsConstructor
+@Slf4j
 public class AnalyticsProxyController {
 
     private final AnalyticsServiceClient analyticsServiceClient;
@@ -24,6 +26,8 @@ public class AnalyticsProxyController {
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
         String userId = getRequiredUserId(request);
+        log.info("[Analytics Proxy] GET /instructor/overview userId={} fromDate={} toDate={}", userId, fromDate,
+                toDate);
         return analyticsServiceClient.getInstructorOverview(userId, fromDate, toDate);
     }
 
@@ -33,6 +37,8 @@ public class AnalyticsProxyController {
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
         String roles = getRolesHeader(request);
+        log.info("[Analytics Proxy] GET /admin/overview roles={} instructorId={} fromDate={} toDate={}", roles,
+                instructorId, fromDate, toDate);
         return analyticsServiceClient.getAdminOverview(roles, instructorId, fromDate, toDate);
     }
 
@@ -41,6 +47,8 @@ public class AnalyticsProxyController {
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
         String userId = getRequiredUserId(request);
+        log.info("[Analytics Proxy] GET /instructor/trends userId={} fromDate={} toDate={}", userId, fromDate,
+                toDate);
         return analyticsServiceClient.getInstructorTrends(userId, fromDate, toDate);
     }
 
@@ -50,12 +58,16 @@ public class AnalyticsProxyController {
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
         String roles = getRolesHeader(request);
+        log.info("[Analytics Proxy] GET /admin/trends roles={} instructorId={} fromDate={} toDate={}", roles,
+                instructorId, fromDate, toDate);
         return analyticsServiceClient.getAdminTrends(roles, instructorId, fromDate, toDate);
     }
 
     private String getRequiredUserId(HttpServletRequest request) {
         Object userId = request.getAttribute("userId");
         if (userId == null) {
+            log.warn("[Analytics Proxy] Missing userId in request context for {} {}", request.getMethod(),
+                    request.getRequestURI());
             throw new IllegalStateException("Missing userId in request context");
         }
         return userId.toString();

@@ -26,20 +26,25 @@ public class RevenueEventConsumer {
 
     private final RevenueProjectionService projectionService;
     private final ProcessedEventRepository processedEventRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "${analytics.events.topic:payment.revenue.events}")
+    @KafkaListener(topics = "${analytics.events.topic:payment.revenue.events}", autoStartup = "${kafka.consumer.auto-startup:true}")
     @Transactional
     public void consume(ConsumerRecord<String, String> record) {
         try {
             String eventKey = record.key() == null ? "" : record.key();
+            log.info("[AnalyticsConsumer] Received record topic={} partition={} offset={} key={}",
+                    record.topic(), record.partition(), record.offset(), eventKey);
             if (!eventKey.isBlank() && processedEventRepository.existsByEventKey(eventKey)) {
+                log.info("[AnalyticsConsumer] Skip duplicated eventKey={}", eventKey);
                 return;
             }
 
             String payload = record.value();
             JsonNode root = objectMapper.readTree(payload);
             if (!root.has("items") || !root.has("transactionId")) {
+                log.warn("[AnalyticsConsumer] Ignore payload missing required fields. eventKey={} payload={}",
+                        eventKey, payload);
                 return;
             }
 
@@ -49,11 +54,24 @@ public class RevenueEventConsumer {
                             .toLocalDate()
                     : LocalDate.now(ZoneOffset.UTC);
 
+            int itemCount = root.path("items").isArray() ? root.path("items").size() : 0;
+            log.info("[AnalyticsConsumer] Processing transactionId={} metricDate={} items={}",
+                    transactionId, metricDate, itemCount);
+
             Set<UUID> transactionInstructorSet = new HashSet<>();
             for (JsonNode item : root.path("items")) {
                 UUID instructorId = UUID.fromString(item.path("instructorId").asText());
                 UUID key = UUID.nameUUIDFromBytes((transactionId + "-" + instructorId).getBytes());
                 boolean firstItemForTransaction = transactionInstructorSet.add(key);
+
+                log.info(
+                        "[AnalyticsConsumer] Apply split instructorId={} gross={} instructor={} admin={} qty={} firstItem={}",
+                        instructorId,
+                        item.path("grossAmount").decimalValue(),
+                        item.path("instructorAmount").decimalValue(),
+                        item.path("adminAmount").decimalValue(),
+                        item.path("quantity").asInt(1),
+                        firstItemForTransaction);
 
                 projectionService.applyRevenueSplit(
                         instructorId,
@@ -67,6 +85,7 @@ public class RevenueEventConsumer {
 
             if (!eventKey.isBlank()) {
                 processedEventRepository.save(ProcessedEvent.builder().eventKey(eventKey).build());
+                log.info("[AnalyticsConsumer] Marked processed eventKey={}", eventKey);
             }
         } catch (Exception ex) {
             log.error("Failed to consume analytics event payload", ex);
