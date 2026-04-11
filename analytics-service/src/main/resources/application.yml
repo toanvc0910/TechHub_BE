@@ -24,6 +24,8 @@ spring:
         format_sql: true
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      auto-startup: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:false}
     consumer:
       group-id: ${ANALYTICS_REVENUE_GROUP:analytics-revenue-group}
       auto-offset-reset: earliest
@@ -33,6 +35,10 @@ spring:
 analytics:
   events:
     topic: ${PAYMENT_EVENTS_TOPIC:payment.revenue.events}
+
+kafka:
+  consumer:
+    auto-startup: ${KAFKA_CONSUMER_AUTO_STARTUP:false}
 
 eureka:
   client:

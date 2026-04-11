@@ -77,6 +77,7 @@ public class PayPalPaymentController {
     public void success(@RequestParam String token,
             @RequestParam(required = false) String PayerID,
             HttpServletResponse response) throws IOException {
+        log.info("Received PayPal success callback. token={}, payerId={}", token, PayerID);
         try {
             // Capture payment from PayPal
             Map<String, Object> result = payPalService.captureOrder(token);
@@ -101,6 +102,8 @@ public class PayPalPaymentController {
                     }
                 }
             }
+
+            log.info("PayPal callback parsed result. token={}, status={}, amount={}", token, status, amount);
 
             // Redirect to frontend with success status
             String redirectUrl = payPalConfig.getFrontendResultUrl() +

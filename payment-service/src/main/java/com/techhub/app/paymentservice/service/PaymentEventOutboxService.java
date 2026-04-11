@@ -1,6 +1,7 @@
 package com.techhub.app.paymentservice.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techhub.app.paymentservice.dto.event.PaymentCompletedEvent;
 import com.techhub.app.paymentservice.dto.event.RevenueSplitRecordedEvent;
@@ -33,7 +34,7 @@ public class PaymentEventOutboxService {
 
     private final OutboxEventRepository outboxEventRepository;
     private final TransactionItemRepository transactionItemRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Value("${payment.revenue.instructor-rate:0.7}")
     private BigDecimal instructorRate;
@@ -71,14 +72,20 @@ public class PaymentEventOutboxService {
                 .computedAt(OffsetDateTime.now());
 
         for (RevenueSplitItemProjection row : splitItems) {
+            UUID courseId = parseUuid(row.getCourseId(), "courseId", transaction.getId());
+            UUID instructorId = parseUuid(row.getInstructorId(), "instructorId", transaction.getId());
+            if (courseId == null || instructorId == null) {
+                continue;
+            }
+
             BigDecimal grossAmount = safeMoney(row.getGrossAmount());
             BigDecimal instructorAmount = grossAmount.multiply(normalizedInstructorRate).setScale(2,
                     RoundingMode.HALF_UP);
             BigDecimal adminAmount = grossAmount.subtract(instructorAmount).setScale(2, RoundingMode.HALF_UP);
 
             builder.item(RevenueSplitRecordedEvent.ItemSplit.builder()
-                    .courseId(row.getCourseId())
-                    .instructorId(row.getInstructorId())
+                    .courseId(courseId)
+                    .instructorId(instructorId)
                     .grossAmount(grossAmount)
                     .instructorAmount(instructorAmount)
                     .adminAmount(adminAmount)
@@ -96,9 +103,14 @@ public class PaymentEventOutboxService {
 
     private void saveIfAbsent(UUID aggregateId, String eventType, String eventKey, Object payloadObject) {
         if (outboxEventRepository.findByEventKey(eventKey).isPresent()) {
+            log.info("Skip outbox event because eventKey already exists. aggregateId={}, eventType={}, eventKey={}",
+                    aggregateId, eventType, eventKey);
             return;
         }
 
+        log.info("Creating outbox event. aggregateId={}, eventType={}, eventKey={}, payloadType={}",
+                aggregateId, eventType, eventKey,
+                payloadObject == null ? "null" : payloadObject.getClass().getSimpleName());
         String payload = serialize(payloadObject);
         OutboxEvent event = OutboxEvent.builder()
                 .aggregateType(AGGREGATE_TYPE_TRANSACTION)
@@ -110,13 +122,20 @@ public class PaymentEventOutboxService {
                 .status(OutboxStatus.NEW)
                 .retryCount(0)
                 .build();
-        outboxEventRepository.save(event);
+        OutboxEvent saved = outboxEventRepository.save(event);
+        log.info("Outbox event persisted. id={}, aggregateId={}, eventType={}, eventKey={}, status={}",
+                saved.getId(), aggregateId, eventType, eventKey, saved.getStatus());
     }
 
     private String serialize(Object data) {
         try {
-            return objectMapper.writeValueAsString(data);
+            return objectMapper.copy()
+                    .findAndRegisterModules()
+                    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                    .writeValueAsString(data);
         } catch (JsonProcessingException e) {
+            log.error("Outbox payload serialization failed. payloadType={}, message={}",
+                    data == null ? "null" : data.getClass().getName(), e.getMessage(), e);
             throw new IllegalStateException("Cannot serialize outbox payload", e);
         }
     }
@@ -137,5 +156,19 @@ public class PaymentEventOutboxService {
     private BigDecimal safeMoney(BigDecimal value) {
         return value == null ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
                 : value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private UUID parseUuid(String raw, String fieldName, UUID transactionId) {
+        if (raw == null || raw.isBlank()) {
+            log.warn("Skip revenue split row because {} is empty. transactionId={}", fieldName, transactionId);
+            return null;
+        }
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException ex) {
+            log.warn("Skip revenue split row because {} is invalid UUID. transactionId={}, value={}",
+                    fieldName, transactionId, raw);
+            return null;
+        }
     }
 }

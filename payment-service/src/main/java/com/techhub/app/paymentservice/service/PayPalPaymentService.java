@@ -300,8 +300,12 @@ public class PayPalPaymentService {
 
             // Tạo enrollment khi thanh toán thành công
             if (paymentStatus == PaymentStatus.SUCCESS) {
+                log.info("Recording outbox events for successful PayPal payment. transactionId={}, orderId={}",
+                        finalTransactionId, orderId);
                 paymentEventOutboxService.recordPaymentCompleted(savedTransaction, PaymentMethod.PAYPAL);
                 paymentEventOutboxService.recordRevenueSplit(savedTransaction);
+                log.info("Recorded outbox events successfully. transactionId={}, orderId={}",
+                        finalTransactionId, orderId);
                 try {
                     log.info("PayPal payment successful, creating enrollments for transaction: {}", finalTransactionId);
                     enrollmentService.createEnrollmentForTransaction(savedTransaction);

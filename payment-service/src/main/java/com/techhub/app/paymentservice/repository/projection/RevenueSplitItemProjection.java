@@ -1,12 +1,11 @@
 package com.techhub.app.paymentservice.repository.projection;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 public interface RevenueSplitItemProjection {
-    UUID getCourseId();
+    String getCourseId();
 
-    UUID getInstructorId();
+    String getInstructorId();
 
     BigDecimal getGrossAmount();
 
