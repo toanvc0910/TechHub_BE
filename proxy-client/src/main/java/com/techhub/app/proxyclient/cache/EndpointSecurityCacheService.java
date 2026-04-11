@@ -147,10 +147,14 @@ public class EndpointSecurityCacheService {
     }
 
     private boolean isBootstrapAuthenticated(String url, String method) {
-        if (!"GET".equalsIgnoreCase(method)) {
-            return false;
+        if ("GET".equalsIgnoreCase(method)
+                && BOOTSTRAP_AUTHENTICATED_PATTERNS.stream().anyMatch(pattern -> pathMatcher.match(pattern, url))) {
+            return true;
         }
 
-        return BOOTSTRAP_AUTHENTICATED_PATTERNS.stream().anyMatch(pattern -> pathMatcher.match(pattern, url));
+        // Payment initiation uses POST (e.g. /api/payments/paypal/create).
+        // Keep it JWT-only in bootstrap fallback to avoid hard-failing when dynamic
+        // endpoint policies are missing/outdated.
+        return "POST".equalsIgnoreCase(method) && pathMatcher.match("/api/payments/**", url);
     }
 }
