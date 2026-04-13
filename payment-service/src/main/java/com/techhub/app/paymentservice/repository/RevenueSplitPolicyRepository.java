@@ -16,16 +16,33 @@ import java.util.UUID;
 public interface RevenueSplitPolicyRepository extends JpaRepository<RevenueSplitPolicy, UUID> {
 
     @Query("SELECT p FROM RevenueSplitPolicy p " +
-            "WHERE p.scope = :scope " +
+            "WHERE p.scope = 'GLOBAL' " +
             "AND p.isActive = 'Y' " +
             "AND p.effectiveFrom <= :refTime " +
             "AND (p.effectiveTo IS NULL OR p.effectiveTo > :refTime) " +
-            "AND (:instructorId IS NULL OR p.instructorId = :instructorId) " +
-            "AND (:courseId IS NULL OR p.courseId = :courseId) " +
             "ORDER BY p.version DESC")
-    List<RevenueSplitPolicy> findActivePolicies(
-            @Param("scope") RevenueSplitPolicyScope scope,
+    List<RevenueSplitPolicy> findActiveGlobalPolicies(
+            @Param("refTime") OffsetDateTime refTime);
+
+    @Query("SELECT p FROM RevenueSplitPolicy p " +
+            "WHERE p.scope = 'INSTRUCTOR' " +
+            "AND p.instructorId = :instructorId " +
+            "AND p.isActive = 'Y' " +
+            "AND p.effectiveFrom <= :refTime " +
+            "AND (p.effectiveTo IS NULL OR p.effectiveTo > :refTime) " +
+            "ORDER BY p.version DESC")
+    List<RevenueSplitPolicy> findActiveInstructorPolicies(
             @Param("instructorId") UUID instructorId,
+            @Param("refTime") OffsetDateTime refTime);
+
+    @Query("SELECT p FROM RevenueSplitPolicy p " +
+            "WHERE p.scope = 'COURSE' " +
+            "AND p.courseId = :courseId " +
+            "AND p.isActive = 'Y' " +
+            "AND p.effectiveFrom <= :refTime " +
+            "AND (p.effectiveTo IS NULL OR p.effectiveTo > :refTime) " +
+            "ORDER BY p.version DESC")
+    List<RevenueSplitPolicy> findActiveCoursePolicies(
             @Param("courseId") UUID courseId,
             @Param("refTime") OffsetDateTime refTime);
 

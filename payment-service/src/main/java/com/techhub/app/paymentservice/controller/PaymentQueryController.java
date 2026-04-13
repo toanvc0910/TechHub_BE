@@ -29,7 +29,7 @@ public class PaymentQueryController {
         return ResponseEntity.ok(GlobalResponse.success(history));
     }
 
-    @GetMapping("/{paymentId}")
+    @GetMapping("/{paymentId:[0-9a-fA-F-]{36}}")
     public ResponseEntity<GlobalResponse<PaymentHistoryItemResponse>> getPaymentById(@PathVariable UUID paymentId) {
         PaymentHistoryItemResponse payment = transactionService.getPaymentById(paymentId);
         return ResponseEntity.ok(GlobalResponse.success(payment));

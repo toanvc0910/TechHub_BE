@@ -90,7 +90,7 @@ public class PaymentProxyController {
         return paymentServiceClient.createPayment(paymentRequest, authHeader);
     }
 
-    @GetMapping("/{paymentId}")
+    @GetMapping("/{paymentId:[0-9a-fA-F-]{36}}")
     public ResponseEntity<String> getPaymentStatus(@PathVariable String paymentId,
             @RequestHeader("Authorization") String authHeader) {
         return paymentServiceClient.getPaymentStatus(paymentId, authHeader);

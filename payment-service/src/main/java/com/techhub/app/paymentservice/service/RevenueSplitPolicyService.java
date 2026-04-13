@@ -111,8 +111,21 @@ public class RevenueSplitPolicyService {
 
     private Optional<RevenueSplitPolicy> findActive(RevenueSplitPolicyScope scope, UUID instructorId, UUID courseId,
             OffsetDateTime at) {
-        List<RevenueSplitPolicy> policies = revenueSplitPolicyRepository.findActivePolicies(scope, instructorId,
-                courseId, at);
+        List<RevenueSplitPolicy> policies;
+        if (scope == RevenueSplitPolicyScope.COURSE) {
+            if (courseId == null) {
+                return Optional.empty();
+            }
+            policies = revenueSplitPolicyRepository.findActiveCoursePolicies(courseId, at);
+        } else if (scope == RevenueSplitPolicyScope.INSTRUCTOR) {
+            if (instructorId == null) {
+                return Optional.empty();
+            }
+            policies = revenueSplitPolicyRepository.findActiveInstructorPolicies(instructorId, at);
+        } else {
+            policies = revenueSplitPolicyRepository.findActiveGlobalPolicies(at);
+        }
+
         if (policies.isEmpty()) {
             return Optional.empty();
         }
