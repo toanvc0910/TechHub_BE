@@ -26,7 +26,8 @@ public class RevenueProjectionService {
 
         @Transactional
         public void applyRevenueSplit(UUID instructorId, BigDecimal gross, BigDecimal instructorAmount,
-                        BigDecimal adminAmount, int quantity, LocalDate metricDate, boolean firstItemForTransaction) {
+                        BigDecimal adminAmount, String policyScope, Integer policyVersion,
+                        int quantity, LocalDate metricDate, boolean firstItemForTransaction) {
                 String instructorIdText = stringifyUuid(instructorId);
                 RevenueDailyAggregate row = revenueRepository
                                 .findByMetricDateAndInstructorId(metricDate, instructorIdText)
@@ -43,6 +44,8 @@ public class RevenueProjectionService {
                 row.setGrossRevenue(row.getGrossRevenue().add(safe(gross)));
                 row.setInstructorRevenue(row.getInstructorRevenue().add(safe(instructorAmount)));
                 row.setAdminRevenue(row.getAdminRevenue().add(safe(adminAmount)));
+                row.setPolicyScope(policyScope);
+                row.setPolicyVersion(policyVersion);
                 row.setItemCount(row.getItemCount() + Math.max(quantity, 1));
                 if (firstItemForTransaction) {
                         row.setOrderCount(row.getOrderCount() + 1);
@@ -66,6 +69,8 @@ public class RevenueProjectionService {
                                 .instructorRevenue(safe(revenueRepository.sumInstructorNetRevenue(instructorIdText,
                                                 effectiveFromDate, effectiveToDate)))
                                 .adminRevenue(BigDecimal.ZERO)
+                                .policyScope("MIXED")
+                                .policyVersion(null)
                                 .totalOrders(safeLong(
                                                 revenueRepository.sumOrderCount(instructorIdText, effectiveFromDate,
                                                                 effectiveToDate)))
@@ -92,6 +97,8 @@ public class RevenueProjectionService {
                                                 revenueRepository.sumAdminNetRevenue(instructorIdText,
                                                                 effectiveFromDate,
                                                                 effectiveToDate)))
+                                .policyScope("MIXED")
+                                .policyVersion(null)
                                 .totalOrders(safeLong(
                                                 revenueRepository.sumOrderCount(instructorIdText, effectiveFromDate,
                                                                 effectiveToDate)))
@@ -114,6 +121,8 @@ public class RevenueProjectionService {
                                                 .grossRevenue(safe(row.getGrossRevenue()))
                                                 .instructorRevenue(safe(row.getInstructorRevenue()))
                                                 .adminRevenue(safe(row.getAdminRevenue()))
+                                                .policyScope(row.getPolicyScope())
+                                                .policyVersion(row.getPolicyVersion())
                                                 .totalOrders(safeLong(row.getOrderCount()))
                                                 .totalItems(safeLong(row.getItemCount()))
                                                 .build())
@@ -146,6 +155,8 @@ public class RevenueProjectionService {
                                                         .adminRevenue(safe(dailyRows.stream()
                                                                         .map(RevenueDailyAggregate::getAdminRevenue)
                                                                         .reduce(BigDecimal.ZERO, BigDecimal::add)))
+                                                        .policyScope("MIXED")
+                                                        .policyVersion(null)
                                                         .totalOrders(safeLong(dailyRows.stream()
                                                                         .mapToLong(row -> row.getOrderCount() == null
                                                                                         ? 0L

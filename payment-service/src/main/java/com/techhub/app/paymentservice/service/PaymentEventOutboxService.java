@@ -14,7 +14,6 @@ import com.techhub.app.paymentservice.repository.TransactionItemRepository;
 import com.techhub.app.paymentservice.repository.projection.RevenueSplitItemProjection;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,10 +33,8 @@ public class PaymentEventOutboxService {
 
     private final OutboxEventRepository outboxEventRepository;
     private final TransactionItemRepository transactionItemRepository;
+    private final RevenueSplitPolicyService revenueSplitPolicyService;
     private final ObjectMapper objectMapper;
-
-    @Value("${payment.revenue.instructor-rate:0.7}")
-    private BigDecimal instructorRate;
 
     @Transactional
     public void recordPaymentCompleted(Transaction transaction, PaymentMethod method) {
@@ -62,14 +59,15 @@ public class PaymentEventOutboxService {
             return;
         }
 
-        BigDecimal normalizedInstructorRate = normalizeRate(instructorRate);
-        BigDecimal adminRate = BigDecimal.ONE.subtract(normalizedInstructorRate);
+        OffsetDateTime computedAt = OffsetDateTime.now();
+        BigDecimal eventInstructorRate = null;
+        BigDecimal eventAdminRate = null;
+        Integer eventPolicyVersion = null;
+        String eventPolicyScope = null;
 
         RevenueSplitRecordedEvent.RevenueSplitRecordedEventBuilder builder = RevenueSplitRecordedEvent.builder()
                 .transactionId(transaction.getId())
-                .instructorRate(normalizedInstructorRate)
-                .adminRate(adminRate)
-                .computedAt(OffsetDateTime.now());
+                .computedAt(computedAt);
 
         for (RevenueSplitItemProjection row : splitItems) {
             UUID courseId = parseUuid(row.getCourseId(), "courseId", transaction.getId());
@@ -78,19 +76,45 @@ public class PaymentEventOutboxService {
                 continue;
             }
 
+            RevenueSplitPolicyService.ResolvedPolicy resolvedPolicy = revenueSplitPolicyService.resolvePolicy(
+                    instructorId,
+                    courseId,
+                    computedAt);
+            BigDecimal normalizedInstructorRate = normalizeRate(resolvedPolicy.getInstructorRate());
+            BigDecimal adminRate = BigDecimal.ONE.subtract(normalizedInstructorRate).setScale(4, RoundingMode.HALF_UP);
+
             BigDecimal grossAmount = safeMoney(row.getGrossAmount());
             BigDecimal instructorAmount = grossAmount.multiply(normalizedInstructorRate).setScale(2,
                     RoundingMode.HALF_UP);
             BigDecimal adminAmount = grossAmount.subtract(instructorAmount).setScale(2, RoundingMode.HALF_UP);
 
+            if (eventInstructorRate == null) {
+                eventInstructorRate = normalizedInstructorRate;
+                eventAdminRate = adminRate;
+                eventPolicyVersion = resolvedPolicy.getVersion();
+                eventPolicyScope = resolvedPolicy.getScope() == null ? null : resolvedPolicy.getScope().name();
+            }
+
             builder.item(RevenueSplitRecordedEvent.ItemSplit.builder()
                     .courseId(courseId)
                     .instructorId(instructorId)
+                    .policyId(resolvedPolicy.getPolicyId())
+                    .policyScope(resolvedPolicy.getScope() == null ? null : resolvedPolicy.getScope().name())
+                    .policyVersion(resolvedPolicy.getVersion())
+                    .instructorRate(normalizedInstructorRate)
+                    .adminRate(adminRate)
                     .grossAmount(grossAmount)
                     .instructorAmount(instructorAmount)
                     .adminAmount(adminAmount)
                     .quantity(row.getQuantity() == null ? 1 : row.getQuantity())
                     .build());
+        }
+
+        if (eventInstructorRate != null) {
+            builder.instructorRate(eventInstructorRate)
+                    .adminRate(eventAdminRate)
+                    .policyVersion(eventPolicyVersion)
+                    .policyScope(eventPolicyScope);
         }
 
         saveIfAbsent(transaction.getId(), "revenue.split.recorded", eventKey(transaction.getId(), "revenue.split"),

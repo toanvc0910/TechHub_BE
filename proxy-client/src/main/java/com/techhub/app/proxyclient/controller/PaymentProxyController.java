@@ -143,6 +143,26 @@ public class PaymentProxyController {
         return analyticsServiceClient.getAdminTrends(getRolesHeader(request), instructorId, fromDate, toDate);
     }
 
+    @PostMapping("/revenue-policies")
+    public ResponseEntity<String> createRevenuePolicy(HttpServletRequest request,
+            @RequestBody Object payload) {
+        return paymentServiceClient.createRevenuePolicy(getRolesHeader(request), payload);
+    }
+
+    @GetMapping("/revenue-policies")
+    public ResponseEntity<String> listRevenuePolicies(HttpServletRequest request,
+            @RequestParam(required = false) String scope) {
+        return paymentServiceClient.listRevenuePolicies(getRolesHeader(request), scope);
+    }
+
+    @GetMapping("/revenue-policies/active")
+    public ResponseEntity<String> getActiveRevenuePolicy(HttpServletRequest request,
+            @RequestParam(required = false) String instructorId,
+            @RequestParam(required = false) String courseId,
+            @RequestParam(required = false) String refTime) {
+        return paymentServiceClient.getActiveRevenuePolicy(getRolesHeader(request), instructorId, courseId, refTime);
+    }
+
     private String getRequiredUserId(HttpServletRequest request) {
         Object userId = request.getAttribute("userId");
         if (userId == null) {

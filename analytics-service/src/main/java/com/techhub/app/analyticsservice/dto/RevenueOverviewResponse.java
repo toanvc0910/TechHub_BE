@@ -14,6 +14,8 @@ public class RevenueOverviewResponse {
     BigDecimal grossRevenue;
     BigDecimal instructorRevenue;
     BigDecimal adminRevenue;
+    String policyScope;
+    Integer policyVersion;
     Long totalOrders;
     Long totalItems;
 }

@@ -60,9 +60,18 @@ public class RevenueEventConsumer {
 
             Set<UUID> transactionInstructorSet = new HashSet<>();
             for (JsonNode item : root.path("items")) {
-                UUID instructorId = UUID.fromString(item.path("instructorId").asText());
+                UUID instructorId = parseUuid(item.path("instructorId").asText());
+                if (instructorId == null) {
+                    log.warn("[AnalyticsConsumer] Skip item because instructorId is invalid. transactionId={} item={}",
+                            transactionId, item);
+                    continue;
+                }
                 UUID key = UUID.nameUUIDFromBytes((transactionId + "-" + instructorId).getBytes());
                 boolean firstItemForTransaction = transactionInstructorSet.add(key);
+                String policyScope = item.path("policyScope").asText(null);
+                Integer policyVersion = item.has("policyVersion") && !item.path("policyVersion").isNull()
+                        ? item.path("policyVersion").asInt()
+                        : null;
 
                 log.info(
                         "[AnalyticsConsumer] Apply split instructorId={} gross={} instructor={} admin={} qty={} firstItem={}",
@@ -78,6 +87,8 @@ public class RevenueEventConsumer {
                         item.path("grossAmount").decimalValue(),
                         item.path("instructorAmount").decimalValue(),
                         item.path("adminAmount").decimalValue(),
+                        policyScope,
+                        policyVersion,
                         item.path("quantity").asInt(1),
                         metricDate,
                         firstItemForTransaction);
@@ -89,6 +100,17 @@ public class RevenueEventConsumer {
             }
         } catch (Exception ex) {
             log.error("Failed to consume analytics event payload", ex);
+        }
+    }
+
+    private UUID parseUuid(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
     }
 }

@@ -6,7 +6,6 @@ import com.techhub.app.paymentservice.repository.TransactionItemRepository;
 import com.techhub.app.paymentservice.repository.projection.RevenueByCourseProjection;
 import com.techhub.app.paymentservice.repository.projection.RevenueOverviewProjection;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +23,7 @@ import java.util.stream.Collectors;
 public class RevenueAnalyticsService {
 
     private final TransactionItemRepository transactionItemRepository;
-
-    @Value("${payment.revenue.instructor-rate:0.7}")
-    private BigDecimal instructorRate;
+    private final RevenueSplitPolicyService revenueSplitPolicyService;
 
     @Transactional(readOnly = true)
     public RevenueOverviewResponse getInstructorOverview(UUID instructorId, LocalDate fromDate, LocalDate toDate) {
@@ -71,8 +68,12 @@ public class RevenueAnalyticsService {
 
     private RevenueOverviewResponse toOverviewResponse(String scope, UUID instructorId, RevenueOverviewProjection row) {
         BigDecimal gross = safeMoney(row == null ? null : row.getGrossRevenue());
-        BigDecimal normalizedInstructorRate = normalizeRate(instructorRate);
-        BigDecimal adminRate = BigDecimal.ONE.subtract(normalizedInstructorRate);
+        RevenueSplitPolicyService.ResolvedPolicy resolvedPolicy = revenueSplitPolicyService.resolvePolicy(
+                scope.equals("INSTRUCTOR") ? instructorId : null,
+                null,
+                OffsetDateTime.now());
+        BigDecimal normalizedInstructorRate = normalizeRate(resolvedPolicy.getInstructorRate());
+        BigDecimal adminRate = BigDecimal.ONE.subtract(normalizedInstructorRate).setScale(4, RoundingMode.HALF_UP);
 
         BigDecimal estimatedInstructorRevenue = gross.multiply(normalizedInstructorRate).setScale(2,
                 RoundingMode.HALF_UP);

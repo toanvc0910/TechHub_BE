@@ -50,6 +50,12 @@ public class RevenueDailyAggregate {
     @Column(name = "admin_revenue", nullable = false, precision = 14, scale = 2)
     private BigDecimal adminRevenue;
 
+    @Column(name = "policy_scope", length = 20)
+    private String policyScope;
+
+    @Column(name = "policy_version")
+    private Integer policyVersion;
+
     @Column(name = "order_count", nullable = false)
     private Long orderCount;
 

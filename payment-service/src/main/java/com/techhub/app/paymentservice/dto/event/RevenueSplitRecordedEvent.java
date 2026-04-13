@@ -15,6 +15,8 @@ public class RevenueSplitRecordedEvent {
     UUID transactionId;
     BigDecimal instructorRate;
     BigDecimal adminRate;
+    Integer policyVersion;
+    String policyScope;
     OffsetDateTime computedAt;
 
     @Singular
@@ -25,6 +27,11 @@ public class RevenueSplitRecordedEvent {
     public static class ItemSplit {
         UUID courseId;
         UUID instructorId;
+        UUID policyId;
+        String policyScope;
+        Integer policyVersion;
+        BigDecimal instructorRate;
+        BigDecimal adminRate;
         BigDecimal grossAmount;
         BigDecimal instructorAmount;
         BigDecimal adminAmount;
