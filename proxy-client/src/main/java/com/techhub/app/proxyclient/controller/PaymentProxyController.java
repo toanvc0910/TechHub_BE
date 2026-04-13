@@ -163,6 +163,73 @@ public class PaymentProxyController {
         return paymentServiceClient.getActiveRevenuePolicy(getRolesHeader(request), instructorId, courseId, refTime);
     }
 
+    @GetMapping("/payouts/balance")
+    public ResponseEntity<String> getPayoutBalance(HttpServletRequest request,
+            @RequestParam(required = false) String instructorId) {
+        return paymentServiceClient.getPayoutBalance(getRolesHeader(request), getUserIdHeader(request), instructorId);
+    }
+
+    @PostMapping("/payouts/requests")
+    public ResponseEntity<String> createPayoutRequest(HttpServletRequest request,
+            @RequestBody Object payload) {
+        return paymentServiceClient.createPayoutRequest(getUserIdHeader(request), payload);
+    }
+
+    @GetMapping("/payouts/requests")
+    public ResponseEntity<String> listPayoutRequests(HttpServletRequest request) {
+        return paymentServiceClient.listPayoutRequests(getRolesHeader(request), getUserIdHeader(request));
+    }
+
+    @GetMapping("/payouts/requests/{requestId}")
+    public ResponseEntity<String> getPayoutRequest(HttpServletRequest request,
+            @PathVariable String requestId) {
+        return paymentServiceClient.getPayoutRequest(getRolesHeader(request), getUserIdHeader(request), requestId);
+    }
+
+    @PutMapping("/payouts/requests/{requestId}/approve")
+    public ResponseEntity<String> approvePayoutRequest(HttpServletRequest request,
+            @PathVariable String requestId,
+            @RequestBody(required = false) Object payload) {
+        return paymentServiceClient.approvePayoutRequest(getRolesHeader(request), getUserIdHeader(request), requestId,
+                payload);
+    }
+
+    @PutMapping("/payouts/requests/{requestId}/reject")
+    public ResponseEntity<String> rejectPayoutRequest(HttpServletRequest request,
+            @PathVariable String requestId,
+            @RequestBody(required = false) Object payload) {
+        return paymentServiceClient.rejectPayoutRequest(getRolesHeader(request), getUserIdHeader(request), requestId,
+                payload);
+    }
+
+    @PutMapping("/payouts/requests/{requestId}/mark-paid")
+    public ResponseEntity<String> markPayoutRequestPaid(HttpServletRequest request,
+            @PathVariable String requestId,
+            @RequestBody Object payload) {
+        return paymentServiceClient.markPayoutRequestPaid(getRolesHeader(request), getUserIdHeader(request),
+                requestId,
+                payload);
+    }
+
+    @GetMapping("/payouts/batches")
+    public ResponseEntity<String> listPayoutBatches(HttpServletRequest request) {
+        return paymentServiceClient.listPayoutBatches(getRolesHeader(request));
+    }
+
+    @PostMapping("/payouts/batches/monthly")
+    public ResponseEntity<String> createMonthlyPayoutBatch(HttpServletRequest request,
+            @RequestParam(required = false) String period) {
+        return paymentServiceClient.createMonthlyPayoutBatch(getRolesHeader(request), period);
+    }
+
+    @PostMapping("/payouts/batches/manual")
+    public ResponseEntity<String> createManualPayoutBatch(HttpServletRequest request,
+            @RequestParam(required = false) String name,
+            @RequestParam String fromDate,
+            @RequestParam String toDate) {
+        return paymentServiceClient.createManualPayoutBatch(getRolesHeader(request), name, fromDate, toDate);
+    }
+
     private String getRequiredUserId(HttpServletRequest request) {
         Object userId = request.getAttribute("userId");
         if (userId == null) {
@@ -174,5 +241,10 @@ public class PaymentProxyController {
     private String getRolesHeader(HttpServletRequest request) {
         Object roles = request.getAttribute("userRoles");
         return roles == null ? "" : roles.toString();
+    }
+
+    private String getUserIdHeader(HttpServletRequest request) {
+        Object userId = request.getAttribute("userId");
+        return userId == null ? "" : userId.toString();
     }
 }

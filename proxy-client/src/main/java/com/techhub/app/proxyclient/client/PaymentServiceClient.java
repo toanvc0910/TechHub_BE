@@ -98,4 +98,63 @@ public interface PaymentServiceClient {
                         @RequestParam(value = "instructorId", required = false) String instructorId,
                         @RequestParam(value = "courseId", required = false) String courseId,
                         @RequestParam(value = "refTime", required = false) String refTime);
+
+        @GetMapping("/api/v1/payouts/balance")
+        ResponseEntity<String> getPayoutBalance(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @RequestParam(value = "instructorId", required = false) String instructorId);
+
+        @PostMapping("/api/v1/payouts/requests")
+        ResponseEntity<String> createPayoutRequest(
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @RequestBody Object payload);
+
+        @GetMapping("/api/v1/payouts/requests")
+        ResponseEntity<String> listPayoutRequests(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId);
+
+        @GetMapping("/api/v1/payouts/requests/{requestId}")
+        ResponseEntity<String> getPayoutRequest(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @PathVariable("requestId") String requestId);
+
+        @PutMapping("/api/v1/payouts/requests/{requestId}/approve")
+        ResponseEntity<String> approvePayoutRequest(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @PathVariable("requestId") String requestId,
+                        @RequestBody(required = false) Object payload);
+
+        @PutMapping("/api/v1/payouts/requests/{requestId}/reject")
+        ResponseEntity<String> rejectPayoutRequest(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @PathVariable("requestId") String requestId,
+                        @RequestBody(required = false) Object payload);
+
+        @PutMapping("/api/v1/payouts/requests/{requestId}/mark-paid")
+        ResponseEntity<String> markPayoutRequestPaid(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @PathVariable("requestId") String requestId,
+                        @RequestBody Object payload);
+
+        @GetMapping("/api/v1/payouts/batches")
+        ResponseEntity<String> listPayoutBatches(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles);
+
+        @PostMapping("/api/v1/payouts/batches/monthly")
+        ResponseEntity<String> createMonthlyPayoutBatch(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestParam(value = "period", required = false) String period);
+
+        @PostMapping("/api/v1/payouts/batches/manual")
+        ResponseEntity<String> createManualPayoutBatch(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestParam(value = "name", required = false) String name,
+                        @RequestParam("fromDate") String fromDate,
+                        @RequestParam("toDate") String toDate);
 }
