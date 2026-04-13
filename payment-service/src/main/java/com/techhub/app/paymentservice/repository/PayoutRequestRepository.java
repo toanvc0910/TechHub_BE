@@ -15,11 +15,16 @@ import java.util.UUID;
 @Repository
 public interface PayoutRequestRepository extends JpaRepository<PayoutRequest, UUID> {
 
-    List<PayoutRequest> findByInstructorIdAndIsActiveOrderByCreatedDesc(UUID instructorId, String isActive);
+    @Query(value = "SELECT * FROM payout_requests pr WHERE CAST(pr.instructor_id AS TEXT) = :instructorId " +
+            "AND pr.is_active = :isActive ORDER BY pr.created DESC", nativeQuery = true)
+    List<PayoutRequest> findByInstructorIdAndIsActiveOrderByCreatedDesc(@Param("instructorId") String instructorId,
+            @Param("isActive") String isActive);
 
     List<PayoutRequest> findByIsActiveOrderByCreatedDesc(String isActive);
 
-    @Query("SELECT COALESCE(SUM(pr.amount), 0) FROM PayoutRequest pr WHERE pr.instructorId = :instructorId AND pr.status IN :statuses AND pr.isActive = 'Y'")
-    BigDecimal sumAmountByInstructorAndStatuses(@Param("instructorId") UUID instructorId,
-            @Param("statuses") Collection<PayoutRequestStatus> statuses);
+    @Query(value = "SELECT COALESCE(SUM(pr.amount), 0) FROM payout_requests pr " +
+            "WHERE CAST(pr.instructor_id AS TEXT) = :instructorId " +
+            "AND pr.status IN (:statuses) AND pr.is_active = 'Y'", nativeQuery = true)
+    BigDecimal sumAmountByInstructorAndStatuses(@Param("instructorId") String instructorId,
+            @Param("statuses") Collection<String> statuses);
 }

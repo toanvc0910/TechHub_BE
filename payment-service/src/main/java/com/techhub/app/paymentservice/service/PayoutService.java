@@ -48,16 +48,20 @@ public class PayoutService {
     @Transactional
     public PayoutBalanceResponse getBalance(UUID instructorId) {
         ensureRevenueCreditBootstrapped(instructorId);
+        String instructorIdText = instructorId.toString();
 
-        BigDecimal totalCredits = safeMoney(payoutLedgerEntryRepository.sumAmountByInstructorAndTypes(instructorId,
-                Arrays.asList(PayoutLedgerEntryType.CREDIT_SALE, PayoutLedgerEntryType.ADJUSTMENT)));
+        BigDecimal totalCredits = safeMoney(payoutLedgerEntryRepository.sumAmountByInstructorAndTypes(
+                instructorIdText,
+                Arrays.asList(PayoutLedgerEntryType.CREDIT_SALE.name(), PayoutLedgerEntryType.ADJUSTMENT.name())));
 
-        BigDecimal totalDebits = safeMoney(payoutLedgerEntryRepository.sumAmountByInstructorAndTypes(instructorId,
-                Arrays.asList(PayoutLedgerEntryType.DEBIT_REFUND, PayoutLedgerEntryType.DEBIT_PAYOUT)));
+        BigDecimal totalDebits = safeMoney(payoutLedgerEntryRepository.sumAmountByInstructorAndTypes(
+                instructorIdText,
+                Arrays.asList(PayoutLedgerEntryType.DEBIT_REFUND.name(), PayoutLedgerEntryType.DEBIT_PAYOUT.name())));
 
         BigDecimal totalEarned = totalCredits.subtract(totalDebits).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal pendingAmount = safeMoney(payoutRequestRepository.sumAmountByInstructorAndStatuses(instructorId,
-                Arrays.asList(PayoutRequestStatus.REQUESTED, PayoutRequestStatus.APPROVED)));
+        BigDecimal pendingAmount = safeMoney(payoutRequestRepository.sumAmountByInstructorAndStatuses(
+                instructorIdText,
+                Arrays.asList(PayoutRequestStatus.REQUESTED.name(), PayoutRequestStatus.APPROVED.name())));
         BigDecimal available = totalEarned.subtract(pendingAmount).max(BigDecimal.ZERO).setScale(2,
                 RoundingMode.HALF_UP);
 
@@ -95,7 +99,7 @@ public class PayoutService {
     public List<PayoutRequestResponse> listRequests(UUID requesterId, boolean adminView) {
         List<PayoutRequest> rows = adminView
                 ? payoutRequestRepository.findByIsActiveOrderByCreatedDesc("Y")
-                : payoutRequestRepository.findByInstructorIdAndIsActiveOrderByCreatedDesc(requesterId, "Y");
+                : payoutRequestRepository.findByInstructorIdAndIsActiveOrderByCreatedDesc(requesterId.toString(), "Y");
         return rows.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
@@ -243,8 +247,9 @@ public class PayoutService {
     }
 
     private void ensureRevenueCreditBootstrapped(UUID instructorId) {
+        String instructorIdText = instructorId.toString();
         boolean alreadyBootstrapped = payoutLedgerEntryRepository
-                .existsByInstructorIdAndReferenceTypeAndIsActive(instructorId, REVENUE_BOOTSTRAP_REFERENCE, "Y");
+                .existsByInstructorIdAndReferenceTypeAndIsActive(instructorIdText, REVENUE_BOOTSTRAP_REFERENCE, "Y");
         if (alreadyBootstrapped) {
             return;
         }
