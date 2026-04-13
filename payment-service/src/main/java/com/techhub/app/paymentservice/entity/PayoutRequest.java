@@ -44,6 +44,9 @@ public class PayoutRequest {
     @JoinColumn(name = "batch_id")
     private PayoutBatch batch;
 
+    @Column(name = "batch_id", insertable = false, updatable = false)
+    private String batchIdRaw;
+
     @Column(name = "amount", nullable = false, precision = 14, scale = 2)
     private BigDecimal amount;
 

@@ -32,9 +32,9 @@ public interface TransactionItemRepository extends JpaRepository<TransactionItem
                         "AND t.is_active = 'Y' " +
                         "AND c.is_active = 'Y' " +
                         "AND t.status = 'COMPLETED' " +
-                        "AND c.instructor_id = :instructorId " +
-                        "AND (:fromDate IS NULL OR t.created >= :fromDate) " +
-                        "AND (:toDate IS NULL OR t.created < :toDate)", nativeQuery = true)
+                        "AND c.instructor_id = CAST(:instructorId AS UUID) " +
+                        "AND (CAST(:fromDate AS TIMESTAMPTZ) IS NULL OR t.created >= CAST(:fromDate AS TIMESTAMPTZ)) " +
+                        "AND (CAST(:toDate AS TIMESTAMPTZ) IS NULL OR t.created < CAST(:toDate AS TIMESTAMPTZ))", nativeQuery = true)
         RevenueOverviewProjection getInstructorRevenueOverview(@Param("instructorId") UUID instructorId,
                         @Param("fromDate") OffsetDateTime fromDate,
                         @Param("toDate") OffsetDateTime toDate);
@@ -51,9 +51,9 @@ public interface TransactionItemRepository extends JpaRepository<TransactionItem
                         "AND t.is_active = 'Y' " +
                         "AND c.is_active = 'Y' " +
                         "AND t.status = 'COMPLETED' " +
-                        "AND (:instructorId IS NULL OR c.instructor_id = :instructorId) " +
-                        "AND (:fromDate IS NULL OR t.created >= :fromDate) " +
-                        "AND (:toDate IS NULL OR t.created < :toDate)", nativeQuery = true)
+                        "AND (CAST(:instructorId AS UUID) IS NULL OR c.instructor_id = CAST(:instructorId AS UUID)) " +
+                        "AND (CAST(:fromDate AS TIMESTAMPTZ) IS NULL OR t.created >= CAST(:fromDate AS TIMESTAMPTZ)) " +
+                        "AND (CAST(:toDate AS TIMESTAMPTZ) IS NULL OR t.created < CAST(:toDate AS TIMESTAMPTZ))", nativeQuery = true)
         RevenueOverviewProjection getAdminRevenueOverview(@Param("instructorId") UUID instructorId,
                         @Param("fromDate") OffsetDateTime fromDate,
                         @Param("toDate") OffsetDateTime toDate);
@@ -71,9 +71,9 @@ public interface TransactionItemRepository extends JpaRepository<TransactionItem
                         "AND t.is_active = 'Y' " +
                         "AND c.is_active = 'Y' " +
                         "AND t.status = 'COMPLETED' " +
-                        "AND c.instructor_id = :instructorId " +
-                        "AND (:fromDate IS NULL OR t.created >= :fromDate) " +
-                        "AND (:toDate IS NULL OR t.created < :toDate) " +
+                        "AND c.instructor_id = CAST(:instructorId AS UUID) " +
+                        "AND (CAST(:fromDate AS TIMESTAMPTZ) IS NULL OR t.created >= CAST(:fromDate AS TIMESTAMPTZ)) " +
+                        "AND (CAST(:toDate AS TIMESTAMPTZ) IS NULL OR t.created < CAST(:toDate AS TIMESTAMPTZ)) " +
                         "GROUP BY ti.course_id, c.title " +
                         "ORDER BY grossRevenue DESC", nativeQuery = true)
         List<RevenueByCourseProjection> getInstructorRevenueByCourse(@Param("instructorId") UUID instructorId,

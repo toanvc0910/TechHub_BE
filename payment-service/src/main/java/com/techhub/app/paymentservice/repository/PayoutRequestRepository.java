@@ -10,10 +10,15 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface PayoutRequestRepository extends JpaRepository<PayoutRequest, UUID> {
+
+    @Query(value = "SELECT * FROM payout_requests pr WHERE CAST(pr.id AS TEXT) = CAST(:id AS TEXT) " +
+            "AND pr.is_active = 'Y' LIMIT 1", nativeQuery = true)
+    Optional<PayoutRequest> findActiveById(@Param("id") UUID id);
 
     @Query(value = "SELECT * FROM payout_requests pr WHERE CAST(pr.instructor_id AS TEXT) = :instructorId " +
             "AND pr.is_active = :isActive ORDER BY pr.created DESC", nativeQuery = true)

@@ -105,7 +105,7 @@ public class PayoutService {
 
     @Transactional(readOnly = true)
     public PayoutRequestResponse getRequest(UUID requestId, UUID requesterId, boolean adminView) {
-        PayoutRequest request = payoutRequestRepository.findById(requestId)
+        PayoutRequest request = payoutRequestRepository.findActiveById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (!adminView && !request.getInstructorId().equals(requesterId)) {
@@ -117,7 +117,7 @@ public class PayoutService {
 
     @Transactional
     public PayoutRequestResponse approveRequest(UUID requestId, UUID approverId, ReviewPayoutRequestRequest request) {
-        PayoutRequest payoutRequest = payoutRequestRepository.findById(requestId)
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (payoutRequest.getStatus() != PayoutRequestStatus.REQUESTED) {
@@ -134,7 +134,7 @@ public class PayoutService {
 
     @Transactional
     public PayoutRequestResponse rejectRequest(UUID requestId, UUID reviewerId, ReviewPayoutRequestRequest request) {
-        PayoutRequest payoutRequest = payoutRequestRepository.findById(requestId)
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (payoutRequest.getStatus() != PayoutRequestStatus.REQUESTED
@@ -152,7 +152,7 @@ public class PayoutService {
 
     @Transactional
     public PayoutRequestResponse markPaid(UUID requestId, UUID markerId, MarkPaidPayoutRequest request) {
-        PayoutRequest payoutRequest = payoutRequestRepository.findById(requestId)
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (payoutRequest.getStatus() != PayoutRequestStatus.APPROVED) {
@@ -273,7 +273,7 @@ public class PayoutService {
         return PayoutRequestResponse.builder()
                 .id(request.getId())
                 .instructorId(request.getInstructorId())
-                .batchId(request.getBatch() == null ? null : request.getBatch().getId())
+                .batchId(parseUuidOrNull(request.getBatchIdRaw()))
                 .amount(request.getAmount())
                 .status(request.getStatus().name())
                 .note(request.getNote())
@@ -284,6 +284,17 @@ public class PayoutService {
                 .created(request.getCreated())
                 .updated(request.getUpdated())
                 .build();
+    }
+
+    private UUID parseUuidOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private PayoutBatchResponse toBatchResponse(PayoutBatch batch) {

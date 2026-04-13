@@ -11,6 +11,7 @@ import com.techhub.app.paymentservice.service.PayoutService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -195,8 +196,8 @@ public class PayoutController {
     public ResponseEntity<GlobalResponse<PayoutBatchResponse>> createManualBatch(
             @RequestHeader(value = "X-User-Roles", required = false) String userRoles,
             @RequestParam(value = "name", required = false) String name,
-            @RequestParam("fromDate") LocalDate fromDate,
-            @RequestParam("toDate") LocalDate toDate) {
+            @RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
         if (!hasAdminRole(userRoles)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(GlobalResponse.error("Admin role is required", HttpStatus.FORBIDDEN.value()));
