@@ -1,6 +1,5 @@
 package com.techhub.app.paymentservice.service;
 
-
 import com.techhub.app.paymentservice.config.PayPalConfig;
 import com.techhub.app.paymentservice.entity.Payment;
 import com.techhub.app.paymentservice.entity.PaymentGatewayMapping;
@@ -35,27 +34,31 @@ public class PayPalPaymentService {
     private final PaymentGatewayMappingRepository gatewayMappingRepository;
     private final EnrollmentService enrollmentService;
     private final TransactionItemRepository transactionItemRepository;
+    private final PaymentEventOutboxService paymentEventOutboxService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public PayPalPaymentService(PayPalConfig config,
-                                TransactionRepository transactionRepository,
-                                PaymentRepository paymentRepository,
-                                PaymentGatewayMappingRepository gatewayMappingRepository,
-                                EnrollmentService enrollmentService,
-                                TransactionItemRepository transactionItemRepository) {
+            TransactionRepository transactionRepository,
+            PaymentRepository paymentRepository,
+            PaymentGatewayMappingRepository gatewayMappingRepository,
+            EnrollmentService enrollmentService,
+            TransactionItemRepository transactionItemRepository,
+            PaymentEventOutboxService paymentEventOutboxService) {
         this.config = config;
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
         this.gatewayMappingRepository = gatewayMappingRepository;
         this.enrollmentService = enrollmentService;
         this.transactionItemRepository = transactionItemRepository;
+        this.paymentEventOutboxService = paymentEventOutboxService;
     }
 
     // Lấy access token
     public String getAccessToken() throws Exception {
         try {
             String credentials = config.getClientId() + ":" + config.getClientSecret();
-            String authHeader = "Basic " + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+            String authHeader = "Basic "
+                    + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
 
             log.debug("Requesting PayPal access token from: {}", config.getApiBase() + "/v1/oauth2/token");
 
@@ -87,7 +90,8 @@ public class PayPalPaymentService {
 
     // Tạo order với transaction tracking
     @Transactional
-    public Map<String, Object> createOrder(Double amount, String currency, UUID userId, UUID courseId) throws Exception {
+    public Map<String, Object> createOrder(Double amount, String currency, UUID userId, UUID courseId)
+            throws Exception {
         try {
             log.info("=== Creating PayPal Order ===");
             log.info("Amount: {}, Currency: {}, userId: {}, courseId: {}", amount, currency, userId, courseId);
@@ -296,11 +300,18 @@ public class PayPalPaymentService {
 
             // Tạo enrollment khi thanh toán thành công
             if (paymentStatus == PaymentStatus.SUCCESS) {
+                log.info("Recording outbox events for successful PayPal payment. transactionId={}, orderId={}",
+                        finalTransactionId, orderId);
+                paymentEventOutboxService.recordPaymentCompleted(savedTransaction, PaymentMethod.PAYPAL);
+                paymentEventOutboxService.recordRevenueSplit(savedTransaction);
+                log.info("Recorded outbox events successfully. transactionId={}, orderId={}",
+                        finalTransactionId, orderId);
                 try {
                     log.info("PayPal payment successful, creating enrollments for transaction: {}", finalTransactionId);
                     enrollmentService.createEnrollmentForTransaction(savedTransaction);
                 } catch (Exception e) {
-                    log.error("Failed to create enrollment for transaction: {}. Error: {}", finalTransactionId, e.getMessage(), e);
+                    log.error("Failed to create enrollment for transaction: {}. Error: {}", finalTransactionId,
+                            e.getMessage(), e);
                     // Không throw exception ở đây để không ảnh hưởng đến flow thanh toán
                     // Enrollment có thể được tạo lại sau bằng cách khác
                 }

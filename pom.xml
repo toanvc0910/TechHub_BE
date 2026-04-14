@@ -125,6 +125,7 @@
 		<module>file-service</module>
         <module>ai-service</module>
         <module>notification-service</module>
+        <module>analytics-service</module>
 	</modules>
 	<build>
 		<plugins>

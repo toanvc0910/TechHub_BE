@@ -223,6 +223,26 @@ services:
         condition: service_healthy
     restart: always
 
+  analytics-service-container:
+    build:
+      context: ./analytics-service
+      dockerfile: Dockerfile
+    image: toandeptroai/analytics-service:0.1.0
+    container_name: analytics-service-container
+    ports:
+      - 8092:8092
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - KAFKA_CONSUMER_AUTO_STARTUP=false
+      - PAYMENT_EVENTS_TOPIC=${PAYMENT_EVENTS_TOPIC}
+    networks:
+      - do-an-net
+    depends_on:
+      service-discovery-container:
+        condition: service_healthy
+    restart: always
+
 networks:
   do-an-net:
     name: do-an-network

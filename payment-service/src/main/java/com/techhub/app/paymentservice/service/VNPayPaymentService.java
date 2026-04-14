@@ -31,17 +31,20 @@ public class VNPayPaymentService {
     private final PaymentRepository paymentRepository;
     private final EnrollmentService enrollmentService;
     private final TransactionItemRepository transactionItemRepository;
+    private final PaymentEventOutboxService paymentEventOutboxService;
 
     public VNPayPaymentService(VNPAYConfig vnPayConfig,
             TransactionRepository transactionRepository,
             PaymentRepository paymentRepository,
             EnrollmentService enrollmentService,
-            TransactionItemRepository transactionItemRepository) {
+            TransactionItemRepository transactionItemRepository,
+            PaymentEventOutboxService paymentEventOutboxService) {
         this.vnPayConfig = vnPayConfig;
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
         this.enrollmentService = enrollmentService;
         this.transactionItemRepository = transactionItemRepository;
+        this.paymentEventOutboxService = paymentEventOutboxService;
     }
 
     @Transactional
@@ -221,6 +224,8 @@ public class VNPayPaymentService {
 
             // Tạo enrollment khi thanh toán thành công
             if (paymentStatus == PaymentStatus.SUCCESS) {
+                paymentEventOutboxService.recordPaymentCompleted(savedTransaction, PaymentMethod.VNPAY);
+                paymentEventOutboxService.recordRevenueSplit(savedTransaction);
                 log.info("\n" +
                         "================================================================================\n" +
                         "💰 PAYMENT SUCCESSFUL - Starting Enrollment Process\n" +
