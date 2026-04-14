@@ -1,5 +1,6 @@
 package com.techhub.app.fileservice.service.impl;
 
+import com.techhub.app.fileservice.config.MinioProperties;
 import com.techhub.app.fileservice.dto.response.FileResponse;
 import com.techhub.app.fileservice.dto.response.FileStatisticsResponse;
 import com.techhub.app.fileservice.entity.FileEntity;
@@ -11,6 +12,7 @@ import com.techhub.app.fileservice.repository.FileFolderRepository;
 import com.techhub.app.fileservice.repository.FileRepository;
 import com.techhub.app.fileservice.repository.FileUsageRepository;
 import com.techhub.app.fileservice.service.FileManagementService;
+import com.techhub.app.fileservice.service.MediaProcessingService;
 import com.techhub.app.fileservice.service.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,10 +36,12 @@ import java.util.stream.Collectors;
 public class FileManagementServiceImpl implements FileManagementService {
 
     private final ObjectStorageService objectStorageService;
+    private final MinioProperties minioProperties;
     private final FileRepository fileRepository;
     private final FileFolderRepository folderRepository;
     private final FileUsageRepository usageRepository;
     private final FileEventPublisher fileEventPublisher;
+    private final MediaProcessingService mediaProcessingService;
 
     @Override
     @Transactional
@@ -311,40 +316,162 @@ public class FileManagementServiceImpl implements FileManagementService {
             return;
         }
 
-        fileEventPublisher.publishFileUploaded(
-                FileUploadedEvent.builder()
-                        .fileId(saved.getId())
-                        .userId(saved.getUserId())
-                        .bucketName(saved.getBucketName())
-                        .objectKey(saved.getObjectKey())
-                        .fileType(saved.getFileType().name())
-                        .mimeType(saved.getMimeType())
-                        .publicUrl(saved.getPublicUrl())
-                        .build());
+        FileUploadedEvent event = FileUploadedEvent.builder()
+                .fileId(saved.getId())
+                .userId(saved.getUserId())
+                .bucketName(saved.getBucketName())
+                .objectKey(saved.getObjectKey())
+                .fileType(saved.getFileType().name())
+                .mimeType(saved.getMimeType())
+                .publicUrl(saved.getPublicUrl())
+                .build();
+
+        boolean enqueued = fileEventPublisher.publishFileUploaded(event);
+
+        if (enqueued) {
+            return;
+        }
+
+        log.warn("Kafka enqueue failed for file {}, fallback to inline processing", saved.getId());
+        mediaProcessingService.processUploadedVideo(event);
+
+        FileEntity refreshed = fileRepository.findById(saved.getId()).orElse(saved);
+        log.info("Inline fallback processing completed for file {} with status {}", refreshed.getId(),
+                refreshed.getProcessingStatus());
     }
 
     private String resolveSignedObjectUrl(FileEntity file) {
-        String fallbackUrl = firstNonBlank(file.getSecureUrl(), file.getCloudinarySecureUrl(), file.getPublicUrl());
+        String fallbackUrl = firstNonBlank(
+                file.getSecureUrl(),
+                file.getCloudinarySecureUrl(),
+                file.getPublicUrl(),
+                file.getCloudinaryUrl());
 
-        if (!"MINIO".equalsIgnoreCase(file.getStorageProvider()) || file.getObjectKey() == null
-                || file.getObjectKey().isBlank()) {
+        if (!shouldAttemptPresign(file)) {
             return fallbackUrl;
         }
 
-        String signedUrl = objectStorageService.getPresignedGetUrl(file.getObjectKey());
+        String objectKey = resolveObjectKey(file);
+        if (objectKey == null) {
+            return fallbackUrl;
+        }
+
+        String signedUrl = objectStorageService.getPresignedGetUrl(objectKey);
         return firstNonBlank(signedUrl, fallbackUrl);
     }
 
     private String resolveSignedThumbnailUrl(FileEntity file, String signedObjectUrl) {
-        String fallbackThumbnailUrl = firstNonBlank(file.getThumbnailUrl(), signedObjectUrl);
-        String thumbnailObjectKey = file.getThumbnailObjectKey();
-        if (!"MINIO".equalsIgnoreCase(file.getStorageProvider()) || thumbnailObjectKey == null
-                || thumbnailObjectKey.isBlank()) {
+        String fallbackThumbnailUrl = file.getFileType() == FileTypeEnum.VIDEO
+                ? file.getThumbnailUrl()
+                : firstNonBlank(file.getThumbnailUrl(), signedObjectUrl);
+
+        if (!shouldAttemptPresign(file) && !isMinioUrl(file.getThumbnailUrl())) {
+            return fallbackThumbnailUrl;
+        }
+
+        String thumbnailObjectKey = normalizeObjectKey(
+                firstNonBlank(file.getThumbnailObjectKey(), extractObjectPathFromUrl(file.getThumbnailUrl())));
+        if (thumbnailObjectKey == null) {
             return fallbackThumbnailUrl;
         }
 
         String signedUrl = objectStorageService.getPresignedGetUrl(thumbnailObjectKey);
         return firstNonBlank(signedUrl, fallbackThumbnailUrl);
+    }
+
+    private boolean isMinioStorageCandidate(FileEntity file) {
+        String storageProvider = file.getStorageProvider();
+        return storageProvider == null || storageProvider.isBlank() || "MINIO".equalsIgnoreCase(storageProvider);
+    }
+
+    private boolean shouldAttemptPresign(FileEntity file) {
+        if (isMinioStorageCandidate(file)) {
+            return true;
+        }
+
+        if (hasMinioLikeObjectKey(file.getObjectKey())
+                || hasMinioLikeObjectKey(file.getCloudinaryPublicId())
+                || hasMinioLikeObjectKey(file.getThumbnailObjectKey())) {
+            return true;
+        }
+
+        return isMinioUrl(file.getSecureUrl())
+                || isMinioUrl(file.getCloudinarySecureUrl())
+                || isMinioUrl(file.getPublicUrl())
+                || isMinioUrl(file.getCloudinaryUrl())
+                || isMinioUrl(file.getThumbnailUrl());
+    }
+
+    private String resolveObjectKey(FileEntity file) {
+        return normalizeObjectKey(firstNonBlank(
+                file.getObjectKey(),
+                file.getCloudinaryPublicId(),
+                extractObjectPathFromUrl(file.getSecureUrl()),
+                extractObjectPathFromUrl(file.getCloudinarySecureUrl()),
+                extractObjectPathFromUrl(file.getPublicUrl()),
+                extractObjectPathFromUrl(file.getCloudinaryUrl())));
+    }
+
+    private boolean hasMinioLikeObjectKey(String value) {
+        String normalized = normalizeObjectKey(value);
+        return normalized != null && normalized.startsWith("users/");
+    }
+
+    private boolean isMinioUrl(String value) {
+        String urlHost = extractHost(value);
+        if (urlHost == null) {
+            return false;
+        }
+
+        String publicHost = extractHost(minioProperties.getPublicUrl());
+        String endpointHost = extractHost(minioProperties.getEndpoint());
+
+        return (publicHost != null && publicHost.equalsIgnoreCase(urlHost))
+                || (endpointHost != null && endpointHost.equalsIgnoreCase(urlHost));
+    }
+
+    private String extractHost(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        try {
+            return URI.create(value).getHost();
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private String extractObjectPathFromUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        try {
+            URI uri = URI.create(value);
+            return uri.getPath();
+        } catch (IllegalArgumentException ex) {
+            return value;
+        }
+    }
+
+    private String normalizeObjectKey(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String key = value.trim().replace('\\', '/');
+        key = key.replaceFirst("^/+", "");
+
+        String bucket = minioProperties.getBucket();
+        if (bucket != null && !bucket.isBlank()) {
+            String normalizedBucket = bucket.trim().replace('\\', '/').replaceFirst("^/+", "").replaceAll("/+$", "");
+            if (key.startsWith(normalizedBucket + "/")) {
+                key = key.substring(normalizedBucket.length() + 1);
+            }
+        }
+
+        return key.isBlank() ? null : key;
     }
 
     private String firstNonBlank(String... values) {
@@ -379,13 +506,13 @@ public class FileManagementServiceImpl implements FileManagementService {
                 .mimeType(file.getMimeType())
                 .fileSize(file.getFileSize())
                 .cloudinaryPublicId(file.getCloudinaryPublicId())
-                .cloudinaryUrl(file.getCloudinaryUrl())
-                .cloudinarySecureUrl(signedObjectUrl)
+                .cloudinaryUrl(firstNonBlank(signedObjectUrl, file.getCloudinaryUrl(), file.getPublicUrl()))
+                .cloudinarySecureUrl(firstNonBlank(signedObjectUrl, file.getCloudinarySecureUrl()))
                 .storageProvider(file.getStorageProvider())
                 .bucketName(file.getBucketName())
                 .objectKey(file.getObjectKey())
-                .publicUrl(file.getPublicUrl())
-                .secureUrl(signedObjectUrl)
+                .publicUrl(firstNonBlank(signedObjectUrl, file.getPublicUrl()))
+                .secureUrl(firstNonBlank(signedObjectUrl, file.getSecureUrl(), file.getPublicUrl()))
                 .thumbnailObjectKey(file.getThumbnailObjectKey())
                 .thumbnailUrl(signedThumbnailUrl)
                 .processingStatus(file.getProcessingStatus())

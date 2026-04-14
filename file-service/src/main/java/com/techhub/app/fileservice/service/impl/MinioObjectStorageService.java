@@ -84,7 +84,7 @@ public class MinioObjectStorageService implements ObjectStorageService {
                 Math.min(minioProperties.getPresignedExpirySeconds(), MAX_EXPIRY_SECONDS));
 
         try {
-            return minioClient.getPresignedObjectUrl(
+            return buildPresignClient().getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(minioProperties.getBucket())
@@ -115,5 +115,17 @@ public class MinioObjectStorageService implements ObjectStorageService {
         String normalizedBase = minioProperties.getPublicUrl().replaceAll("/+$", "");
         String normalizedKey = FilenameUtils.separatorsToUnix(objectKey).replaceFirst("^/+", "");
         return normalizedBase + "/" + minioProperties.getBucket() + "/" + normalizedKey;
+    }
+
+    private MinioClient buildPresignClient() {
+        String presignEndpoint = minioProperties.getPublicUrl();
+        if (presignEndpoint == null || presignEndpoint.isBlank()) {
+            presignEndpoint = minioProperties.getEndpoint();
+        }
+
+        return MinioClient.builder()
+                .endpoint(presignEndpoint)
+                .credentials(minioProperties.getAccessKey(), minioProperties.getSecretKey())
+                .build();
     }
 }

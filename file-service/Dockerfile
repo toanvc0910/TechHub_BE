@@ -6,7 +6,11 @@ ARG PROJECT_VERSION=0.1.0
 
 # Configure timezone inside the container
 ENV TZ=Asia/Ho_Chi_Minh
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN apt-get -o Acquire::ForceIPv4=true -o Acquire::Retries=3 update \
+	&& apt-get -o Acquire::ForceIPv4=true install -y --no-install-recommends ffmpeg \
+	&& rm -rf /var/lib/apt/lists/* \
+	&& ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+	&& echo $TZ > /etc/timezone
 
 # Application working directory
 WORKDIR /home/app
