@@ -86,7 +86,7 @@ public class PayoutService {
         }
 
         PayoutRequest saved = payoutRequestRepository.save(PayoutRequest.builder()
-                .instructorId(instructorId)
+            .instructorId(instructorId.toString())
                 .amount(amount)
                 .note(request.getNote())
                 .status(PayoutRequestStatus.REQUESTED)
@@ -105,10 +105,10 @@ public class PayoutService {
 
     @Transactional(readOnly = true)
     public PayoutRequestResponse getRequest(UUID requestId, UUID requesterId, boolean adminView) {
-        PayoutRequest request = payoutRequestRepository.findActiveById(requestId)
+        PayoutRequest request = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
-        if (!adminView && !request.getInstructorId().equals(requesterId)) {
+        if (!adminView && !request.getInstructorId().equals(requesterId.toString())) {
             throw new IllegalArgumentException("You do not have permission to view this payout request");
         }
 
@@ -117,7 +117,7 @@ public class PayoutService {
 
     @Transactional
     public PayoutRequestResponse approveRequest(UUID requestId, UUID approverId, ReviewPayoutRequestRequest request) {
-        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId)
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (payoutRequest.getStatus() != PayoutRequestStatus.REQUESTED) {
@@ -125,7 +125,7 @@ public class PayoutService {
         }
 
         payoutRequest.setStatus(PayoutRequestStatus.APPROVED);
-        payoutRequest.setApprovedBy(approverId);
+        payoutRequest.setApprovedBy(approverId.toString());
         payoutRequest.setApprovedAt(OffsetDateTime.now());
         payoutRequest.setReviewNote(request.getNote());
 
@@ -134,7 +134,7 @@ public class PayoutService {
 
     @Transactional
     public PayoutRequestResponse rejectRequest(UUID requestId, UUID reviewerId, ReviewPayoutRequestRequest request) {
-        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId)
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (payoutRequest.getStatus() != PayoutRequestStatus.REQUESTED
@@ -143,7 +143,7 @@ public class PayoutService {
         }
 
         payoutRequest.setStatus(PayoutRequestStatus.REJECTED);
-        payoutRequest.setApprovedBy(reviewerId);
+        payoutRequest.setApprovedBy(reviewerId.toString());
         payoutRequest.setReviewNote(request.getNote());
         payoutRequest.setApprovedAt(OffsetDateTime.now());
 
@@ -152,7 +152,7 @@ public class PayoutService {
 
     @Transactional
     public PayoutRequestResponse markPaid(UUID requestId, UUID markerId, MarkPaidPayoutRequest request) {
-        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId)
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (payoutRequest.getStatus() != PayoutRequestStatus.APPROVED) {
@@ -161,7 +161,7 @@ public class PayoutService {
 
         payoutRequest.setStatus(PayoutRequestStatus.MARKED_PAID);
         payoutRequest.setPaymentReference(request.getPaymentReference());
-        payoutRequest.setMarkedPaidBy(markerId);
+        payoutRequest.setMarkedPaidBy(markerId.toString());
         payoutRequest.setMarkedPaidAt(OffsetDateTime.now());
         payoutRequest.setReviewNote(request.getNote());
 
@@ -261,7 +261,7 @@ public class PayoutService {
         }
 
         payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
-                .instructorId(instructorId)
+            .instructorId(instructorId.toString())
                 .entryType(PayoutLedgerEntryType.CREDIT_SALE)
                 .amount(earned)
                 .referenceType(REVENUE_BOOTSTRAP_REFERENCE)
@@ -271,8 +271,8 @@ public class PayoutService {
 
     private PayoutRequestResponse toResponse(PayoutRequest request) {
         return PayoutRequestResponse.builder()
-                .id(request.getId())
-                .instructorId(request.getInstructorId())
+            .id(parseUuidOrNull(request.getId()))
+            .instructorId(parseUuidOrNull(request.getInstructorId()))
                 .batchId(parseUuidOrNull(request.getBatchIdRaw()))
                 .amount(request.getAmount())
                 .status(request.getStatus().name())
@@ -299,7 +299,7 @@ public class PayoutService {
 
     private PayoutBatchResponse toBatchResponse(PayoutBatch batch) {
         return PayoutBatchResponse.builder()
-                .id(batch.getId())
+            .id(parseUuidOrNull(batch.getId()))
                 .batchName(batch.getBatchName())
                 .periodKey(batch.getPeriodKey())
                 .fromDate(batch.getFromDate())

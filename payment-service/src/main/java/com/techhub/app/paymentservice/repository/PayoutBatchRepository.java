@@ -9,7 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface PayoutBatchRepository extends JpaRepository<PayoutBatch, UUID> {
+public interface PayoutBatchRepository extends JpaRepository<PayoutBatch, String> {
 
     Optional<PayoutBatch> findByPeriodKeyAndBatchNameAndIsActive(String periodKey, String batchName, String isActive);
 

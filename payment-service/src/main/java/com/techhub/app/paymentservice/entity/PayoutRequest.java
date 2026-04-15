@@ -1,5 +1,6 @@
 package com.techhub.app.paymentservice.entity;
 
+import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
 import com.techhub.app.paymentservice.entity.enums.PayoutRequestStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,8 +24,12 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
+
 @Entity
 @Table(name = "payout_requests")
+@TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class)
 @Data
 @Builder
 @NoArgsConstructor
@@ -35,10 +40,10 @@ public class PayoutRequest {
     @GeneratedValue(generator = "UUID")
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private String id;
 
     @Column(name = "instructor_id", nullable = false)
-    private UUID instructorId;
+    private String instructorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "batch_id")
@@ -57,6 +62,7 @@ public class PayoutRequest {
     private String paymentReference;
 
     @Enumerated(EnumType.STRING)
+    @Type(type = "pgsql_enum", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.paymentservice.entity.enums.PayoutRequestStatus"))
     @Column(name = "status", nullable = false, length = 20)
     private PayoutRequestStatus status;
 
@@ -64,13 +70,13 @@ public class PayoutRequest {
     private String reviewNote;
 
     @Column(name = "approved_by")
-    private UUID approvedBy;
+    private String approvedBy;
 
     @Column(name = "approved_at")
     private OffsetDateTime approvedAt;
 
     @Column(name = "marked_paid_by")
-    private UUID markedPaidBy;
+    private String markedPaidBy;
 
     @Column(name = "marked_paid_at")
     private OffsetDateTime markedPaidAt;

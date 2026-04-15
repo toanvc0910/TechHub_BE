@@ -1,5 +1,6 @@
 package com.techhub.app.paymentservice.entity;
 
+import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
 import com.techhub.app.paymentservice.entity.enums.PayoutBatchStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,8 +21,12 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
+
 @Entity
 @Table(name = "payout_batches")
+@TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class)
 @Data
 @Builder
 @NoArgsConstructor
@@ -32,7 +37,7 @@ public class PayoutBatch {
     @GeneratedValue(generator = "UUID")
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private String id;
 
     @Column(name = "batch_name", nullable = false, length = 120)
     private String batchName;
@@ -47,6 +52,7 @@ public class PayoutBatch {
     private OffsetDateTime toDate;
 
     @Enumerated(EnumType.STRING)
+    @Type(type = "pgsql_enum", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.paymentservice.entity.enums.PayoutBatchStatus"))
     @Column(name = "status", nullable = false, length = 20)
     private PayoutBatchStatus status;
 

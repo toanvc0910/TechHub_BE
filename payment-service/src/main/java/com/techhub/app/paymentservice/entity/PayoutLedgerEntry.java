@@ -1,5 +1,6 @@
 package com.techhub.app.paymentservice.entity;
 
+import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
 import com.techhub.app.paymentservice.entity.enums.PayoutLedgerEntryType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,8 +21,12 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
+
 @Entity
 @Table(name = "payout_ledger_entries")
+@TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class)
 @Data
 @Builder
 @NoArgsConstructor
@@ -32,12 +37,13 @@ public class PayoutLedgerEntry {
     @GeneratedValue(generator = "UUID")
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    private String id;
 
     @Column(name = "instructor_id", nullable = false)
-    private UUID instructorId;
+    private String instructorId;
 
     @Enumerated(EnumType.STRING)
+    @Type(type = "pgsql_enum", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.paymentservice.entity.enums.PayoutLedgerEntryType"))
     @Column(name = "entry_type", nullable = false, length = 20)
     private PayoutLedgerEntryType entryType;
 
@@ -45,7 +51,7 @@ public class PayoutLedgerEntry {
     private BigDecimal amount;
 
     @Column(name = "reference_id")
-    private UUID referenceId;
+    private String referenceId;
 
     @Column(name = "reference_type", length = 40)
     private String referenceType;

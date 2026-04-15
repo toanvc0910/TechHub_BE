@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface PayoutLedgerEntryRepository extends JpaRepository<PayoutLedgerEntry, UUID> {
+public interface PayoutLedgerEntryRepository extends JpaRepository<PayoutLedgerEntry, String> {
 
     @Query(value = "SELECT * FROM payout_ledger_entries le " +
             "WHERE CAST(le.instructor_id AS TEXT) = :instructorId " +
