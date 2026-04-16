@@ -6,6 +6,7 @@ import com.techhub.app.paymentservice.dto.request.MarkPaidPayoutRequest;
 import com.techhub.app.paymentservice.dto.request.ReviewPayoutRequestRequest;
 import com.techhub.app.paymentservice.dto.response.PayoutBalanceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutBatchResponse;
+import com.techhub.app.paymentservice.dto.response.PayoutInvoiceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutRequestResponse;
 import com.techhub.app.paymentservice.service.PayoutService;
 import lombok.RequiredArgsConstructor;
@@ -112,7 +113,7 @@ public class PayoutController {
             UUID reviewerId = parseRequiredUserId(userId);
             ReviewPayoutRequestRequest body = request == null ? new ReviewPayoutRequestRequest() : request;
             PayoutRequestResponse response = payoutService.approveRequest(requestId, reviewerId, body);
-            return ResponseEntity.ok(GlobalResponse.success("Payout request approved", response));
+            return ResponseEntity.ok(GlobalResponse.success("Payout request approved and auto-transferred", response));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
@@ -171,6 +172,38 @@ public class PayoutController {
         }
         List<PayoutBatchResponse> response = payoutService.listBatches();
         return ResponseEntity.ok(GlobalResponse.success("Payout batches", response));
+    }
+
+    @GetMapping("/invoices")
+    public ResponseEntity<GlobalResponse<List<PayoutInvoiceResponse>>> listInvoices(
+            @RequestHeader(value = "X-User-Roles", required = false) String userRoles,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestParam(value = "instructorId", required = false) UUID instructorId) {
+        try {
+            boolean admin = hasAdminRole(userRoles);
+            UUID requesterId = parseRequiredUserId(userId);
+            List<PayoutInvoiceResponse> response = payoutService.listInvoices(requesterId, admin, instructorId);
+            return ResponseEntity.ok(GlobalResponse.success("Payout invoices", response));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+    @GetMapping("/invoices/{invoiceId}")
+    public ResponseEntity<GlobalResponse<PayoutInvoiceResponse>> getInvoice(
+            @RequestHeader(value = "X-User-Roles", required = false) String userRoles,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @PathVariable UUID invoiceId) {
+        try {
+            boolean admin = hasAdminRole(userRoles);
+            UUID requesterId = parseRequiredUserId(userId);
+            PayoutInvoiceResponse response = payoutService.getInvoice(invoiceId, requesterId, admin);
+            return ResponseEntity.ok(GlobalResponse.success("Payout invoice detail", response));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
     }
 
     @PostMapping("/batches/monthly")

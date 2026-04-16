@@ -216,6 +216,19 @@ public class PaymentProxyController {
         return paymentServiceClient.listPayoutBatches(getRolesHeader(request));
     }
 
+    @GetMapping("/payouts/invoices")
+    public ResponseEntity<String> listPayoutInvoices(HttpServletRequest request,
+            @RequestParam(required = false) String instructorId) {
+        return paymentServiceClient.listPayoutInvoices(getRolesHeader(request), getUserIdHeader(request),
+                instructorId);
+    }
+
+    @GetMapping("/payouts/invoices/{invoiceId}")
+    public ResponseEntity<String> getPayoutInvoice(HttpServletRequest request,
+            @PathVariable String invoiceId) {
+        return paymentServiceClient.getPayoutInvoice(getRolesHeader(request), getUserIdHeader(request), invoiceId);
+    }
+
     @PostMapping("/payouts/batches/monthly")
     public ResponseEntity<String> createMonthlyPayoutBatch(HttpServletRequest request,
             @RequestParam(required = false) String period) {

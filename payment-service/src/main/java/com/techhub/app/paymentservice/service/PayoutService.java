@@ -5,15 +5,19 @@ import com.techhub.app.paymentservice.dto.request.MarkPaidPayoutRequest;
 import com.techhub.app.paymentservice.dto.request.ReviewPayoutRequestRequest;
 import com.techhub.app.paymentservice.dto.response.PayoutBalanceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutBatchResponse;
+import com.techhub.app.paymentservice.dto.response.PayoutInvoiceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutRequestResponse;
 import com.techhub.app.paymentservice.dto.response.RevenueOverviewResponse;
 import com.techhub.app.paymentservice.entity.PayoutBatch;
+import com.techhub.app.paymentservice.entity.PayoutInvoice;
 import com.techhub.app.paymentservice.entity.PayoutLedgerEntry;
 import com.techhub.app.paymentservice.entity.PayoutRequest;
+import com.techhub.app.paymentservice.entity.enums.InvoiceStatus;
 import com.techhub.app.paymentservice.entity.enums.PayoutBatchStatus;
 import com.techhub.app.paymentservice.entity.enums.PayoutLedgerEntryType;
 import com.techhub.app.paymentservice.entity.enums.PayoutRequestStatus;
 import com.techhub.app.paymentservice.repository.PayoutBatchRepository;
+import com.techhub.app.paymentservice.repository.PayoutInvoiceRepository;
 import com.techhub.app.paymentservice.repository.PayoutLedgerEntryRepository;
 import com.techhub.app.paymentservice.repository.PayoutRequestRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +32,7 @@ import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -38,10 +43,12 @@ import java.util.stream.Collectors;
 public class PayoutService {
 
     private static final DateTimeFormatter PERIOD_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
+    private static final DateTimeFormatter INVOICE_NUMBER_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String REVENUE_BOOTSTRAP_REFERENCE = "REVENUE_BOOTSTRAP";
 
     private final PayoutRequestRepository payoutRequestRepository;
     private final PayoutBatchRepository payoutBatchRepository;
+    private final PayoutInvoiceRepository payoutInvoiceRepository;
     private final PayoutLedgerEntryRepository payoutLedgerEntryRepository;
     private final RevenueAnalyticsService revenueAnalyticsService;
 
@@ -86,7 +93,7 @@ public class PayoutService {
         }
 
         PayoutRequest saved = payoutRequestRepository.save(PayoutRequest.builder()
-            .instructorId(instructorId.toString())
+                .instructorId(instructorId.toString())
                 .amount(amount)
                 .note(request.getNote())
                 .status(PayoutRequestStatus.REQUESTED)
@@ -129,7 +136,34 @@ public class PayoutService {
         payoutRequest.setApprovedAt(OffsetDateTime.now());
         payoutRequest.setReviewNote(request.getNote());
 
-        return toResponse(payoutRequestRepository.save(payoutRequest));
+        PayoutRequest approved = payoutRequestRepository.save(payoutRequest);
+        PayoutInvoice invoice = createInvoiceForRequest(approved);
+
+        // MVP auto-transfer sandbox: approved request is settled immediately.
+        String transferReference = generateTransferReference(approved.getId());
+        approved.setStatus(PayoutRequestStatus.MARKED_PAID);
+        approved.setPaymentReference(transferReference);
+        approved.setMarkedPaidBy(approverId.toString());
+        approved.setMarkedPaidAt(OffsetDateTime.now());
+        approved.setReviewNote(mergeReviewNote(request.getNote(), "AUTO_TRANSFERRED"));
+
+        invoice.setTransferReference(transferReference);
+        invoice.setStatus(InvoiceStatus.PAID);
+        invoice.setEmailSent(Boolean.TRUE);
+        invoice.setUiVisible(Boolean.TRUE);
+
+        payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
+                .instructorId(approved.getInstructorId())
+                .entryType(PayoutLedgerEntryType.DEBIT_PAYOUT)
+                .amount(safeMoney(approved.getAmount()))
+                .referenceId(approved.getId())
+                .referenceType("PAYOUT_REQUEST")
+                .note("Auto transfer on approval: " + transferReference)
+                .build());
+
+        payoutInvoiceRepository.save(invoice);
+        PayoutRequest settled = payoutRequestRepository.save(approved);
+        return toResponse(settled, invoice);
     }
 
     @Transactional
@@ -165,6 +199,15 @@ public class PayoutService {
         payoutRequest.setMarkedPaidAt(OffsetDateTime.now());
         payoutRequest.setReviewNote(request.getNote());
 
+        payoutInvoiceRepository.findByPayoutRequestIdAndIsActive(payoutRequest.getId(), "Y")
+                .ifPresent(invoice -> {
+                    invoice.setTransferReference(request.getPaymentReference());
+                    invoice.setStatus(InvoiceStatus.PAID);
+                    invoice.setEmailSent(Boolean.TRUE);
+                    invoice.setUiVisible(Boolean.TRUE);
+                    payoutInvoiceRepository.save(invoice);
+                });
+
         payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
                 .instructorId(payoutRequest.getInstructorId())
                 .entryType(PayoutLedgerEntryType.DEBIT_PAYOUT)
@@ -175,6 +218,46 @@ public class PayoutService {
                 .build());
 
         return toResponse(payoutRequestRepository.save(payoutRequest));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PayoutInvoiceResponse> listInvoices(UUID requesterId, boolean adminView,
+            UUID instructorIdFilter) {
+        if (adminView) {
+            if (instructorIdFilter != null) {
+                return payoutInvoiceRepository.findByInstructorIdAndIsActiveOrderByCreatedDesc(
+                        instructorIdFilter.toString(), "Y")
+                        .stream()
+                        .map(this::toInvoiceResponse)
+                        .collect(Collectors.toList());
+            }
+            return payoutInvoiceRepository.findByIsActiveOrderByCreatedDesc("Y")
+                    .stream()
+                    .map(this::toInvoiceResponse)
+                    .collect(Collectors.toList());
+        }
+
+        return payoutInvoiceRepository.findByInstructorIdAndIsActiveOrderByCreatedDesc(
+                requesterId.toString(), "Y")
+                .stream()
+                .map(this::toInvoiceResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public PayoutInvoiceResponse getInvoice(UUID invoiceId, UUID requesterId, boolean adminView) {
+        PayoutInvoice invoice = payoutInvoiceRepository.findById(invoiceId.toString())
+                .orElseThrow(() -> new IllegalArgumentException("Payout invoice not found"));
+
+        if (!"Y".equals(invoice.getIsActive())) {
+            throw new IllegalArgumentException("Payout invoice not found");
+        }
+
+        if (!adminView && !invoice.getInstructorId().equals(requesterId.toString())) {
+            throw new IllegalArgumentException("You do not have permission to view this payout invoice");
+        }
+
+        return toInvoiceResponse(invoice);
     }
 
     @Transactional(readOnly = true)
@@ -261,7 +344,7 @@ public class PayoutService {
         }
 
         payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
-            .instructorId(instructorId.toString())
+                .instructorId(instructorId.toString())
                 .entryType(PayoutLedgerEntryType.CREDIT_SALE)
                 .amount(earned)
                 .referenceType(REVENUE_BOOTSTRAP_REFERENCE)
@@ -270,10 +353,19 @@ public class PayoutService {
     }
 
     private PayoutRequestResponse toResponse(PayoutRequest request) {
+        PayoutInvoice invoice = payoutInvoiceRepository
+                .findByPayoutRequestIdAndIsActive(request.getId(), "Y")
+                .orElse(null);
+        return toResponse(request, invoice);
+    }
+
+    private PayoutRequestResponse toResponse(PayoutRequest request, PayoutInvoice invoice) {
         return PayoutRequestResponse.builder()
-            .id(parseUuidOrNull(request.getId()))
-            .instructorId(parseUuidOrNull(request.getInstructorId()))
+                .id(parseUuidOrNull(request.getId()))
+                .instructorId(parseUuidOrNull(request.getInstructorId()))
                 .batchId(parseUuidOrNull(request.getBatchIdRaw()))
+                .invoiceId(invoice == null ? null : parseUuidOrNull(invoice.getId()))
+                .invoiceNumber(invoice == null ? null : invoice.getInvoiceNumber())
                 .amount(request.getAmount())
                 .status(request.getStatus().name())
                 .note(request.getNote())
@@ -284,6 +376,55 @@ public class PayoutService {
                 .created(request.getCreated())
                 .updated(request.getUpdated())
                 .build();
+    }
+
+    private PayoutInvoice createInvoiceForRequest(PayoutRequest request) {
+        return payoutInvoiceRepository.findByPayoutRequestIdAndIsActive(request.getId(), "Y")
+                .orElseGet(() -> payoutInvoiceRepository.save(PayoutInvoice.builder()
+                        .invoiceNumber(generateInvoiceNumber(request.getId()))
+                        .payoutRequestId(request.getId())
+                        .instructorId(request.getInstructorId())
+                        .amount(safeMoney(request.getAmount()))
+                        .status(InvoiceStatus.GENERATED)
+                        .emailSent(Boolean.FALSE)
+                        .uiVisible(Boolean.TRUE)
+                        .build()));
+    }
+
+    private PayoutInvoiceResponse toInvoiceResponse(PayoutInvoice invoice) {
+        return PayoutInvoiceResponse.builder()
+                .id(parseUuidOrNull(invoice.getId()))
+                .invoiceNumber(invoice.getInvoiceNumber())
+                .payoutRequestId(parseUuidOrNull(invoice.getPayoutRequestId()))
+                .instructorId(parseUuidOrNull(invoice.getInstructorId()))
+                .amount(invoice.getAmount())
+                .transferReference(invoice.getTransferReference())
+                .status(invoice.getStatus() == null ? null : invoice.getStatus().name())
+                .emailSent(invoice.getEmailSent())
+                .uiVisible(invoice.getUiVisible())
+                .pdfUrl(invoice.getPdfUrl())
+                .created(invoice.getCreated())
+                .updated(invoice.getUpdated())
+                .build();
+    }
+
+    private String generateInvoiceNumber(String payoutRequestId) {
+        String shortRequest = payoutRequestId == null ? "NA"
+                : payoutRequestId.replace("-", "").substring(0, Math.min(8, payoutRequestId.length()));
+        return "INV-" + OffsetDateTime.now().format(INVOICE_NUMBER_DATE_FORMAT) + "-" + shortRequest;
+    }
+
+    private String generateTransferReference(String payoutRequestId) {
+        String shortRequest = payoutRequestId == null ? "NA"
+                : payoutRequestId.replace("-", "").substring(0, Math.min(10, payoutRequestId.length()));
+        return "TRF-" + OffsetDateTime.now().format(INVOICE_NUMBER_DATE_FORMAT) + "-" + shortRequest;
+    }
+
+    private String mergeReviewNote(String userNote, String systemTag) {
+        if (userNote == null || userNote.isBlank()) {
+            return systemTag;
+        }
+        return userNote + " | " + systemTag;
     }
 
     private UUID parseUuidOrNull(String value) {
@@ -299,7 +440,7 @@ public class PayoutService {
 
     private PayoutBatchResponse toBatchResponse(PayoutBatch batch) {
         return PayoutBatchResponse.builder()
-            .id(parseUuidOrNull(batch.getId()))
+                .id(parseUuidOrNull(batch.getId()))
                 .batchName(batch.getBatchName())
                 .periodKey(batch.getPeriodKey())
                 .fromDate(batch.getFromDate())

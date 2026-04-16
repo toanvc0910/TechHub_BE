@@ -146,6 +146,18 @@ public interface PaymentServiceClient {
         ResponseEntity<String> listPayoutBatches(
                         @RequestHeader(value = "X-User-Roles", required = false) String roles);
 
+        @GetMapping("/api/v1/payouts/invoices")
+        ResponseEntity<String> listPayoutInvoices(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @RequestParam(value = "instructorId", required = false) String instructorId);
+
+        @GetMapping("/api/v1/payouts/invoices/{invoiceId}")
+        ResponseEntity<String> getPayoutInvoice(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @PathVariable("invoiceId") String invoiceId);
+
         @PostMapping("/api/v1/payouts/batches/monthly")
         ResponseEntity<String> createMonthlyPayoutBatch(
                         @RequestHeader(value = "X-User-Roles", required = false) String roles,

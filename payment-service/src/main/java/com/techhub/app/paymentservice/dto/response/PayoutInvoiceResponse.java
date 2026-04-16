@@ -9,19 +9,17 @@ import java.util.UUID;
 
 @Value
 @Builder
-public class PayoutRequestResponse {
+public class PayoutInvoiceResponse {
     UUID id;
-    UUID instructorId;
-    UUID batchId;
-    UUID invoiceId;
     String invoiceNumber;
+    UUID payoutRequestId;
+    UUID instructorId;
     BigDecimal amount;
+    String transferReference;
     String status;
-    String note;
-    String reviewNote;
-    String paymentReference;
-    OffsetDateTime approvedAt;
-    OffsetDateTime markedPaidAt;
+    Boolean emailSent;
+    Boolean uiVisible;
+    String pdfUrl;
     OffsetDateTime created;
     OffsetDateTime updated;
 }
