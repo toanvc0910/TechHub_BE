@@ -10,7 +10,9 @@ import com.techhub.app.paymentservice.dto.response.PayoutInvoiceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutRequestResponse;
 import com.techhub.app.paymentservice.service.PayoutService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
@@ -120,6 +122,28 @@ public class PayoutController {
         }
     }
 
+    @PutMapping("/requests/{requestId}/settle")
+    public ResponseEntity<GlobalResponse<PayoutRequestResponse>> settleApprovedRequest(
+            @RequestHeader(value = "X-User-Roles", required = false) String userRoles,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @PathVariable UUID requestId,
+            @RequestBody(required = false) ReviewPayoutRequestRequest request) {
+        if (!hasAdminRole(userRoles)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(GlobalResponse.error("Admin role is required", HttpStatus.FORBIDDEN.value()));
+        }
+
+        try {
+            UUID reviewerId = parseRequiredUserId(userId);
+            ReviewPayoutRequestRequest body = request == null ? new ReviewPayoutRequestRequest() : request;
+            PayoutRequestResponse response = payoutService.settleApprovedRequest(requestId, reviewerId, body);
+            return ResponseEntity.ok(GlobalResponse.success("Payout request settled and auto-transferred", response));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
     @PutMapping("/requests/{requestId}/reject")
     public ResponseEntity<GlobalResponse<PayoutRequestResponse>> rejectRequest(
             @RequestHeader(value = "X-User-Roles", required = false) String userRoles,
@@ -203,6 +227,27 @@ public class PayoutController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+    @GetMapping("/invoices/{invoiceId}/pdf")
+    public ResponseEntity<byte[]> downloadInvoicePdf(
+            @RequestHeader(value = "X-User-Roles", required = false) String userRoles,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @PathVariable UUID invoiceId) {
+        try {
+            boolean admin = hasAdminRole(userRoles);
+            UUID requesterId = parseRequiredUserId(userId);
+            PayoutInvoiceResponse invoice = payoutService.getInvoice(invoiceId, requesterId, admin);
+            byte[] pdf = payoutService.getInvoicePdf(invoiceId, requesterId, admin);
+            String fileName = (invoice.getInvoiceNumber() == null ? "payout-invoice" : invoice.getInvoiceNumber())
+                    + ".pdf";
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(pdf);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 

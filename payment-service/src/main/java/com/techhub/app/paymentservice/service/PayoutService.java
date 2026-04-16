@@ -20,11 +20,21 @@ import com.techhub.app.paymentservice.repository.PayoutBatchRepository;
 import com.techhub.app.paymentservice.repository.PayoutInvoiceRepository;
 import com.techhub.app.paymentservice.repository.PayoutLedgerEntryRepository;
 import com.techhub.app.paymentservice.repository.PayoutRequestRepository;
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -185,6 +195,43 @@ public class PayoutService {
     }
 
     @Transactional
+    public PayoutRequestResponse settleApprovedRequest(UUID requestId, UUID reviewerId,
+            ReviewPayoutRequestRequest request) {
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId.toString())
+                .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
+
+        if (payoutRequest.getStatus() != PayoutRequestStatus.APPROVED) {
+            throw new IllegalArgumentException("Only APPROVED payout can be settled");
+        }
+
+        PayoutInvoice invoice = createInvoiceForRequest(payoutRequest);
+        String transferReference = generateTransferReference(payoutRequest.getId());
+
+        payoutRequest.setStatus(PayoutRequestStatus.MARKED_PAID);
+        payoutRequest.setPaymentReference(transferReference);
+        payoutRequest.setMarkedPaidBy(reviewerId.toString());
+        payoutRequest.setMarkedPaidAt(OffsetDateTime.now());
+        payoutRequest.setReviewNote(mergeReviewNote(request.getNote(), "AUTO_TRANSFERRED"));
+
+        invoice.setTransferReference(transferReference);
+        invoice.setStatus(InvoiceStatus.PAID);
+        invoice.setEmailSent(Boolean.TRUE);
+        invoice.setUiVisible(Boolean.TRUE);
+
+        payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
+                .instructorId(payoutRequest.getInstructorId())
+                .entryType(PayoutLedgerEntryType.DEBIT_PAYOUT)
+                .amount(safeMoney(payoutRequest.getAmount()))
+                .referenceId(payoutRequest.getId())
+                .referenceType("PAYOUT_REQUEST")
+                .note("Legacy settlement on approved payout: " + transferReference)
+                .build());
+
+        payoutInvoiceRepository.save(invoice);
+        return toResponse(payoutRequestRepository.save(payoutRequest), invoice);
+    }
+
+    @Transactional
     public PayoutRequestResponse markPaid(UUID requestId, UUID markerId, MarkPaidPayoutRequest request) {
         PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
@@ -246,18 +293,14 @@ public class PayoutService {
 
     @Transactional(readOnly = true)
     public PayoutInvoiceResponse getInvoice(UUID invoiceId, UUID requesterId, boolean adminView) {
-        PayoutInvoice invoice = payoutInvoiceRepository.findById(invoiceId.toString())
-                .orElseThrow(() -> new IllegalArgumentException("Payout invoice not found"));
-
-        if (!"Y".equals(invoice.getIsActive())) {
-            throw new IllegalArgumentException("Payout invoice not found");
-        }
-
-        if (!adminView && !invoice.getInstructorId().equals(requesterId.toString())) {
-            throw new IllegalArgumentException("You do not have permission to view this payout invoice");
-        }
-
+        PayoutInvoice invoice = getAccessibleInvoice(invoiceId, requesterId, adminView);
         return toInvoiceResponse(invoice);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] getInvoicePdf(UUID invoiceId, UUID requesterId, boolean adminView) {
+        PayoutInvoice invoice = getAccessibleInvoice(invoiceId, requesterId, adminView);
+        return buildInvoicePdf(invoice);
     }
 
     @Transactional(readOnly = true)
@@ -389,6 +432,76 @@ public class PayoutService {
                         .emailSent(Boolean.FALSE)
                         .uiVisible(Boolean.TRUE)
                         .build()));
+    }
+
+    private PayoutInvoice getAccessibleInvoice(UUID invoiceId, UUID requesterId, boolean adminView) {
+        PayoutInvoice invoice = payoutInvoiceRepository.findById(invoiceId.toString())
+                .orElseThrow(() -> new IllegalArgumentException("Payout invoice not found"));
+
+        if (!"Y".equals(invoice.getIsActive())) {
+            throw new IllegalArgumentException("Payout invoice not found");
+        }
+
+        if (!adminView && !invoice.getInstructorId().equals(requesterId.toString())) {
+            throw new IllegalArgumentException("You do not have permission to view this payout invoice");
+        }
+
+        return invoice;
+    }
+
+    private byte[] buildInvoicePdf(PayoutInvoice invoice) {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            Document document = new Document();
+            PdfWriter.getInstance(document, outputStream);
+            document.open();
+
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+            Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
+            Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 11);
+
+            document.add(new Paragraph("TechHub Payout Invoice", titleFont));
+            document.add(new Paragraph(" "));
+
+            PdfPTable table = new PdfPTable(2);
+            table.setWidthPercentage(100f);
+            table.setWidths(new float[] { 3f, 5f });
+
+            addPdfRow(table, "Invoice Number", invoice.getInvoiceNumber(), sectionFont, bodyFont);
+            addPdfRow(table, "Invoice ID", invoice.getId(), sectionFont, bodyFont);
+            addPdfRow(table, "Payout Request ID", invoice.getPayoutRequestId(), sectionFont, bodyFont);
+            addPdfRow(table, "Instructor ID", invoice.getInstructorId(), sectionFont, bodyFont);
+            addPdfRow(table, "Amount", safeMoney(invoice.getAmount()).toPlainString(), sectionFont, bodyFont);
+            addPdfRow(table, "Transfer Reference", nullableText(invoice.getTransferReference()), sectionFont, bodyFont);
+            addPdfRow(table, "Status", invoice.getStatus() == null ? "N/A" : invoice.getStatus().name(), sectionFont,
+                    bodyFont);
+            addPdfRow(table, "Created", nullableText(invoice.getCreated()), sectionFont, bodyFont);
+            addPdfRow(table, "Updated", nullableText(invoice.getUpdated()), sectionFont, bodyFont);
+
+            document.add(table);
+            document.add(new Paragraph(" "));
+            document.add(
+                    new Paragraph("This document is generated automatically by TechHub payout service.", bodyFont));
+
+            document.close();
+            return outputStream.toByteArray();
+        } catch (DocumentException ex) {
+            throw new IllegalStateException("Unable to generate payout invoice pdf", ex);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to generate payout invoice pdf", ex);
+        }
+    }
+
+    private void addPdfRow(PdfPTable table, String label, String value, Font labelFont, Font valueFont) {
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, labelFont));
+        PdfPCell valueCell = new PdfPCell(new Phrase(nullableText(value), valueFont));
+        labelCell.setPadding(6f);
+        valueCell.setPadding(6f);
+        table.addCell(labelCell);
+        table.addCell(valueCell);
+    }
+
+    private String nullableText(Object value) {
+        return value == null ? "N/A" : String.valueOf(value);
     }
 
     private PayoutInvoiceResponse toInvoiceResponse(PayoutInvoice invoice) {

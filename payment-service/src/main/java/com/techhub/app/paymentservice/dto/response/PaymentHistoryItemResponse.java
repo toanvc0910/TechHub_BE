@@ -13,7 +13,14 @@ public class PaymentHistoryItemResponse {
     private UUID id;
     private UUID transactionId;
     private UUID userId;
+    private String userName;
+    private String userEmail;
+    private UUID courseId;
+    private String courseName;
     private BigDecimal amount;
+    private BigDecimal grossAmount;
+    private BigDecimal instructorAmount;
+    private BigDecimal adminAmount;
     private String paymentMethod;
     private String status;
     private ZonedDateTime created;
