@@ -7,19 +7,17 @@ services:
     container_name: ai-service-container
     ports:
       - "8091:8091"
-    environment:
-      AI_SERVICE_PORT: 8091
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
-      EUREKA_INSTANCE_HOSTNAME: ${EUREKA_INSTANCE_HOSTNAME}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      AI_PROVIDER: ${AI_PROVIDER:-gemini}
-      QDRANT_HOST: ${QDRANT_HOST}
-      QDRANT_API_KEY: ${QDRANT_API_KEY}
-      AI_ORCHESTRATION_V2_ENABLED: ${AI_ORCHESTRATION_V2_ENABLED:-true}
+    env_file:
+      - .env
+    networks:
+      - techhub
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8091/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  techhub:
+    external: true
