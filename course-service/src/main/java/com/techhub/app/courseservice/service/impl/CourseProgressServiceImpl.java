@@ -16,6 +16,8 @@ import com.techhub.app.courseservice.repository.CourseRepository;
 import com.techhub.app.courseservice.repository.EnrollmentRepository;
 import com.techhub.app.courseservice.repository.LessonRepository;
 import com.techhub.app.courseservice.repository.ProgressRepository;
+import com.techhub.app.commonservice.kafka.event.EnrollmentEventPayload;
+import com.techhub.app.commonservice.kafka.publisher.CourseEventPublisher;
 import com.techhub.app.courseservice.service.CourseProgressService;
 import com.techhub.app.courseservice.service.CourseService;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,7 @@ public class CourseProgressServiceImpl implements CourseProgressService {
     private final ProgressRepository progressRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final CourseService courseService;
+    private final CourseEventPublisher courseEventPublisher;
 
     @Override
     public CourseDetailResponse updateLessonProgress(UUID courseId, UUID lessonId, LessonProgressRequest request) {
@@ -73,6 +76,19 @@ public class CourseProgressServiceImpl implements CourseProgressService {
         progress.setUpdatedBy(userId);
         progressRepository.save(progress);
         log.debug("Progress updated for lesson {} by {} - completion {}", lessonId, userId, progress.getCompletion());
+
+        // Publish progress event for AI service to update user embeddings
+        try {
+            courseEventPublisher.publishEnrollmentEvent(EnrollmentEventPayload.builder()
+                    .eventType("PROGRESS_UPDATED")
+                    .userId(String.valueOf(userId))
+                    .courseId(String.valueOf(courseId))
+                    .status("IN_PROGRESS")
+                    .progressPercentage(progress.getCompletion() != null ? progress.getCompletion().doubleValue() : 0.0)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to publish progress event for lesson {}: {}", lessonId, e.getMessage());
+        }
 
         return courseService.getCourse(courseId);
     }

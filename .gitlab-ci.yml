@@ -88,7 +88,11 @@ build_and_push_images:
     - |
       for service in service-discovery api-gateway proxy-client user-service blog-service course-service learning-path-service payment-service file-service notification-service ai-service; do
         echo "Building and pushing ${service}"
-        docker build -f "${service}/Dockerfile" -t "${DOCKER_NAMESPACE}/${service}:${IMAGE_TAG}" -t "${DOCKER_NAMESPACE}/${service}:${SHA_TAG}" "${service}"
+        build_dir="${service}"
+        if [ "${service}" = "ai-service" ]; then
+          build_dir="ai-service-fastapi"
+        fi
+        docker build -f "${build_dir}/Dockerfile" -t "${DOCKER_NAMESPACE}/${service}:${IMAGE_TAG}" -t "${DOCKER_NAMESPACE}/${service}:${SHA_TAG}" "${build_dir}"
         docker push "${DOCKER_NAMESPACE}/${service}:${IMAGE_TAG}"
         docker push "${DOCKER_NAMESPACE}/${service}:${SHA_TAG}"
       done

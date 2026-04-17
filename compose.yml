@@ -208,7 +208,7 @@ services:
 
   ai-service-container:
     build:
-      context: ./ai-service
+      context: ./ai-service-fastapi
       dockerfile: Dockerfile
     image: toandeptroai/ai-service:0.1.0
     container_name: ai-service-container
@@ -216,6 +216,18 @@ services:
       - 8091:8091
     environment:
       - SPRING_PROFILES_ACTIVE=dev
+      - AI_SERVICE_PORT=8091
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_AI_SERVICE}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - AI_PROVIDER=${AI_PROVIDER}
+      - QDRANT_HOST=${QDRANT_HOST}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - AI_ORCHESTRATION_V2_ENABLED=${AI_ORCHESTRATION_V2_ENABLED:-true}
     networks:
       - do-an-net
     depends_on:

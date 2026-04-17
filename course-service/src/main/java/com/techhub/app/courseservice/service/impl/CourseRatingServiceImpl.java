@@ -16,6 +16,8 @@ import com.techhub.app.courseservice.enums.RatingTarget;
 import com.techhub.app.courseservice.repository.CourseRepository;
 import com.techhub.app.courseservice.repository.EnrollmentRepository;
 import com.techhub.app.courseservice.repository.RatingRepository;
+import com.techhub.app.commonservice.kafka.event.RatingEventPayload;
+import com.techhub.app.commonservice.kafka.publisher.CourseEventPublisher;
 import com.techhub.app.courseservice.service.CourseRatingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ public class CourseRatingServiceImpl implements CourseRatingService {
     private final CourseRepository courseRepository;
     private final RatingRepository ratingRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final CourseEventPublisher courseEventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -89,6 +92,19 @@ public class CourseRatingServiceImpl implements CourseRatingService {
         rating.setUpdated(OffsetDateTime.now());
         ratingRepository.save(rating);
         log.debug("Course rating {} updated by {}", rating.getId(), userId);
+
+        // Publish rating event for AI service to update user embeddings
+        try {
+            courseEventPublisher.publishRatingEvent(RatingEventPayload.builder()
+                    .eventType(rating.getCreated().equals(rating.getUpdated()) ? "CREATED" : "UPDATED")
+                    .ratingId(String.valueOf(rating.getId()))
+                    .userId(String.valueOf(userId))
+                    .courseId(String.valueOf(courseId))
+                    .score(request.getScore())
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to publish rating event for course {}: {}", courseId, e.getMessage());
+        }
 
         return getCourseRating(courseId);
     }
