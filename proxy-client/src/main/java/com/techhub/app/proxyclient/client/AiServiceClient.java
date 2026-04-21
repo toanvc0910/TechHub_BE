@@ -63,6 +63,7 @@ public interface AiServiceClient {
 
         @GetMapping("/api/ai/admin/langfuse-traces")
         ResponseEntity<String> getLangfuseTraces(
+                        @RequestParam(required = false, defaultValue = "1") Integer page,
                         @RequestParam(required = false, defaultValue = "50") Integer limit,
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 

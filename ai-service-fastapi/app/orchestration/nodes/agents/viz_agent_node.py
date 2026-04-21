@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from numbers import Number
 from typing import Any
 
 from app.orchestration.state.orchestrator_state import OrchestratorState, trace_step
+from app.schemas.analytics_contract import DEFAULT_COLOR_PALETTE
 from app.services.analytics_service import analytics_service
 
 
@@ -14,16 +16,31 @@ class VizAgentNode:
     async def execute(self, state: OrchestratorState) -> dict[str, Any]:
         query_result = state.get("query_result")
         if query_result is None:
+            request_context = state.get("request_context") or {}
+            prior_analysis = (
+                request_context.get("activeAnalysis")
+                if isinstance(request_context, dict)
+                else None
+            )
             query_result = await analytics_service.execute(
                 state["user_input"],
                 state.get("entities", {}),
                 request_context=state.get("request_context"),
                 user_id=state["user_id"],
+                prior_analysis=prior_analysis if isinstance(prior_analysis, dict) else None,
             )
 
-        rows = query_result.get("rows", [])
+        rows = query_result.get("rows", []) or []
         chart_type = query_result.get("chartType") or "bar"
-        chart_spec = self._build_chart_spec(rows, chart_type, query_result.get("title") or "TechHub analytics")
+        chart_spec = self._build_chart_spec(
+            rows=rows,
+            chart_type=chart_type,
+            title=str(query_result.get("title") or "TechHub analytics"),
+            subtitle=str(query_result.get("summary") or "").strip() or None,
+            scope=query_result.get("scope"),
+            scope_label=query_result.get("scopeLabel"),
+            chart_options=query_result.get("chartOptions") or {},
+        )
         citations = [
             {
                 "kind": "visualization",
@@ -49,22 +66,63 @@ class VizAgentNode:
             "execution_trace": list(state.get("execution_trace", [])),
         }
 
-    def _build_chart_spec(self, rows: list[dict[str, Any]], chart_type: str, title: str) -> dict[str, Any]:
+    @staticmethod
+    def _build_chart_spec(
+        *,
+        rows: list[dict[str, Any]],
+        chart_type: str,
+        title: str,
+        subtitle: str | None,
+        scope: Any,
+        scope_label: Any,
+        chart_options: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Produce a chart spec that matches the FE `ChartSpec` contract."""
+        base_options = {
+            "availableChartTypes": list(chart_options.get("availableChartTypes", [])),
+            "colorPalette": list(chart_options.get("colorPalette", DEFAULT_COLOR_PALETTE)),
+            "emptyState": chart_options.get("emptyState", "ok"),
+            "valueAxisLabel": chart_options.get("valueAxisLabel"),
+            "categoryAxisLabel": chart_options.get("categoryAxisLabel"),
+            "stacked": bool(chart_options.get("stacked", False)),
+            "legend": bool(chart_options.get("legend", True)),
+        }
+        scope_str = str(scope) if scope else None
+        scope_label_str = str(scope_label) if scope_label else None
+
         if not rows:
-            return {"type": chart_type, "title": title, "data": {"labels": [], "datasets": []}}
+            return {
+                "type": chart_type,
+                "title": title,
+                "subtitle": subtitle,
+                "scope": scope_str,
+                "scopeLabel": scope_label_str,
+                "data": {"labels": [], "datasets": []},
+                "options": base_options,
+                "note": None,
+            }
 
         sample = rows[0]
         label_key = next((key for key, value in sample.items() if isinstance(value, str)), None)
         numeric_keys = [
             key
             for key, value in sample.items()
-            if isinstance(value, (int, float)) and not isinstance(value, bool)
+            if isinstance(value, Number) and not isinstance(value, bool)
         ]
 
         if label_key is None:
             label_key = next(iter(sample.keys()))
         if not numeric_keys:
-            return {"type": chart_type, "title": title, "data": {"labels": [], "datasets": []}}
+            return {
+                "type": chart_type,
+                "title": title,
+                "subtitle": subtitle,
+                "scope": scope_str,
+                "scopeLabel": scope_label_str,
+                "data": {"labels": [], "datasets": []},
+                "options": base_options,
+                "note": "No numeric columns available to plot.",
+            }
 
         labels = [str(row.get(label_key) or f"row-{index + 1}") for index, row in enumerate(rows)]
         datasets = [
@@ -77,10 +135,15 @@ class VizAgentNode:
         return {
             "type": chart_type,
             "title": title,
+            "subtitle": subtitle,
+            "scope": scope_str,
+            "scopeLabel": scope_label_str,
             "data": {
                 "labels": labels,
                 "datasets": datasets,
             },
+            "options": base_options,
+            "note": None,
         }
 
 

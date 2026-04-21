@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
+from contextvars import ContextVar
 from typing import Any
 
 
@@ -28,3 +29,10 @@ class StreamEventEmitter:
 
 def text_chunk_event(content: str) -> dict[str, Any]:
     return {"content": content}
+
+
+# Request-scoped context var so any code path (llm_gateway, agents) can access
+# the active emitter without threading it through every function signature.
+current_emitter: ContextVar[StreamEventEmitter | None] = ContextVar(
+    "current_stream_emitter", default=None
+)

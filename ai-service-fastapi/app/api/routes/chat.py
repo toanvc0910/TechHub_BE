@@ -1,16 +1,23 @@
 from __future__ import annotations
 
+import asyncio
 from uuid import UUID
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
+from app.core.config import get_settings
 from app.core.responses import success_response
 from app.schemas.chat import ChatMessageRequest
 from app.services.chat_service import chat_service
 from app.services.llm_gateway import switchable_ai_gateway
 
 router = APIRouter()
+SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+}
 
 
 @router.post("/messages")
@@ -26,19 +33,28 @@ async def send_message(request_body: ChatMessageRequest, request: Request) -> di
 
 @router.post("/stream")
 async def stream_message(request_body: ChatMessageRequest) -> StreamingResponse:
-    return StreamingResponse(chat_service.stream_message(request_body), media_type="text/event-stream")
+    return StreamingResponse(
+        chat_service.stream_message(request_body),
+        media_type="text/event-stream",
+        headers=SSE_HEADERS,
+    )
 
 
 @router.get("/stream/simple")
 async def stream_simple(message: str, userId: UUID) -> StreamingResponse:
     async def iterator():
+        settings = get_settings()
+        chunk_size = max(1, int(settings.stream_emit_chunk_size or 1))
+        delay_seconds = max(0, int(settings.stream_emit_delay_ms or 0)) / 1000
         text = await switchable_ai_gateway.generate_text(prompt=message)
-        for chunk in [text[i : i + 48] for i in range(0, len(text), 48)] or [text]:
+        for chunk in [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)] or [text]:
             yield f"event: message\ndata: {chunk}\n\n"
+            if delay_seconds > 0:
+                await asyncio.sleep(delay_seconds)
         yield "event: done\ndata: [DONE]\n\n"
 
     del userId
-    return StreamingResponse(iterator(), media_type="text/event-stream")
+    return StreamingResponse(iterator(), media_type="text/event-stream", headers=SSE_HEADERS)
 
 
 @router.get("/stream/health")
@@ -48,7 +64,7 @@ async def stream_health() -> StreamingResponse:
             yield f"event: ping\ndata: pong-{idx}\n\n"
         yield "event: done\ndata: [DONE]\n\n"
 
-    return StreamingResponse(iterator(), media_type="text/event-stream")
+    return StreamingResponse(iterator(), media_type="text/event-stream", headers=SSE_HEADERS)
 
 
 @router.post("/sessions")

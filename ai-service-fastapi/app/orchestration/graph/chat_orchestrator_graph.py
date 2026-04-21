@@ -14,7 +14,7 @@ from app.orchestration.nodes.hitl_gate_node import hitl_gate_node
 from app.orchestration.nodes.intent_node import intent_node
 from app.orchestration.nodes.response_compose_node import response_compose_node
 from app.orchestration.state.orchestrator_state import OrchestratorState
-from app.orchestration.stream.stream_event_emitter import StreamEventEmitter
+from app.orchestration.stream.stream_event_emitter import StreamEventEmitter, current_emitter
 
 
 # ---------------------------------------------------------------------------
@@ -23,15 +23,41 @@ from app.orchestration.stream.stream_event_emitter import StreamEventEmitter
 
 def _make_node(name: str, fn, detail: str):
     """Return an async node function compatible with LangGraph that also
-    records timing into ``node_timings`` and emits a planning_step event."""
+    records timing into ``node_timings`` and emits a planning_step event
+    as soon as the node finishes (progressive)."""
 
     async def _wrapper(state: OrchestratorState) -> dict[str, Any]:
+        emitter = current_emitter.get()
+        if emitter is not None:
+            # Fire a lightweight "start" hint so the UI can show which step is running
+            try:
+                await emitter.emit("planning_step", {
+                    "step": name,
+                    "detail": f"Đang xử lý {name}…",
+                    "durationMs": 0,
+                    "status": "start",
+                })
+            except Exception:
+                pass
+
         started = perf_counter()
         updates = await fn(state)
         duration_ms = round((perf_counter() - started) * 1000, 2)
         timings = dict(state.get("node_timings", {}))
         timings[name] = duration_ms
         updates["node_timings"] = timings
+
+        if emitter is not None:
+            try:
+                await emitter.emit("planning_step", {
+                    "step": name,
+                    "detail": detail,
+                    "durationMs": duration_ms,
+                    "status": "end",
+                })
+            except Exception:
+                pass
+
         return updates
 
     _wrapper.__name__ = name  # type: ignore[attr-defined]
@@ -140,7 +166,11 @@ class ChatOrchestratorGraph:
         )
 
         graph = _get_graph()
-        final_state: OrchestratorState = await graph.ainvoke(state)
+        token = current_emitter.set(emitter)
+        try:
+            final_state: OrchestratorState = await graph.ainvoke(state)
+        finally:
+            current_emitter.reset(token)
 
         # Update Langfuse trace with results
         try:
@@ -168,15 +198,8 @@ class ChatOrchestratorGraph:
         except Exception:
             pass
 
-        # Emit SSE events
-        if emitter:
-            for step_name, duration_ms in final_state.get("node_timings", {}).items():
-                await emitter.emit("planning_step", {
-                    "step": step_name,
-                    "detail": f"Completed {step_name}.",
-                    "durationMs": duration_ms,
-                })
-
+        # planning_step events are now emitted progressively inside _make_node
+        # as each node completes — no post-hoc loop needed.
         if emitter and final_state.get("citations"):
             await emitter.emit("citation", {"sources": final_state["citations"]})
 

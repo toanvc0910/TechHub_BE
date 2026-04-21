@@ -159,8 +159,7 @@ class CatalogService:
                 p.bio,
                 p.location,
                 p.preferred_language,
-                p.learning_history,
-                p.skill_profile
+                p.learning_history
             FROM users u
             LEFT JOIN profiles p
                 ON p.user_id = u.id
@@ -177,7 +176,7 @@ class CatalogService:
             payload = dict(row)
             payload["user_id"] = _normalize_uuidish(payload.get("user_id"))
             payload["learning_history"] = _normalize_jsonish(payload.get("learning_history"), {})
-            payload["skill_profile"] = _normalize_jsonish(payload.get("skill_profile"), {})
+            payload["skill_profile"] = await self.compute_skill_profile(user_id)
             return payload
 
     async def fetch_user_ratings(self, user_id: str) -> list[dict[str, Any]]:
@@ -315,7 +314,7 @@ class CatalogService:
                 lp.id AS path_id,
                 lp.title,
                 lp.description,
-                COALESCE(pp.completion, 0.0) AS completion,
+                COALESCE(MAX(pp.completion), 0.0) AS completion,
                 COALESCE(
                     json_agg(
                         DISTINCT jsonb_build_object(
@@ -337,8 +336,8 @@ class CatalogService:
                 ON lpc.path_id = lp.id
             WHERE lp.is_active = 'Y'
               AND pp.user_id = :user_id
-            GROUP BY lp.id, lp.title, lp.description, pp.completion
-            ORDER BY pp.updated DESC NULLS LAST, lp.updated DESC
+            GROUP BY lp.id, lp.title, lp.description
+            ORDER BY COALESCE(MAX(pp.updated), lp.updated) DESC NULLS LAST, lp.updated DESC
         """
         async with get_db_session() as session:
             result = await session.execute(text(sql), {"user_id": user_id})

@@ -18,6 +18,15 @@ spring:
       max-request-size: 250MB
       file-size-threshold: 2MB
   cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 5000
+            readTimeout: 120000
+          AI-SERVICE:
+            connectTimeout: 5000
+            readTimeout: 240000
     loadbalancer:
       retry:
         enabled: true # Retry nếu no instance

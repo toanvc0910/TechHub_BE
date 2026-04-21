@@ -34,19 +34,31 @@ class RecommendationService:
             course_history = await catalog_service.fetch_user_course_history(user_id)
             learning_paths = await catalog_service.fetch_user_learning_paths(user_id)
 
-            completed_ids = {
-                item["course_id"]
+            history_course_ids = {
+                str(item["course_id"])
                 for item in course_history
-                if item.get("status") == "COMPLETED" or item.get("progress", 0.0) >= 0.95
+                if item.get("course_id")
             }
-            excluded_ids = {str(course_id) for course_id in request.excludeCourseIds or []}.union(completed_ids)
+            completed_ids = {
+                str(item["course_id"])
+                for item in course_history
+                if item.get("course_id")
+                and (item.get("status") == "COMPLETED" or item.get("progress", 0.0) >= 0.95)
+            }
+            excluded_ids = {str(course_id) for course_id in request.excludeCourseIds or []}.union(history_course_ids)
 
             query = self._build_query(request, user_profile, course_history, learning_paths)
             reranked: list[dict[str, Any]] = []
+            similar_profiles: list[dict[str, Any]] = []
             prompt: str
             pipeline = "live"
             if not self._settings.business_safe_mode_enabled:
                 try:
+                    similar_profiles = await vector_service.search_similar_profiles(
+                        query=query,
+                        limit=6,
+                        exclude_user_ids=[user_id],
+                    )
                     vector_candidates = await vector_service.search_courses(
                         query=query,
                         limit=15,
@@ -58,6 +70,7 @@ class RecommendationService:
                         request=request,
                         course_history=course_history,
                         learning_paths=learning_paths,
+                        similar_profiles=similar_profiles,
                     )
                 except Exception:
                     pipeline = "fallback"
@@ -125,6 +138,14 @@ class RecommendationService:
                     "requestId": runtime_state.request_id,
                     "tokenUsage": runtime_request_context_service.snapshot(),
                     "citations": citations,
+                    "excludedCourseIds": sorted(excluded_ids),
+                    "similarProfiles": [
+                        {
+                            "userId": item.get("payload", {}).get("user_id"),
+                            "score": item.get("score"),
+                        }
+                        for item in similar_profiles[:3]
+                    ],
                 },
             )
 
@@ -214,6 +235,7 @@ class RecommendationService:
         request: RecommendationRequest,
         course_history: list[dict[str, Any]],
         learning_paths: list[dict[str, Any]],
+        similar_profiles: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         history_by_course = {item["course_id"]: item for item in course_history if item.get("course_id")}
         user_skills = {skill.lower() for item in course_history for skill in item.get("skills", [])}
@@ -223,6 +245,23 @@ class RecommendationService:
             if path.get("completion", 0.0) < 1.0
             for course in path.get("courses", [])
         }
+        similar_profile_completed_counts: dict[str, int] = {}
+        similar_profile_in_progress_counts: dict[str, int] = {}
+        for profile in similar_profiles:
+            payload = profile.get("payload", {})
+            for history_item in payload.get("course_history", []) or []:
+                course_id = str(history_item.get("course_id") or "")
+                if not course_id:
+                    continue
+                status = str(history_item.get("status") or "").upper()
+                if status == "COMPLETED":
+                    similar_profile_completed_counts[course_id] = (
+                        similar_profile_completed_counts.get(course_id, 0) + 1
+                    )
+                elif status in {"IN_PROGRESS", "ENROLLED"}:
+                    similar_profile_in_progress_counts[course_id] = (
+                        similar_profile_in_progress_counts.get(course_id, 0) + 1
+                    )
 
         reranked: list[dict[str, Any]] = []
         max_score = max((float(item.get("score") or 0.0) for item in vector_candidates), default=1.0)
@@ -265,6 +304,16 @@ class RecommendationService:
             if course_id in active_path_courses:
                 score += 0.05
                 signals.append("active_learning_path")
+
+            similar_completed = similar_profile_completed_counts.get(course_id, 0)
+            if similar_completed:
+                score += min(0.15, 0.03 * similar_completed)
+                signals.append(f"similar_learners_completed:{similar_completed}")
+
+            similar_active = similar_profile_in_progress_counts.get(course_id, 0)
+            if similar_active:
+                score += min(0.09, 0.02 * similar_active)
+                signals.append(f"similar_learners_active:{similar_active}")
 
             reranked.append(
                 {
@@ -403,6 +452,10 @@ class RecommendationService:
                 return "Khoa hoc nay nam trong lo trinh hoc ban dang theo doi."
             if primary == "new_skill_surface":
                 return "Khoa hoc nay mo rong them mot nhom ky nang moi tu catalog hien co."
+            if primary.startswith("similar_learners_completed:"):
+                return "Nhung nguoi co ho so hoc tap gan voi ban da hoan thanh khoa hoc nay voi ket qua tot."
+            if primary.startswith("similar_learners_active:"):
+                return "Khoa hoc nay dang duoc nhieu nguoi co muc tieu hoc tap tuong tu ban theo hoc."
 
         if course_history:
             return "Khoa hoc duoc xep hang dua tren do lien quan semantic va lich su hoc tap hien co."

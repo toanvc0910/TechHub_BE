@@ -107,6 +107,71 @@ class VectorService:
         )
         return results
 
+    async def search_similar_profiles(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        exclude_user_ids: Iterable[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        started = perf_counter()
+        sanitized_query = query.strip()
+        if not sanitized_query:
+            return []
+
+        must_not_filters = []
+        for user_id in exclude_user_ids or []:
+            must_not_filters.append({"key": "user_id", "match": {"value": str(user_id)}})
+
+        if self._settings.qdrant_host:
+            try:
+                embeddings = await switchable_ai_gateway.generate_embeddings(
+                    [sanitized_query],
+                    task_type="RETRIEVAL_QUERY",
+                )
+                embedding = embeddings[0] if embeddings else []
+                if embedding:
+                    payload: dict[str, Any] = {
+                        "vector": embedding,
+                        "limit": limit,
+                        "with_payload": True,
+                    }
+                    if must_not_filters:
+                        payload["filter"] = {"must_not": must_not_filters}
+                    response = await self._client.post(
+                        f"{self._settings.qdrant_host}/collections/{self._settings.qdrant_profile_collection}/points/search",
+                        headers=self._headers(),
+                        json=payload,
+                    )
+                    response.raise_for_status()
+                    results = response.json().get("result", [])
+                    normalized = [self._normalize_scored_point(item) for item in results]
+                    if normalized:
+                        await runtime_observability_service.record_vector_operation(
+                            operation="search_profiles",
+                            duration_ms=(perf_counter() - started) * 1000,
+                            success=True,
+                            collection=self._settings.qdrant_profile_collection,
+                            count=len(normalized),
+                        )
+                        return normalized
+            except Exception:
+                pass
+
+        results = await self._lexical_search_profiles(
+            query=sanitized_query,
+            limit=limit,
+            exclude_user_ids=exclude_user_ids,
+        )
+        await runtime_observability_service.record_vector_operation(
+            operation="search_profiles_lexical",
+            duration_ms=(perf_counter() - started) * 1000,
+            success=True,
+            collection=self._settings.qdrant_profile_collection,
+            count=len(results),
+        )
+        return results
+
     async def get_lesson(self, lesson_id: str) -> dict[str, Any] | None:
         if self._settings.qdrant_host:
             try:
@@ -658,6 +723,39 @@ class VectorService:
         scored.sort(key=lambda item: item["score"], reverse=True)
         return scored[:limit]
 
+    async def _lexical_search_profiles(
+        self,
+        *,
+        query: str,
+        limit: int,
+        exclude_user_ids: Iterable[str] | None,
+    ) -> list[dict[str, Any]]:
+        profiles = await catalog_service.fetch_user_profiles_for_indexing()
+        query_terms = self._tokenize(query)
+        excluded = {str(user_id) for user_id in (exclude_user_ids or [])}
+
+        scored = []
+        for profile in profiles:
+            user_id = str(profile.get("user_id") or "")
+            if not user_id or user_id in excluded:
+                continue
+            document_terms = self._tokenize(
+                catalog_service.summarize_user_profile(profile, profile.get("course_history", []))
+            )
+            overlap = len(query_terms.intersection(document_terms))
+            if overlap <= 0:
+                continue
+            scored.append(
+                {
+                    "id": user_id,
+                    "score": float(overlap),
+                    "payload": self._profile_payload(profile),
+                }
+            )
+
+        scored.sort(key=lambda item: item["score"], reverse=True)
+        return scored[:limit]
+
     async def _recreate_collection(self, collection: str, vector_size: int) -> None:
         if not self._settings.qdrant_host:
             return
@@ -689,6 +787,9 @@ class VectorService:
             headers=self._headers(),
         )
         if response.status_code == 200:
+            current_size = self._collection_vector_size(response.json())
+            if current_size and current_size != vector_size:
+                await self._recreate_collection(collection, vector_size)
             return
         response = await self._client.put(
             f"{self._settings.qdrant_host}/collections/{collection}",
@@ -701,6 +802,20 @@ class VectorService:
             },
         )
         response.raise_for_status()
+
+    @staticmethod
+    def _collection_vector_size(payload: dict[str, Any]) -> int | None:
+        result = payload.get("result") if isinstance(payload, dict) else None
+        config = result.get("config") if isinstance(result, dict) else None
+        params = config.get("params") if isinstance(config, dict) else None
+        vectors = params.get("vectors") if isinstance(params, dict) else None
+        if isinstance(vectors, dict):
+            if isinstance(vectors.get("size"), int):
+                return int(vectors["size"])
+            for value in vectors.values():
+                if isinstance(value, dict) and isinstance(value.get("size"), int):
+                    return int(value["size"])
+        return None
 
     async def _upsert_points(self, collection: str, points: list[dict[str, Any]]) -> None:
         response = await self._client.put(
@@ -783,6 +898,8 @@ class VectorService:
             normalized_payload = {}
         if "id" not in normalized_payload and "course_id" in normalized_payload:
             normalized_payload["id"] = normalized_payload["course_id"]
+        if "id" not in normalized_payload and "user_id" in normalized_payload:
+            normalized_payload["id"] = normalized_payload["user_id"]
         return {
             "id": str(item.get("id") or normalized_payload.get("id") or normalized_payload.get("course_id")),
             "score": float(item.get("score") or 0.0),

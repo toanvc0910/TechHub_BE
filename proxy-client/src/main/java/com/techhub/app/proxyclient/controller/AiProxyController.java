@@ -127,9 +127,10 @@ public class AiProxyController {
 
     @GetMapping("/admin/langfuse-traces")
     public ResponseEntity<String> getLangfuseTraces(
+            @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "50") Integer limit,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        return aiServiceClient.getLangfuseTraces(limit, authHeader);
+        return aiServiceClient.getLangfuseTraces(page, limit, authHeader);
     }
 
     @GetMapping("/admin/langfuse-trace/{traceId}")

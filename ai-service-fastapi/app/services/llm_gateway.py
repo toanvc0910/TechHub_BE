@@ -4,11 +4,13 @@ import asyncio
 import hashlib
 import json
 import re
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
 
 from app.core.config import get_settings
+from app.orchestration.stream.stream_event_emitter import current_emitter, text_chunk_event
 from app.services.langfuse_service import langfuse_service
 from app.services.observability_service import runtime_observability_service
 from app.services.provider_config import provider_config_service
@@ -195,11 +197,291 @@ class SwitchableAiGateway:
         prompt: str,
         system_prompt: str | None = None,
         model: str | None = None,
-    ):
+    ) -> AsyncIterator[str]:
+        """Yield incremental text chunks from the LLM provider.
+
+        Tries OpenAI-compatible streaming first (SSE), then Gemini
+        streamGenerateContent. Falls back to non-streaming generate_text
+        split into chunks if no provider supports streaming.
+        """
+        provider, actual_model = await provider_config_service.resolve_chat_target(preferred_model=model)
+        attempts: list[tuple[str, str]] = []
+        if provider:
+            attempts.append((provider, actual_model))
+        if provider != "openai" and self._settings.openai_api_key:
+            attempts.append(("openai", self._settings.openai_chat_model))
+        if provider != "gemini" and self._settings.gemini_api_key:
+            attempts.append(("gemini", self._settings.gemini_chat_model))
+
+        for candidate_provider, candidate_model in attempts:
+            try:
+                if candidate_provider == "openai" and self._settings.openai_api_key:
+                    async for delta in self._stream_openai_text(
+                        prompt=prompt, system_prompt=system_prompt, model=candidate_model
+                    ):
+                        yield delta
+                    return
+                if candidate_provider == "gemini" and self._settings.gemini_api_key:
+                    async for delta in self._stream_gemini_text(
+                        prompt=prompt, system_prompt=system_prompt, model=candidate_model
+                    ):
+                        yield delta
+                    return
+            except Exception:
+                continue
+
+        # Fallback: no streaming-capable provider — emit fake chunks from full text
         text = await self.generate_text(prompt=prompt, system_prompt=system_prompt, model=model)
         for chunk in self._chunk_text(text):
             await asyncio.sleep(0)
             yield chunk
+
+    async def stream_events(
+        self,
+        *,
+        prompt: str,
+        system_prompt: str | None = None,
+        model: str | None = None,
+    ) -> AsyncIterator[dict[str, str]]:
+        """Yield structured stream events so hidden reasoning can be rendered
+        separately from visible answer chunks."""
+        provider, actual_model = await provider_config_service.resolve_chat_target(preferred_model=model)
+        attempts: list[tuple[str, str]] = []
+        if provider:
+            attempts.append((provider, actual_model))
+        if provider != "openai" and self._settings.openai_api_key:
+            attempts.append(("openai", self._settings.openai_chat_model))
+        if provider != "gemini" and self._settings.gemini_api_key:
+            attempts.append(("gemini", self._settings.gemini_chat_model))
+
+        for candidate_provider, candidate_model in attempts:
+            try:
+                if candidate_provider == "openai" and self._settings.openai_api_key:
+                    async for event in self._stream_openai_events(
+                        prompt=prompt, system_prompt=system_prompt, model=candidate_model
+                    ):
+                        yield event
+                    return
+                if candidate_provider == "gemini" and self._settings.gemini_api_key:
+                    async for event in self._stream_gemini_events(
+                        prompt=prompt, system_prompt=system_prompt, model=candidate_model
+                    ):
+                        yield event
+                    return
+            except Exception:
+                continue
+
+        text = await self.generate_text(prompt=prompt, system_prompt=system_prompt, model=model)
+        for chunk in self._chunk_text(text):
+            await asyncio.sleep(0)
+            yield {"type": "message", "content": chunk}
+
+    async def stream_and_emit(
+        self,
+        *,
+        prompt: str,
+        system_prompt: str | None = None,
+        model: str | None = None,
+    ) -> str:
+        """Stream LLM output, emit each chunk as a ``message`` SSE event via
+        the request-scoped ``current_emitter`` (if set), and return the full
+        accumulated text. When no emitter is bound (e.g., blocking chat
+        endpoint), falls back to non-streaming ``generate_text``.
+        """
+        emitter = current_emitter.get()
+        if emitter is None:
+            return await self.generate_text(prompt=prompt, system_prompt=system_prompt, model=model)
+
+        full = []
+        try:
+            async for event in self.stream_events(prompt=prompt, system_prompt=system_prompt, model=model):
+                event_type = str(event.get("type") or "message")
+                delta = str(event.get("content") or "")
+                if not delta:
+                    continue
+                if event_type == "thinking":
+                    try:
+                        await emitter.emit("thinking", {"content": delta})
+                    except Exception:
+                        pass
+                    continue
+                full.append(delta)
+                try:
+                    await self._emit_text_chunks(emitter, delta)
+                except Exception:
+                    pass
+        except Exception:
+            # If streaming blows up mid-way, fall back to non-streaming and
+            # emit the remainder so the UI still gets a response.
+            remainder = await self.generate_text(prompt=prompt, system_prompt=system_prompt, model=model)
+            if remainder:
+                full.append(remainder)
+                try:
+                    await self._emit_text_chunks(emitter, remainder)
+                except Exception:
+                    pass
+        return "".join(full)
+
+    async def _stream_openai_text(
+        self, *, prompt: str, system_prompt: str | None, model: str
+    ) -> AsyncIterator[str]:
+        payload = {
+            "model": model,
+            "stream": True,
+            "messages": [
+                {"role": "system", "content": system_prompt or self._settings.system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+        }
+        async with self._client.stream(
+            "POST",
+            f"{self._settings.openai_base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self._settings.openai_api_key}",
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            json=payload,
+        ) as response:
+            response.raise_for_status()
+            async for raw_line in response.aiter_lines():
+                if not raw_line:
+                    continue
+                line = raw_line.strip()
+                if not line.startswith("data:"):
+                    continue
+                data_str = line[len("data:"):].strip()
+                if data_str == "[DONE]":
+                    break
+                try:
+                    event_obj = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
+                choices = event_obj.get("choices") or []
+                if not choices:
+                    continue
+                delta_obj = choices[0].get("delta") or {}
+                # Standard OpenAI-compatible streaming: delta.content
+                # qwen/DBIZ thinking models may stream delta.reasoning_content first
+                chunk = delta_obj.get("content") or delta_obj.get("reasoning_content") or ""
+                if chunk:
+                    yield chunk
+
+    async def _stream_openai_events(
+        self, *, prompt: str, system_prompt: str | None, model: str
+    ) -> AsyncIterator[dict[str, str]]:
+        payload = {
+            "model": model,
+            "stream": True,
+            "messages": [
+                {"role": "system", "content": system_prompt or self._settings.system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+        }
+        async with self._client.stream(
+            "POST",
+            f"{self._settings.openai_base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self._settings.openai_api_key}",
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            json=payload,
+        ) as response:
+            response.raise_for_status()
+            async for raw_line in response.aiter_lines():
+                if not raw_line:
+                    continue
+                line = raw_line.strip()
+                if not line.startswith("data:"):
+                    continue
+                data_str = line[len("data:"):].strip()
+                if data_str == "[DONE]":
+                    break
+                try:
+                    event_obj = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
+                choices = event_obj.get("choices") or []
+                if not choices:
+                    continue
+                delta_obj = choices[0].get("delta") or {}
+                reasoning = delta_obj.get("reasoning_content") or ""
+                if reasoning:
+                    yield {"type": "thinking", "content": str(reasoning)}
+                chunk = delta_obj.get("content") or ""
+                if chunk:
+                    yield {"type": "message", "content": str(chunk)}
+
+    async def _stream_gemini_text(
+        self, *, prompt: str, system_prompt: str | None, model: str
+    ) -> AsyncIterator[str]:
+        payload = {
+            "system_instruction": {"parts": [{"text": system_prompt or self._settings.system_prompt}]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        }
+        async with self._client.stream(
+            "POST",
+            f"{self._settings.gemini_base_url}/models/{model}:streamGenerateContent",
+            params={"key": self._settings.gemini_api_key, "alt": "sse"},
+            headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
+            json=payload,
+        ) as response:
+            response.raise_for_status()
+            async for raw_line in response.aiter_lines():
+                if not raw_line:
+                    continue
+                line = raw_line.strip()
+                if not line.startswith("data:"):
+                    continue
+                data_str = line[len("data:"):].strip()
+                if not data_str or data_str == "[DONE]":
+                    continue
+                try:
+                    event_obj = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
+                for candidate in event_obj.get("candidates") or []:
+                    parts = ((candidate.get("content") or {}).get("parts")) or []
+                    for part in parts:
+                        chunk = part.get("text") or ""
+                        if chunk:
+                            yield chunk
+
+    async def _stream_gemini_events(
+        self, *, prompt: str, system_prompt: str | None, model: str
+    ) -> AsyncIterator[dict[str, str]]:
+        payload = {
+            "system_instruction": {"parts": [{"text": system_prompt or self._settings.system_prompt}]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        }
+        async with self._client.stream(
+            "POST",
+            f"{self._settings.gemini_base_url}/models/{model}:streamGenerateContent",
+            params={"key": self._settings.gemini_api_key, "alt": "sse"},
+            headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
+            json=payload,
+        ) as response:
+            response.raise_for_status()
+            async for raw_line in response.aiter_lines():
+                if not raw_line:
+                    continue
+                line = raw_line.strip()
+                if not line.startswith("data:"):
+                    continue
+                data_str = line[len("data:"):].strip()
+                if not data_str or data_str == "[DONE]":
+                    continue
+                try:
+                    event_obj = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
+                for candidate in event_obj.get("candidates") or []:
+                    parts = ((candidate.get("content") or {}).get("parts")) or []
+                    for part in parts:
+                        chunk = part.get("text") or ""
+                        if chunk:
+                            yield {"type": "message", "content": str(chunk)}
 
     async def generate_structured_json(
         self,
@@ -233,7 +515,10 @@ class SwitchableAiGateway:
         )
         response.raise_for_status()
         payload = response.json()
-        return payload["choices"][0]["message"]["content"], self._extract_openai_usage(payload)
+        message = payload["choices"][0]["message"]
+        # qwen-35b (DBIZ) may return content=null with reasoning_content when thinking
+        text = message.get("content") or message.get("reasoning_content") or ""
+        return text, self._extract_openai_usage(payload)
 
     async def _generate_gemini_text(self, *, prompt: str, system_prompt: str | None, model: str) -> tuple[str, dict[str, int] | None]:
         response = await self._client.post(
@@ -387,6 +672,15 @@ class SwitchableAiGateway:
     @staticmethod
     def _chunk_text(text: str, chunk_size: int = 48) -> list[str]:
         return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)] or [text]
+
+    async def _emit_text_chunks(self, emitter, text: str) -> None:
+        chunk_size = max(1, int(self._settings.stream_emit_chunk_size or 1))
+        delay_ms = max(0, int(self._settings.stream_emit_delay_ms or 0))
+        delay_seconds = delay_ms / 1000
+        for chunk in self._chunk_text(text, chunk_size=chunk_size):
+            await emitter.emit("message", text_chunk_event(chunk))
+            if delay_seconds > 0:
+                await asyncio.sleep(delay_seconds)
 
     async def _record_chat_usage(
         self,

@@ -42,3 +42,4 @@ class ChatMessageDetailResponse(BaseModel):
     sender: ChatSender
     content: str
     timestamp: datetime
+    metadata: dict[str, Any] | None = None

@@ -35,11 +35,20 @@ class FileContextService:
     ) -> list[dict[str, Any]]:
         hydrated_files = [await self._hydrate_file_context(user_id=user_id, file_item=item) for item in files]
         analyzable = [item for item in hydrated_files if item.get("content")]
-        indexing_stats = await vector_service.index_session_file_contexts(
-            user_id=user_id,
-            session_id=session_id,
-            files=analyzable,
-        )
+        indexing_stats = {"indexed": 0, "failed": 0}
+        if analyzable:
+            try:
+                indexing_stats = await vector_service.index_session_file_contexts(
+                    user_id=user_id,
+                    session_id=session_id,
+                    files=analyzable,
+                )
+                for item in analyzable:
+                    item["vectorIndexStatus"] = "INDEXED"
+            except Exception:
+                indexing_stats = {"indexed": 0, "failed": len(analyzable)}
+                for item in analyzable:
+                    item["vectorIndexStatus"] = "FAILED"
         await runtime_observability_service.record_file_ingestion(
             files_total=len(files),
             hydrated=len(analyzable),
@@ -65,7 +74,12 @@ class FileContextService:
                 "stats": {"indexed": 0, "failed": 1},
             }
 
-        indexing_stats = await vector_service.index_user_file_contexts(user_id=user_id, files=[hydrated])
+        try:
+            indexing_stats = await vector_service.index_user_file_contexts(user_id=user_id, files=[hydrated])
+            hydrated["vectorIndexStatus"] = "INDEXED"
+        except Exception:
+            indexing_stats = {"indexed": 0, "failed": 1}
+            hydrated["vectorIndexStatus"] = "FAILED"
         await runtime_observability_service.record_file_ingestion(
             files_total=1,
             hydrated=1,
@@ -128,6 +142,17 @@ class FileContextService:
             normalized["ingestionStatus"] = "READY"
             return normalized
 
+        url = self._best_url(normalized)
+        attempted_download = False
+        if url and self._can_extract_content(mime_type=mime_type, name=name):
+            attempted_download = True
+            downloaded = await self._download_and_extract_content(url, mime_type=mime_type, name=name)
+            if downloaded:
+                normalized["content"] = downloaded[: self._settings.file_max_chars]
+                normalized["excerpt"] = downloaded[: self._settings.file_excerpt_chars]
+                normalized["ingestionStatus"] = "READY"
+                return normalized
+
         metadata_text = self._metadata_text(normalized)
         if metadata_text:
             cleaned = self._normalize_text(metadata_text, mime_type=mime_type, name=name)
@@ -136,14 +161,7 @@ class FileContextService:
             normalized["ingestionStatus"] = "READY_METADATA"
             return normalized
 
-        url = self._best_url(normalized)
-        if url and self._can_extract_content(mime_type=mime_type, name=name):
-            downloaded = await self._download_and_extract_content(url, mime_type=mime_type, name=name)
-            if downloaded:
-                normalized["content"] = downloaded[: self._settings.file_max_chars]
-                normalized["excerpt"] = downloaded[: self._settings.file_excerpt_chars]
-                normalized["ingestionStatus"] = "READY"
-                return normalized
+        if attempted_download:
             normalized["ingestionStatus"] = "FETCH_FAILED"
             return normalized
 
@@ -154,13 +172,32 @@ class FileContextService:
         base_url = (self._settings.file_service_base_url or "").rstrip("/")
         if not base_url:
             return None
-        try:
-            response = await self._client.get(f"{base_url}/{file_id}", params={"userId": user_id})
-            response.raise_for_status()
-            payload = response.json()
-            return self._unwrap_response_data(payload)
-        except Exception:
-            return None
+        candidates = []
+        if "/api/files" in base_url:
+            candidates.append(f"{base_url}/{file_id}")
+        else:
+            candidates.extend(
+                [
+                    f"{base_url}/api/files/{file_id}",
+                    f"{base_url}/files/{file_id}",
+                    f"{base_url}/{file_id}",
+                ]
+            )
+        seen = set()
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            try:
+                response = await self._client.get(candidate, params={"userId": user_id})
+                response.raise_for_status()
+                payload = response.json()
+                data = self._unwrap_response_data(payload)
+                if data:
+                    return data
+            except Exception:
+                continue
+        return None
 
     async def _download_and_extract_content(self, url: str, *, mime_type: str, name: str) -> str | None:
         try:
@@ -222,16 +259,37 @@ class FileContextService:
         normalized = re.sub(r"[ \t]{2,}", " ", normalized)
         return normalized.strip()
 
-    @staticmethod
-    def _metadata_text(file_item: dict[str, Any]) -> str | None:
+    @classmethod
+    def _metadata_text(cls, file_item: dict[str, Any]) -> str | None:
         candidates = [
-            file_item.get("transcript"),
-            file_item.get("caption"),
-            file_item.get("description"),
-            file_item.get("altText"),
+            ("transcript", file_item.get("transcript")),
+            ("caption", file_item.get("caption")),
+            ("altText", file_item.get("altText")),
+            ("description", file_item.get("description")),
         ]
-        merged = "\n".join(str(candidate).strip() for candidate in candidates if isinstance(candidate, str) and candidate.strip())
+        merged = "\n".join(
+            cleaned
+            for field_name, candidate in candidates
+            for cleaned in [cls._clean_metadata_candidate(field_name, candidate)]
+            if cleaned
+        )
         return merged or None
+
+    @staticmethod
+    def _clean_metadata_candidate(field_name: str, value: Any) -> str | None:
+        if not isinstance(value, str):
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        normalized = " ".join(cleaned.lower().split())
+        if field_name == "description" and normalized in {
+            "attached in ai chat",
+            "uploaded in ai chat",
+            "attached file in ai chat",
+        }:
+            return None
+        return cleaned
 
     async def _extract_bytes_async(self, raw: bytes, *, mime_type: str, name: str) -> str | None:
         """Extract text from binary data. Falls back to Gemini Vision OCR for

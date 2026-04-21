@@ -129,13 +129,25 @@ async def ingest_file_uploaded(payload: FileUploadedEventRequest, request: Reque
 # ─── Langfuse proxy endpoints ───
 
 @router.get("/langfuse-traces")
-async def get_langfuse_traces(request: Request, limit: int = Query(50, ge=1, le=200)) -> dict:
+async def get_langfuse_traces(
+    request: Request,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+) -> dict:
     if not langfuse_service.enabled:
         return success_response(message="Langfuse not configured", data={"traces": [], "total": 0}, path=request.url.path)
     try:
-        result = langfuse_service._client.api.trace.list(limit=limit)
+        start_index = (page - 1) * limit
+        try:
+            result = langfuse_service._client.api.trace.list(page=page, limit=limit)
+            page_items = result.data
+        except TypeError:
+            fetch_limit = min(max(page * limit, limit), 200)
+            result = langfuse_service._client.api.trace.list(limit=fetch_limit)
+            page_items = result.data[start_index : start_index + limit]
+
         traces = []
-        for t in result.data:
+        for t in page_items:
             obs_list = t.observations if isinstance(t.observations, list) else []
             obs_count = len(obs_list)
             models_used = list({str(o.model) for o in obs_list if hasattr(o, "model") and o.model} if isinstance(obs_list, list) and obs_list and hasattr(obs_list[0], "model") else set())
@@ -157,7 +169,12 @@ async def get_langfuse_traces(request: Request, limit: int = Query(50, ge=1, le=
             })
         return success_response(
             message="Langfuse traces retrieved",
-            data={"traces": traces, "total": result.meta.total_items if hasattr(result.meta, "total_items") else len(traces)},
+            data={
+                "traces": traces,
+                "total": result.meta.total_items if hasattr(result.meta, "total_items") else len(traces),
+                "page": page,
+                "limit": limit,
+            },
             path=request.url.path,
         )
     except Exception as exc:
@@ -305,14 +322,14 @@ async def get_available_models(request: Request) -> dict:
                     data = resp.json()
                     for m in data.get("data", []):
                         model_id = m.get("id", "")
-                        # Filter to relevant models only
-                        if any(k in model_id for k in ["gpt-4", "gpt-3.5", "o1", "o3", "embedding"]):
-                            is_embedding = "embedding" in model_id
-                            models["openai"].append({
-                                "id": model_id,
-                                "name": model_id,
-                                "type": "embedding" if is_embedding else "chat",
-                            })
+                        if not model_id:
+                            continue
+                        is_embedding = "embedding" in model_id or "bge" in model_id or "e5" in model_id
+                        models["openai"].append({
+                            "id": model_id,
+                            "name": model_id,
+                            "type": "embedding" if is_embedding else "chat",
+                        })
         except Exception:
             pass
 

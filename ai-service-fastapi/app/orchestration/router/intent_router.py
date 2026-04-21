@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 from collections import Counter
 from typing import Any
 
@@ -16,8 +17,8 @@ class IntentRouter:
         self._settings = get_settings()
         self._rules: list[tuple[str, str, list[str]]] = [
             ("file_analysis", "uploaded-file", [r"\b(pdf|file|tai lieu|docx|document|phan tich file)\b"]),
-            ("visualization", "chart", [r"\b(chart|bieu do|visual|plot|dashboard)\b"]),
-            ("data_query", "analytics", [r"\b(so lieu|thong ke|bao nhieu|analytics|report|tong hop)\b"]),
+            ("visualization", "chart", [r"\b(chart|bieu do|visual|plot|dashboard|do thi)\b"]),
+            ("data_query", "analytics", [r"\b(so lieu|thong ke|bao nhieu|analytics|report|tong hop|bang du lieu|truy van|query)\b"]),
             ("recommendation", "course-advice", [r"\b(goi y|de xuat|recommend|phu hop|nen hoc)\b"]),
             ("knowledge", "lesson-qa", [r"\b(giai thich|khai niem|la gi|how|tai sao)\b"]),
             ("conversation", "greeting", [r"\b(xin chao|hello|hi|cam on)\b"]),
@@ -57,7 +58,8 @@ class IntentRouter:
         self._template_embeddings: dict[str, list[list[float]]] = {}
 
     async def classify(self, state: OrchestratorState) -> IntentResult:
-        text = state.get("user_input", "").lower().strip()
+        raw_text = state.get("user_input", "")
+        text = self._normalize_text(raw_text)
 
         if state.get("has_fresh_file_context"):
             return IntentResult(
@@ -77,6 +79,14 @@ class IntentRouter:
                 matched_rule="tier0:session-file-context",
             )
 
+        # Tier-0 follow-up refinement: if there's an active analysis in the
+        # request context AND the user's utterance looks like a refinement
+        # (short + contains filter/chart/compare verbs), route it back to
+        # analytics so the prior query can be refined server-side.
+        refine_result = self._match_active_analysis_refine(text, state)
+        if refine_result is not None:
+            return refine_result
+
         for intent, sub_intent, patterns in self._rules:
             for pattern in patterns:
                 if re.search(pattern, text):
@@ -92,7 +102,7 @@ class IntentRouter:
         if semantic_result is not None:
             return semantic_result
 
-        llm_result = await self._llm_fallback(text, state)
+        llm_result = await self._llm_fallback(raw_text, state)
         if llm_result is not None:
             return llm_result
 
@@ -154,7 +164,8 @@ class IntentRouter:
 
     async def _warm_template_embeddings(self) -> None:
         for intent, templates in self._semantic_templates.items():
-            embeddings = await switchable_ai_gateway.generate_embeddings(templates)
+            normalized_templates = [self._normalize_text(template) for template in templates]
+            embeddings = await switchable_ai_gateway.generate_embeddings(normalized_templates)
             self._template_embeddings[intent] = embeddings
 
     def _token_overlap_fallback(self, tokens: list[str]) -> IntentResult | None:
@@ -224,6 +235,78 @@ class IntentRouter:
         )
 
     @staticmethod
+    def _match_active_analysis_refine(
+        normalized_text: str,
+        state: OrchestratorState,
+    ) -> IntentResult | None:
+        request_context = state.get("request_context")
+        if not isinstance(request_context, dict):
+            return None
+        prior = request_context.get("activeAnalysis")
+        if not isinstance(prior, dict):
+            return None
+        if not normalized_text.strip():
+            return None
+        tokens = normalized_text.split()
+        if len(tokens) > 18:
+            return None
+        chart_tokens = (
+            "doi sang",
+            "chuyen sang",
+            "ve lai",
+            "chuyen qua",
+            "doi thanh",
+            "switch to",
+            "change to",
+            "bieu do duong",
+            "bieu do cot",
+            "bieu do tron",
+            "line chart",
+            "bar chart",
+            "pie chart",
+        )
+        filter_tokens = (
+            "chi lay",
+            "chi hien",
+            "chi giu",
+            "loc",
+            "filter",
+            "bo cac",
+            "bo nhung",
+            "them so sanh",
+            "so sanh voi",
+            "trong thang",
+            "thang nay",
+            "hom nay",
+            "tuan nay",
+            "nam nay",
+            "beginner",
+            "intermediate",
+            "advanced",
+            "dang hoc",
+            "da hoc",
+            "hoan thanh",
+        )
+        phrase = f" {normalized_text} "
+        if any(token in phrase for token in chart_tokens):
+            return IntentResult(
+                intent="visualization",
+                sub_intent="active-analysis-refine",
+                confidence=0.82,
+                reason="Follow-up on active analysis that mentions a chart swap.",
+                matched_rule="tier0:active-analysis-refine:chart",
+            )
+        if any(token in phrase for token in filter_tokens):
+            return IntentResult(
+                intent="data_query",
+                sub_intent="active-analysis-refine",
+                confidence=0.78,
+                reason="Follow-up on active analysis that mentions a filter/compare refinement.",
+                matched_rule="tier0:active-analysis-refine:filter",
+            )
+        return None
+
+    @staticmethod
     def _cosine_similarity(left: list[float], right: list[float]) -> float:
         if not left or not right or len(left) != len(right):
             return 0.0
@@ -233,6 +316,20 @@ class IntentRouter:
         if not left_norm or not right_norm:
             return 0.0
         return dot / (left_norm * right_norm)
+
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        lowered = (text or "").lower().strip().replace("đ", "d")
+        normalized = unicodedata.normalize("NFD", lowered)
+        without_marks = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+        return re.sub(r"\s+", " ", without_marks)
+
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        lowered = (text or "").lower().strip().replace("\u0111", "d").replace("Ä‘", "d").replace("Ã„â€˜", "d")
+        normalized = unicodedata.normalize("NFD", lowered)
+        without_marks = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+        return re.sub(r"\s+", " ", without_marks)
 
 
 intent_router = IntentRouter()

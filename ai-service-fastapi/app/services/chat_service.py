@@ -52,6 +52,7 @@ class ChatService:
                         session_id=chat_session.id,
                         sender=ChatSender.USER.value,
                         content=sanitized,
+                        metadata=self._build_user_message_metadata(request.context),
                     )
                     state = await self._execute_chat_pipeline(
                         make_initial_state(
@@ -65,11 +66,17 @@ class ChatService:
                     )
                     self._attach_runtime_usage(state)
                     resolved_mode = self._resolve_mode(request.mode, state.get("intent", "conversation"))
+                    assistant_metadata = self._build_metadata(
+                        state,
+                        requested_mode=request.mode.value,
+                        resolved_mode=resolved_mode.value,
+                    )
                     bot_message = await self._save_message(
                         session,
                         session_id=chat_session.id,
                         sender=ChatSender.BOT.value,
                         content=state.get("final_response", ""),
+                        metadata=assistant_metadata,
                     )
                     response = ChatMessageResponse(
                         sessionId=chat_session.id,
@@ -79,11 +86,7 @@ class ChatService:
                         message=state.get("final_response", ""),
                         answer=state.get("final_response", ""),
                         context=request.context,
-                        metadata=self._build_metadata(
-                            state,
-                            requested_mode=request.mode.value,
-                            resolved_mode=resolved_mode.value,
-                        ),
+                        metadata=assistant_metadata,
                     )
                     await runtime_observability_service.record_chat_run(
                         request_id=runtime_state.request_id,
@@ -142,6 +145,7 @@ class ChatService:
                         session_id=chat_session.id,
                         sender=ChatSender.USER.value,
                         content=sanitized,
+                        metadata=self._build_user_message_metadata(request.context),
                     )
                     state = await self._execute_chat_pipeline(
                         make_initial_state(
@@ -168,13 +172,21 @@ class ChatService:
                                 "requestId": runtime_state.request_id,
                             },
                         )
-                        for chunk in self._chunk_text(state.get("final_response", "")):
-                            await emitter.emit("message", text_chunk_event(chunk))
+                        if not state.get("response_streamed"):
+                            for chunk in self._chunk_text(state.get("final_response", "")):
+                                await emitter.emit("message", text_chunk_event(chunk))
+                                await asyncio.sleep(self._stream_delay_seconds)
+                        assistant_metadata = self._build_metadata(
+                            state,
+                            requested_mode=request.mode.value,
+                            resolved_mode=resolved_mode.value,
+                        )
                         bot_message = await self._save_message(
                             session,
                             session_id=chat_session.id,
                             sender=ChatSender.BOT.value,
                             content=state.get("final_response", ""),
+                            metadata=assistant_metadata,
                         )
                         await emitter.emit(
                             "done",
@@ -182,7 +194,7 @@ class ChatService:
                                 "content": "[DONE]",
                                 "sessionId": str(chat_session.id),
                                 "messageId": str(bot_message.id),
-                                **self._build_metadata(state, requested_mode=request.mode.value, resolved_mode=resolved_mode.value),
+                                **assistant_metadata,
                             },
                         )
                         await runtime_observability_service.record_chat_run(
@@ -197,23 +209,38 @@ class ChatService:
                         )
                         return
 
-                    for chunk in self._chunk_text(state.get("final_response", "")):
-                        await emitter.emit("message", text_chunk_event(chunk))
+                    if not state.get("response_streamed"):
+                        for chunk in self._chunk_text(state.get("final_response", "")):
+                            await emitter.emit("message", text_chunk_event(chunk))
+                            await asyncio.sleep(self._stream_delay_seconds)
                     if state.get("query_result") or state.get("chart_spec"):
+                        query_result_payload = state.get("query_result") or {}
+                        artifact_suggested_actions = (
+                            query_result_payload.get("suggestedActions")
+                            if isinstance(query_result_payload, dict)
+                            else None
+                        ) or []
                         await emitter.emit(
                             "artifact",
                             {
                                 "sessionId": str(chat_session.id),
                                 "queryResult": state.get("query_result"),
                                 "chartSpec": state.get("chart_spec"),
+                                "suggestedActions": artifact_suggested_actions,
                                 "requestId": runtime_state.request_id,
                             },
                         )
+                    assistant_metadata = self._build_metadata(
+                        state,
+                        requested_mode=request.mode.value,
+                        resolved_mode=resolved_mode.value,
+                    )
                     bot_message = await self._save_message(
                         session,
                         session_id=chat_session.id,
                         sender=ChatSender.BOT.value,
                         content=state.get("final_response", ""),
+                        metadata=assistant_metadata,
                     )
                     await emitter.emit(
                         "done",
@@ -221,7 +248,7 @@ class ChatService:
                             "content": "[DONE]",
                             "sessionId": str(chat_session.id),
                             "messageId": str(bot_message.id),
-                            **self._build_metadata(state, requested_mode=request.mode.value, resolved_mode=resolved_mode.value),
+                            **assistant_metadata,
                         },
                     )
                     await runtime_observability_service.record_chat_run(
@@ -288,6 +315,7 @@ class ChatService:
                     sender=item.sender,
                     content=item.content,
                     timestamp=item.timestamp,
+                    metadata=item.message_metadata,
                 )
                 for item in messages
             ]
@@ -332,17 +360,46 @@ class ChatService:
         await session.flush()
         return chat_session
 
-    async def _save_message(self, session, *, session_id, sender: str, content: str) -> ChatMessageModel:
+    async def _save_message(self, session, *, session_id, sender: str, content: str, metadata: dict | None = None) -> ChatMessageModel:
         message = ChatMessageModel(
             session_id=session_id,
             sender=sender,
             content=content,
+            message_metadata=metadata,
             timestamp=datetime.now(timezone.utc),
             is_active="Y",
         )
         session.add(message)
         await session.flush()
         return message
+
+    @staticmethod
+    def _build_user_message_metadata(request_context: dict | None) -> dict | None:
+        if not isinstance(request_context, dict):
+            return None
+        attachments = request_context.get("fileContexts")
+        if not isinstance(attachments, list) or not attachments:
+            return None
+        normalized_attachments = []
+        for item in attachments:
+            if not isinstance(item, dict):
+                continue
+            normalized_attachments.append(
+                {
+                    "id": item.get("id") or item.get("fileId"),
+                    "fileId": item.get("fileId") or item.get("id"),
+                    "name": item.get("name"),
+                    "mimeType": item.get("mimeType"),
+                    "fileType": item.get("fileType"),
+                    "secureUrl": item.get("secureUrl"),
+                    "publicUrl": item.get("publicUrl"),
+                    "cloudinarySecureUrl": item.get("cloudinarySecureUrl"),
+                    "thumbnailUrl": item.get("thumbnailUrl"),
+                    "description": item.get("description"),
+                    "processingStatus": item.get("processingStatus"),
+                }
+            )
+        return {"attachments": normalized_attachments} if normalized_attachments else None
 
     async def _execute_chat_pipeline(
         self,
@@ -459,9 +516,13 @@ class ChatService:
                 return str(trace_item.get("reason") or "legacy_fallback")
         return None
 
-    @staticmethod
-    def _chunk_text(text: str, chunk_size: int = 48) -> list[str]:
-        return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)] or [text]
+    @property
+    def _stream_delay_seconds(self) -> float:
+        return max(0, int(self._settings.stream_emit_delay_ms or 0)) / 1000
+
+    def _chunk_text(self, text: str, chunk_size: int | None = None) -> list[str]:
+        actual_chunk_size = max(1, int(chunk_size or self._settings.stream_emit_chunk_size or 1))
+        return [text[i : i + actual_chunk_size] for i in range(0, len(text), actual_chunk_size)] or [text]
 
     @staticmethod
     def _to_session_response(session_model: ChatSessionModel) -> ChatSessionResponse:
@@ -483,6 +544,12 @@ class ChatService:
 
     @staticmethod
     def _build_metadata(state: OrchestratorState, *, requested_mode: str, resolved_mode: str) -> dict:
+        query_result = state.get("query_result") or {}
+        suggested_actions = (
+            query_result.get("suggestedActions")
+            if isinstance(query_result, dict)
+            else None
+        )
         return {
             "requestId": state.get("request_id"),
             "requestedMode": requested_mode,
@@ -495,6 +562,7 @@ class ChatService:
             "citations": state.get("citations", []),
             "queryResult": state.get("query_result"),
             "chartSpec": state.get("chart_spec"),
+            "suggestedActions": suggested_actions or [],
             "artifact": {
                 "queryResult": state.get("query_result"),
                 "chartSpec": state.get("chart_spec"),

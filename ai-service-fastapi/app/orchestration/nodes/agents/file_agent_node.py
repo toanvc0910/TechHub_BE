@@ -56,7 +56,7 @@ class FileAgentNode:
             f"Cau hoi user: {state['user_input']}\n"
             f"Tai lieu:\n{excerpts}"
         )
-        response = await switchable_ai_gateway.generate_text(
+        response = await switchable_ai_gateway.stream_and_emit(
             prompt=prompt,
             system_prompt=settings.system_prompt,
             model=state.get("selected_model"),
@@ -64,6 +64,7 @@ class FileAgentNode:
         trace_step(state, "file_agent", "Analyzed file excerpts from request context.", fileCount=len(files))
         return {
             "final_response": response,
+            "response_streamed": True,
             "citations": citations,
             "execution_trace": list(state.get("execution_trace", [])),
         }

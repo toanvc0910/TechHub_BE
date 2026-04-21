@@ -75,11 +75,11 @@ class Settings:
     eureka_hostname: str = field(default_factory=lambda: os.getenv("EUREKA_INSTANCE_HOSTNAME", "localhost"))
     eureka_enabled: bool = field(default_factory=lambda: _bool_env("AI_EUREKA_ENABLED", True))
 
-    openai_base_url: str = field(default_factory=lambda: os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"))
+    openai_base_url: str = field(default_factory=lambda: os.getenv("OPENAI_BASE_URL", "https://ai-api.dbiz.com/v1"))
     openai_api_key: str | None = field(default_factory=lambda: os.getenv("OPENAI_API_KEY"))
-    openai_chat_model: str = field(default_factory=lambda: os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"))
+    openai_chat_model: str = field(default_factory=lambda: os.getenv("OPENAI_CHAT_MODEL", "qwen-35b"))
     openai_embedding_model: str = field(
-        default_factory=lambda: os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+        default_factory=lambda: os.getenv("OPENAI_EMBEDDING_MODEL", "bge-m3")
     )
 
     gemini_base_url: str = field(
@@ -91,7 +91,7 @@ class Settings:
         default_factory=lambda: os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
     )
 
-    ai_provider: str = field(default_factory=lambda: os.getenv("AI_PROVIDER", "gemini").lower())
+    ai_provider: str = field(default_factory=lambda: os.getenv("AI_PROVIDER", "openai").lower())
     orchestration_enabled: bool = field(default_factory=lambda: _bool_env("AI_ORCHESTRATION_V2_ENABLED", True))
     legacy_fallback_enabled: bool = field(default_factory=lambda: _bool_env("AI_LEGACY_FALLBACK_ENABLED", True))
     business_safe_mode_enabled: bool = field(default_factory=lambda: _bool_env("AI_BUSINESS_SAFE_MODE_ENABLED", False))
@@ -101,7 +101,7 @@ class Settings:
     hitl_risk_threshold: float = field(default_factory=lambda: _float_env("AI_HITL_RISK_THRESHOLD", 0.5))
     hitl_review_data_queries: bool = field(default_factory=lambda: _bool_env("AI_HITL_REVIEW_DATA_QUERIES", True))
     hitl_review_visualizations: bool = field(default_factory=lambda: _bool_env("AI_HITL_REVIEW_VISUALIZATIONS", True))
-    embedding_dimension: int = field(default_factory=lambda: _int_env("AI_EMBEDDING_DIMENSION", 1536))
+    embedding_dimension: int = field(default_factory=lambda: _int_env("AI_EMBEDDING_DIMENSION", 1024))
     system_prompt: str = field(
         default_factory=lambda: os.getenv(
             "AI_SYSTEM_PROMPT",
@@ -136,6 +136,8 @@ class Settings:
     file_excerpt_chars: int = field(default_factory=lambda: _int_env("AI_FILE_EXCERPT_CHARS", 2500))
     file_chunk_size: int = field(default_factory=lambda: _int_env("AI_FILE_CHUNK_SIZE", 1200))
     file_chunk_overlap: int = field(default_factory=lambda: _int_env("AI_FILE_CHUNK_OVERLAP", 150))
+    stream_emit_chunk_size: int = field(default_factory=lambda: _int_env("AI_STREAM_EMIT_CHUNK_SIZE", 1))
+    stream_emit_delay_ms: int = field(default_factory=lambda: _int_env("AI_STREAM_EMIT_DELAY_MS", 8))
     runtime_metrics_window: int = field(default_factory=lambda: _int_env("AI_RUNTIME_METRICS_WINDOW", 200))
     runtime_recent_request_window: int = field(default_factory=lambda: _int_env("AI_RUNTIME_RECENT_REQUEST_WINDOW", 100))
     token_estimation_chars_per_token: float = field(
@@ -165,7 +167,7 @@ class Settings:
 
     supported_chat_models: dict[str, list[str]] = field(
         default_factory=lambda: {
-            "openai": ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"],
+            "openai": ["qwen-35b", "gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"],
             "gemini": ["gemini-2.5-flash-lite-preview-06-17", "gemini-2.5-flash", "gemini-2.5-pro"],
         }
     )

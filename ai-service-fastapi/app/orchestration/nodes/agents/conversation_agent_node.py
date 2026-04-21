@@ -21,7 +21,7 @@ class ConversationAgentNode:
             return await self._generate_clarification(state, settings)
 
         # ── Normal conversation ──
-        response = await switchable_ai_gateway.generate_text(
+        response = await switchable_ai_gateway.stream_and_emit(
             prompt=state["user_input"],
             system_prompt=settings.system_prompt,
             model=state.get("selected_model"),
@@ -29,6 +29,7 @@ class ConversationAgentNode:
         trace_step(state, "conversation_agent", "Generated conversational response.")
         return {
             "final_response": response,
+            "response_streamed": True,
             "execution_trace": list(state.get("execution_trace", [])),
         }
 

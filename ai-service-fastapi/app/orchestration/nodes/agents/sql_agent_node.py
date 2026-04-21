@@ -14,11 +14,18 @@ class SqlAgentNode:
 
     async def execute(self, state: OrchestratorState) -> dict[str, Any]:
         policy = await runtime_policy_service.resolve(state.get("request_context"))
+        request_context = state.get("request_context") or {}
+        prior_analysis = (
+            request_context.get("activeAnalysis")
+            if isinstance(request_context, dict)
+            else None
+        )
         result = await analytics_service.execute(
             state["user_input"],
             state.get("entities", {}),
             request_context=state.get("request_context"),
             user_id=state["user_id"],
+            prior_analysis=prior_analysis if isinstance(prior_analysis, dict) else None,
         )
         citations = [
             {

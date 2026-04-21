@@ -51,6 +51,7 @@ class ChatMessageModel(Base):
     )
     sender: Mapped[str] = mapped_column(chat_sender_enum, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    message_metadata: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     created: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

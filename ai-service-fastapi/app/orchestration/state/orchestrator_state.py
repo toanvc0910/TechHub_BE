@@ -41,6 +41,10 @@ class OrchestratorState(TypedDict, total=False):
     hitl_question: str
     hitl_options: list[str]
     hitl_round: int
+    # Streaming: set by agents when they have already emitted response chunks
+    # via the request-scoped emitter; chat_service uses this to skip the
+    # post-hoc fake-chunk loop.
+    response_streamed: bool
 
 
 def make_initial_state(
