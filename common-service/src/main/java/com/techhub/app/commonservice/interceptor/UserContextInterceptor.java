@@ -77,6 +77,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
 
     private boolean isPublicEndpoint(String uri) {
         return uri.startsWith("/actuator/") ||
+                uri.matches("^/[^/]+/actuator/.*") ||
                 uri.startsWith("/swagger-ui/") ||
                 uri.startsWith("/v3/api-docs/") ||
                 uri.equals("/health") ||

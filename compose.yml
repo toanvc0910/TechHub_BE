@@ -208,20 +208,65 @@ services:
 
   ai-service-container:
     build:
-      context: ./ai-service
+      context: ./ai-service-fastapi
       dockerfile: Dockerfile
     image: toandeptroai/ai-service:0.1.0
     container_name: ai-service-container
     ports:
       - 8091:8091
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
+      - AI_SERVICE_PORT=8091
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL:-http://service-discovery-container:8761/eureka/}
+      - EUREKA_INSTANCE_HOSTNAME=${EUREKA_INSTANCE_HOSTNAME_AI_SERVICE:-ai-service-container}
+      - AI_EUREKA_ENABLED=true
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_CHAT_MODEL=${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+      - OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+      - GEMINI_BASE_URL=${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_CHAT_MODEL=${GEMINI_CHAT_MODEL:-gemini-2.5-flash}
+      - GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
+      - QDRANT_HOST=${QDRANT_HOST}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - QDRANT_RECOMMENDATION_COLLECTION=${QDRANT_RECOMMENDATION_COLLECTION:-course_embeddings}
+      - QDRANT_LESSON_COLLECTION=${QDRANT_LESSON_COLLECTION:-lesson_embeddings}
+      - QDRANT_PROFILE_COLLECTION=${QDRANT_PROFILE_COLLECTION:-user_embeddings}
+      - QDRANT_SESSION_FILE_COLLECTION=session_file_embeddings
+      - QDRANT_USER_FILE_COLLECTION=user_file_embeddings
+      - AI_ORCHESTRATION_V2_ENABLED=true
+      - AI_LEGACY_FALLBACK_ENABLED=true
+      - AI_HITL_ENABLED=true
+      - AI_KAFKA_ENABLED=true
+      - AI_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - AI_KAFKA_TOPICS=course-events,lesson-events,enrollment-events,rating-events,learning-path-events,file-uploaded
+      - AI_OCR_ENABLED=true
+      - LANGFUSE_ENABLED=true
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_BASE_URL=${LANGFUSE_BASE_URL}
     networks:
       - do-an-net
     depends_on:
       service-discovery-container:
         condition: service_healthy
+    cpus: "0.50"
+    mem_limit: 512m
+    mem_reservation: 256m
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8091/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   analytics-service-container:
     build:

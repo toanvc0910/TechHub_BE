@@ -2,6 +2,7 @@ package com.techhub.app.proxyclient.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
@@ -42,53 +43,24 @@ public class AiStreamingProxyController {
                                 .post()
                                 .uri(AI_SERVICE_BASE_URL + "/api/ai/chat/stream")
                                 .contentType(MediaType.APPLICATION_JSON)
+                                .accept(MediaType.TEXT_EVENT_STREAM)
                                 .header("X-Request-Source", "proxy-client")
                                 .bodyValue(request)
                                 .retrieve()
-                                .bodyToFlux(String.class)
-                                .doOnNext(rawData -> log.info("📦 [AiStreamingProxy] Raw data from AI-SERVICE: {}",
-                                                rawData))
-                                .map(data -> {
-                                        log.info("🔄 [AiStreamingProxy] Processing data: {}", data);
-                                        // Parse SSE format from AI-SERVICE
-                                        if (data.startsWith("event:")) {
-                                                log.info("🎫 [AiStreamingProxy] Event line detected, skipping");
-                                                // Handle event type - return null to filter out
-                                                return ServerSentEvent.<String>builder()
-                                                                .event("skip")
-                                                                .data(null)
-                                                                .build();
-                                        } else if (data.startsWith("data:")) {
-                                                // Extract JSON data after "data:"
-                                                String content = data.substring(5);
-                                                // Only trim for [DONE] check
-                                                if (content.trim().equals("[DONE]")) {
-                                                        log.info("🏁 [AiStreamingProxy] DONE signal received");
-                                                        return ServerSentEvent.<String>builder()
-                                                                        .event("done")
-                                                                        .data("[DONE]")
-                                                                        .build();
-                                                }
-                                                // Pass through JSON data as-is (contains {"content":"..."})
-                                                log.info("📨 [AiStreamingProxy] Data content: '{}'", content);
-                                                return ServerSentEvent.<String>builder()
-                                                                .event("message")
-                                                                .data(content)
-                                                                .build();
-                                        } else {
-                                                // Raw data - pass through as-is
-                                                log.info("📦 [AiStreamingProxy] Raw data (no prefix): {}", data);
-                                                return ServerSentEvent.<String>builder()
-                                                                .event("message")
-                                                                .data(data)
-                                                                .build();
-                                        }
+                                .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {
                                 })
+                                .doOnNext(event -> log.info(
+                                                "📦 [AiStreamingProxy] Event from AI-SERVICE: event={}, data={}",
+                                                event.event(), event.data()))
+                                .map(event -> ServerSentEvent.<String>builder()
+                                                .event(event.event() == null ? "message" : event.event())
+                                                .id(event.id())
+                                                .data(event.data())
+                                                .build())
                                 .doOnNext(sse -> log.info(
                                                 "📤 [AiStreamingProxy] Sending SSE to client: event={}, data={}",
                                                 sse.event(), sse.data()))
-                                // Filter out null data and skip events, but KEEP spaces!
-                                .filter(sse -> sse.data() != null && !"skip".equals(sse.event()))
+                                .filter(sse -> sse.data() != null)
                                 .doOnSubscribe(sub -> log.info("✅ [AiStreamingProxy] Client subscribed to stream"))
                                 .doOnComplete(() -> log.info("✅ [AiStreamingProxy] ===== STREAM COMPLETED ====="))
                                 .doOnError(error -> log.error("❌ [AiStreamingProxy] Stream error: {}",
@@ -117,28 +89,16 @@ public class AiStreamingProxyController {
                                 .get()
                                 .uri(AI_SERVICE_BASE_URL + "/api/ai/chat/stream/simple?message="
                                                 + message + "&userId=" + userId)
+                                .accept(MediaType.TEXT_EVENT_STREAM)
                                 .header("X-Request-Source", "proxy-client")
                                 .retrieve()
-                                .bodyToFlux(String.class)
-                                .map(data -> {
-                                        if (data.startsWith("data:")) {
-                                                String content = data.substring(5).trim();
-                                                if (content.equals("[DONE]")) {
-                                                        return ServerSentEvent.<String>builder()
-                                                                        .event("done")
-                                                                        .data("[DONE]")
-                                                                        .build();
-                                                }
-                                                return ServerSentEvent.<String>builder()
-                                                                .event("message")
-                                                                .data(content)
-                                                                .build();
-                                        }
-                                        return ServerSentEvent.<String>builder()
-                                                        .event("message")
-                                                        .data(data)
-                                                        .build();
+                                .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {
                                 })
+                                .map(event -> ServerSentEvent.<String>builder()
+                                                .event(event.event() == null ? "message" : event.event())
+                                                .id(event.id())
+                                                .data(event.data())
+                                                .build())
                                 .filter(sse -> sse.data() != null && !sse.data().isEmpty())
                                 .doOnComplete(() -> log.info("✅ [AiStreamingProxy] Simple stream completed"));
         }

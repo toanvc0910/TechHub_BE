@@ -1,10 +1,9 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - main
-      - dev/*
+  # Keep this workflow as manual fallback only.
+  # Primary CI/CD is handled by GitLab.
+  workflow_dispatch:
 
 # Tránh chạy chồng chéo cùng branch
 concurrency:
@@ -50,11 +49,11 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up Java 11
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 17
 
       - name: Cache Maven repository
         uses: actions/cache@v4

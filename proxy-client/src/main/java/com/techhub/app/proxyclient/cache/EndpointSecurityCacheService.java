@@ -57,6 +57,7 @@ public class EndpointSecurityCacheService {
             "/api/v1/payment/vn-pay-callback",
             "/api/internal/endpoint-security-policies",
             "/actuator/**",
+            "/app/actuator/**",
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/oauth2/**");

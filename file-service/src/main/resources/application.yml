@@ -41,6 +41,7 @@ minio:
   bucket: ${MINIO_BUCKET}
   public-url: ${MINIO_PUBLIC_URL}
   secure: ${MINIO_SECURE:true}
+  presigned-expiry-seconds: ${MINIO_PRESIGNED_EXPIRY_SECONDS:86400}
 
 eureka:
   client:

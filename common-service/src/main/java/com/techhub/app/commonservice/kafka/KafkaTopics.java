@@ -9,6 +9,8 @@ public final class KafkaTopics {
     public static final String COURSE_EVENTS_TOPIC = "course-events";
     public static final String ENROLLMENT_EVENTS_TOPIC = "enrollment-events";
     public static final String LESSON_EVENTS_TOPIC = "lesson-events";
+    public static final String RATING_EVENTS_TOPIC = "rating-events";
+    public static final String LEARNING_PATH_EVENTS_TOPIC = "learning-path-events";
 
     // Permission Cache Invalidation Topic
     public static final String PERMISSION_UPDATED_TOPIC = "permission-updated";

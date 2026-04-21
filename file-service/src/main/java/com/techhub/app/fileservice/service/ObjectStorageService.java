@@ -13,5 +13,7 @@ public interface ObjectStorageService {
 
     InputStream getObject(String objectKey);
 
+    String getPresignedGetUrl(String objectKey);
+
     void delete(String objectKey);
 }

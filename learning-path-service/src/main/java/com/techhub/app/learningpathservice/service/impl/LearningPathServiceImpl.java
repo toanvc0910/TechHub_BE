@@ -10,6 +10,8 @@ import com.techhub.app.learningpathservice.repository.LearningPathCourseReposito
 import com.techhub.app.learningpathservice.repository.LearningPathRepository;
 import com.techhub.app.learningpathservice.repository.LearningPathSkillRepository;
 import com.techhub.app.learningpathservice.repository.SkillRepository;
+import com.techhub.app.commonservice.kafka.event.LearningPathEventPayload;
+import com.techhub.app.commonservice.kafka.publisher.CourseEventPublisher;
 import com.techhub.app.learningpathservice.service.LearningPathService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ public class LearningPathServiceImpl implements LearningPathService {
     private final LearningPathMapper learningPathMapper;
     private final SkillRepository skillRepository;
     private final LearningPathSkillRepository learningPathSkillRepository;
+    private final CourseEventPublisher courseEventPublisher;
 
     @Override
     public LearningPathResponseDTO createLearningPath(LearningPathRequestDTO requestDTO) {
@@ -48,6 +51,7 @@ public class LearningPathServiceImpl implements LearningPathService {
 
         learningPath = learningPathRepository.save(learningPath);
 
+        publishPathEvent(learningPath, "CREATED");
         log.info("Learning path created successfully with ID: {}", learningPath.getId());
         return learningPathMapper.toDTO(learningPath);
     }
@@ -68,6 +72,7 @@ public class LearningPathServiceImpl implements LearningPathService {
 
         learningPath = learningPathRepository.save(learningPath);
 
+        publishPathEvent(learningPath, "UPDATED");
         log.info("Learning path updated successfully with ID: {}", id);
         return learningPathMapper.toDTO(learningPath);
     }
@@ -376,5 +381,20 @@ public class LearningPathServiceImpl implements LearningPathService {
 
         log.info("mapSkillsToPath: Final path skills count: {}", learningPath.getPathSkills().size());
         log.info("========== mapSkillsToPath END ==========");
+    }
+
+    private void publishPathEvent(LearningPath path, String eventType) {
+        try {
+            int courseCount = path.getCourses() != null ? path.getCourses().size() : 0;
+            courseEventPublisher.publishLearningPathEvent(LearningPathEventPayload.builder()
+                    .eventType(eventType)
+                    .pathId(String.valueOf(path.getId()))
+                    .title(path.getTitle())
+                    .description(path.getDescription())
+                    .courseCount(courseCount)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to publish learning path event for path {}: {}", path.getId(), e.getMessage());
+        }
     }
 }

@@ -44,10 +44,44 @@ public class AiProxyController {
         return aiServiceClient.recommendScheduled(request, authHeader);
     }
 
+    @GetMapping("/recommendations/history")
+    public ResponseEntity<String> getRecommendationHistory(
+            @RequestParam java.util.UUID userId,
+            @RequestParam(required = false) String mode,
+            @RequestParam(required = false, defaultValue = "20") Integer limit,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getRecommendationHistory(userId, mode, limit, authHeader);
+    }
+
     @PostMapping("/chat/messages")
     public ResponseEntity<String> chat(@RequestBody Object request,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         return aiServiceClient.chat(request, authHeader);
+    }
+
+    @GetMapping("/admin/provider-config")
+    public ResponseEntity<String> getProviderConfig(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getProviderConfig(authHeader);
+    }
+
+    @PostMapping("/admin/provider-config")
+    public ResponseEntity<String> updateProviderConfig(
+            @RequestBody Object request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.updateProviderConfig(request, authHeader);
+    }
+
+    @GetMapping("/admin/provider-health")
+    public ResponseEntity<String> getProviderHealth(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getProviderHealth(authHeader);
+    }
+
+    @GetMapping("/admin/available-models")
+    public ResponseEntity<String> getAvailableModels(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getAvailableModels(authHeader);
     }
 
     @PostMapping("/admin/reindex-courses")
@@ -72,6 +106,45 @@ public class AiProxyController {
     public ResponseEntity<String> getQdrantStats(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         return aiServiceClient.getQdrantStats(authHeader);
+    }
+
+    @GetMapping("/admin/runtime-stats")
+    public ResponseEntity<String> getRuntimeStats(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getRuntimeStats(authHeader);
+    }
+
+    @PostMapping("/admin/ingest-file-uploaded")
+    public ResponseEntity<String> ingestFileUploaded(
+            @RequestBody Object request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.ingestFileUploaded(request, authHeader);
+    }
+
+    // ============================================
+    // LANGFUSE ANALYTICS
+    // ============================================
+
+    @GetMapping("/admin/langfuse-traces")
+    public ResponseEntity<String> getLangfuseTraces(
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @RequestParam(required = false, defaultValue = "50") Integer limit,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getLangfuseTraces(page, limit, authHeader);
+    }
+
+    @GetMapping("/admin/langfuse-trace/{traceId}")
+    public ResponseEntity<String> getLangfuseTraceDetail(
+            @PathVariable String traceId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getLangfuseTraceDetail(traceId, authHeader);
+    }
+
+    @GetMapping("/admin/langfuse-analytics")
+    public ResponseEntity<String> getLangfuseAnalytics(
+            @RequestParam(required = false, defaultValue = "7") Integer days,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getLangfuseAnalytics(days, authHeader);
     }
 
     // ============================================

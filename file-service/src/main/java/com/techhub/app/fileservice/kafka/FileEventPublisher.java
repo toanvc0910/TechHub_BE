@@ -16,8 +16,16 @@ public class FileEventPublisher {
     @Value("${kafka.topics.file-uploaded:file-uploaded}")
     private String fileUploadedTopic;
 
-    public void publishFileUploaded(FileUploadedEvent event) {
-        kafkaTemplate.send(fileUploadedTopic, event.getFileId().toString(), event);
-        log.info("Published FileUploadedEvent for file {}", event.getFileId());
+    public boolean publishFileUploaded(FileUploadedEvent event) {
+        try {
+            kafkaTemplate.send(fileUploadedTopic, event.getFileId().toString(), event)
+                    .addCallback(
+                            result -> log.info("Published FileUploadedEvent for file {}", event.getFileId()),
+                            ex -> log.error("Failed to publish FileUploadedEvent for file {}", event.getFileId(), ex));
+            return true;
+        } catch (Exception ex) {
+            log.error("Failed to enqueue FileUploadedEvent for file {}", event.getFileId(), ex);
+            return false;
+        }
     }
 }
