@@ -21,9 +21,9 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             "p.id AS id, " +
             "t.id AS transactionId, " +
             "t.user_id AS userId, " +
-            "u.username AS userName, " +
-            "u.email AS userEmail, " +
-            "MIN(c.id) AS courseId, " +
+            "CAST(NULL AS TEXT) AS userName, " +
+            "CAST(NULL AS TEXT) AS userEmail, " +
+            "CAST(MIN(CAST(c.id AS TEXT)) AS UUID) AS courseId, " +
             "CASE WHEN COUNT(DISTINCT c.id) = 1 THEN MIN(c.title) ELSE 'Multiple courses' END AS courseName, " +
             "COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0) AS grossAmount, " +
             "CAST(p.method AS TEXT) AS paymentMethod, " +
@@ -32,11 +32,10 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             "p.updated AS updated " +
             "FROM payments p " +
             "JOIN transactions t ON t.id = p.transaction_id " +
-            "LEFT JOIN users u ON u.id = t.user_id " +
             "LEFT JOIN transaction_items ti ON ti.transaction_id = t.id AND ti.is_active = 'Y' " +
             "LEFT JOIN courses c ON c.id = ti.course_id AND c.is_active = 'Y' " +
             "WHERE p.is_active = 'Y' AND t.is_active = 'Y' " +
-            "GROUP BY p.id, t.id, t.user_id, u.username, u.email, p.method, p.status, p.created, p.updated " +
+            "GROUP BY p.id, t.id, t.user_id, p.method, p.status, p.created, p.updated " +
             "ORDER BY p.created DESC", countQuery = "SELECT COUNT(*) FROM payments p WHERE p.is_active = 'Y'", nativeQuery = true)
     Page<PaymentHistoryProjection> findPaymentHistoryForAdmin(Pageable pageable);
 
@@ -44,9 +43,9 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             "p.id AS id, " +
             "t.id AS transactionId, " +
             "t.user_id AS userId, " +
-            "u.username AS userName, " +
-            "u.email AS userEmail, " +
-            "MIN(c.id) AS courseId, " +
+            "CAST(NULL AS TEXT) AS userName, " +
+            "CAST(NULL AS TEXT) AS userEmail, " +
+            "CAST(MIN(CAST(c.id AS TEXT)) AS UUID) AS courseId, " +
             "CASE WHEN COUNT(DISTINCT c.id) = 1 THEN MIN(c.title) ELSE 'Multiple courses' END AS courseName, " +
             "COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0) AS grossAmount, " +
             "CAST(p.method AS TEXT) AS paymentMethod, " +
@@ -55,12 +54,11 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             "p.updated AS updated " +
             "FROM payments p " +
             "JOIN transactions t ON t.id = p.transaction_id AND t.is_active = 'Y' " +
-            "LEFT JOIN users u ON u.id = t.user_id " +
             "JOIN transaction_items ti ON ti.transaction_id = t.id AND ti.is_active = 'Y' " +
             "JOIN courses c ON c.id = ti.course_id AND c.is_active = 'Y' " +
             "WHERE p.is_active = 'Y' " +
             "AND c.instructor_id = CAST(:instructorId AS UUID) " +
-            "GROUP BY p.id, t.id, t.user_id, u.username, u.email, p.method, p.status, p.created, p.updated " +
+            "GROUP BY p.id, t.id, t.user_id, p.method, p.status, p.created, p.updated " +
             "ORDER BY p.created DESC", countQuery = "SELECT COUNT(DISTINCT p.id) " +
                     "FROM payments p " +
                     "JOIN transactions t ON t.id = p.transaction_id AND t.is_active = 'Y' " +
