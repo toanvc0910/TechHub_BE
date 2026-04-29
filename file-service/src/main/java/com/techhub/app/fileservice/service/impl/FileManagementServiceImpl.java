@@ -14,26 +14,35 @@ import com.techhub.app.fileservice.repository.FileUsageRepository;
 import com.techhub.app.fileservice.service.FileManagementService;
 import com.techhub.app.fileservice.service.MediaProcessingService;
 import com.techhub.app.fileservice.service.ObjectStorageService;
+import com.techhub.app.fileservice.service.StoredFileContent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
+import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FileManagementServiceImpl implements FileManagementService {
+
+    private static final String UPLOAD_SOURCE_AI_CHAT = "AI_CHAT";
+    private static final String UPLOAD_SOURCE_DIRECT = "DIRECT";
 
     private final ObjectStorageService objectStorageService;
     private final MinioProperties minioProperties;
@@ -46,16 +55,18 @@ public class FileManagementServiceImpl implements FileManagementService {
     @Override
     @Transactional
     public FileResponse uploadFile(MultipartFile file, UUID userId, UUID folderId,
-            String[] tags, String description) {
+            String[] tags, String description, String uploadSource) {
         try {
-            // Validate folder if provided
+            FileFolderEntity folder = null;
             if (folderId != null) {
-                folderRepository.findByIdAndUserIdAndIsActive(folderId, userId, "Y")
+                folder = folderRepository.findByIdAndUserIdAndIsActive(folderId, userId, "Y")
                         .orElseThrow(() -> new RuntimeException("Folder not found"));
             }
 
             FileTypeEnum fileType = determineFileType(file.getContentType());
-            String objectKey = buildObjectKey(userId, fileType, file.getOriginalFilename());
+            String resolvedUploadSource = resolveUploadSource(uploadSource, description);
+            String objectKey = buildObjectKey(userId, fileType, file.getOriginalFilename(), folder,
+                    resolvedUploadSource);
             StoredObjectDetails storedObject = objectStorageService.upload(file, objectKey);
 
             // Create file entity
@@ -82,7 +93,7 @@ public class FileManagementServiceImpl implements FileManagementService {
             fileEntity.setDescription(description);
             fileEntity.setIsActive("Y");
             fileEntity.setCreatedBy(userId);
-            fileEntity.setUploadSource("DIRECT");
+            fileEntity.setUploadSource(resolvedUploadSource);
             initializeProcessingState(fileEntity);
 
             FileEntity saved = fileRepository.save(fileEntity);
@@ -99,18 +110,60 @@ public class FileManagementServiceImpl implements FileManagementService {
     @Override
     @Transactional
     public List<FileResponse> uploadMultipleFiles(List<MultipartFile> files, UUID userId,
-            UUID folderId, String[] tags, String description) {
+            UUID folderId, String[] tags, String description, String uploadSource) {
         return files.stream()
-                .map(file -> uploadFile(file, userId, folderId, tags, description))
+                .map(file -> uploadFile(file, userId, folderId, tags, description, uploadSource))
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public FileResponse getFileById(UUID userId, UUID fileId) {
-        FileEntity file = fileRepository.findByIdAndUserIdAndIsActive(fileId, userId, "Y")
-                .orElseThrow(() -> new RuntimeException("File not found"));
+        FileEntity file = getActiveFile(userId, fileId);
         return mapToResponse(file);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StoredFileContent getFileContent(UUID userId, UUID fileId) {
+        FileEntity file = getActiveFile(userId, fileId);
+        String objectKey = resolveObjectKey(file);
+        if (objectKey == null) {
+            throw new RuntimeException("File object not found");
+        }
+
+        return StoredFileContent.builder()
+                .inputStream(objectStorageService.getObject(objectKey))
+                .filename(firstNonBlank(file.getOriginalName(), file.getName(), file.getId().toString()))
+                .contentType(firstNonBlank(file.getMimeType(), MediaType.APPLICATION_OCTET_STREAM_VALUE))
+                .contentLength(file.getFileSize())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StoredFileContent getFileThumbnail(UUID userId, UUID fileId) {
+        FileEntity file = getActiveFile(userId, fileId);
+        String thumbnailObjectKey = normalizeObjectKey(
+                firstNonBlank(file.getThumbnailObjectKey(), extractObjectPathFromUrl(file.getThumbnailUrl())));
+        if (file.getFileType() == FileTypeEnum.VIDEO && thumbnailObjectKey == null) {
+            throw new RuntimeException("File thumbnail not found");
+        }
+
+        String objectKey = firstNonBlank(thumbnailObjectKey, resolveObjectKey(file));
+        if (objectKey == null) {
+            throw new RuntimeException("File thumbnail not found");
+        }
+
+        String contentType = file.getFileType() == FileTypeEnum.VIDEO && thumbnailObjectKey != null
+                ? MediaType.IMAGE_JPEG_VALUE
+                : firstNonBlank(file.getMimeType(), MediaType.APPLICATION_OCTET_STREAM_VALUE);
+
+        return StoredFileContent.builder()
+                .inputStream(objectStorageService.getObject(objectKey))
+                .filename("thumbnail-" + firstNonBlank(file.getOriginalName(), file.getName(), file.getId().toString()))
+                .contentType(contentType)
+                .build();
     }
 
     @Override
@@ -120,6 +173,11 @@ public class FileManagementServiceImpl implements FileManagementService {
         return files.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    private FileEntity getActiveFile(UUID userId, UUID fileId) {
+        return fileRepository.findByIdAndUserIdAndIsActive(fileId, userId, "Y")
+                .orElseThrow(() -> new RuntimeException("File not found"));
     }
 
     @Override
@@ -197,23 +255,21 @@ public class FileManagementServiceImpl implements FileManagementService {
             throw new RuntimeException("Cannot delete file that is currently in use");
         }
 
-        try {
-            objectStorageService.delete(file.getCloudinaryPublicId());
-            if (file.getThumbnailObjectKey() != null
-                    && !file.getThumbnailObjectKey().equals(file.getCloudinaryPublicId())) {
-                objectStorageService.delete(file.getThumbnailObjectKey());
-            }
+        String objectKey = resolveObjectKey(file);
+        deleteStorageObjectAfterCommit(objectKey, fileId, "file");
 
-            // Soft delete from database
-            file.setIsActive("N");
-            file.setUpdatedBy(userId);
-            fileRepository.save(file);
-
-            log.info("File deleted successfully: {}", fileId);
-        } catch (RuntimeException e) {
-            log.error("Failed to delete file from MinIO", e);
-            throw new RuntimeException("Failed to delete file: " + e.getMessage());
+        String thumbnailObjectKey = normalizeObjectKey(
+                firstNonBlank(file.getThumbnailObjectKey(), extractObjectPathFromUrl(file.getThumbnailUrl())));
+        if (thumbnailObjectKey != null && !thumbnailObjectKey.equals(objectKey)) {
+            deleteStorageObjectAfterCommit(thumbnailObjectKey, fileId, "thumbnail");
         }
+
+        // Soft delete from database. Storage cleanup is best-effort so stale MinIO state does not block users.
+        file.setIsActive("N");
+        file.setUpdatedBy(userId);
+        fileRepository.save(file);
+
+        log.info("File deleted successfully: {}", fileId);
     }
 
     @Override
@@ -269,17 +325,109 @@ public class FileManagementServiceImpl implements FileManagementService {
         }
     }
 
-    private String buildObjectKey(UUID userId, FileTypeEnum fileType, String originalFilename) {
+    private String buildObjectKey(UUID userId, FileTypeEnum fileType, String originalFilename, FileFolderEntity folder,
+            String uploadSource) {
         String safeFilename = Optional.ofNullable(originalFilename)
                 .map(name -> name.replaceAll("[^a-zA-Z0-9._-]", "_"))
                 .filter(name -> !name.isBlank())
                 .orElse("file");
+        String basePrefix = buildStorageBasePrefix(userId, folder, uploadSource);
         return String.format(
-                "users/%s/%s/%s-%s",
-                userId,
-                fileType.name().toLowerCase(Locale.ROOT),
+                "%s/%s/%s-%s",
+                basePrefix,
+                storageTypeSegment(fileType),
                 UUID.randomUUID(),
                 safeFilename);
+    }
+
+    private String buildStorageBasePrefix(UUID userId, FileFolderEntity folder, String uploadSource) {
+        if (UPLOAD_SOURCE_AI_CHAT.equalsIgnoreCase(uploadSource)) {
+            return "users/" + userId + "/ai-chat";
+        }
+
+        String folderPath = folder != null ? sanitizeFolderPath(folder.getPath()) : null;
+        if (folderPath == null || folderPath.isBlank()) {
+            return "users/" + userId + "/library";
+        }
+        return "users/" + userId + "/library/" + folderPath;
+    }
+
+    private String storageTypeSegment(FileTypeEnum fileType) {
+        if (fileType == FileTypeEnum.IMAGE) {
+            return "images";
+        }
+        if (fileType == FileTypeEnum.VIDEO) {
+            return "videos";
+        }
+        if (fileType == FileTypeEnum.AUDIO) {
+            return "audio";
+        }
+        if (fileType == FileTypeEnum.DOCUMENT) {
+            return "documents";
+        }
+        return "other";
+    }
+
+    private String sanitizeFolderPath(String path) {
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+        return Arrays.stream(path.split("/+"))
+                .map(this::sanitizePathSegment)
+                .filter(segment -> !segment.isBlank())
+                .collect(Collectors.joining("/"));
+    }
+
+    private String sanitizePathSegment(String value) {
+        if (value == null) {
+            return "";
+        }
+        String asciiValue = Normalizer.normalize(value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .replace('đ', 'd')
+                .replace('Đ', 'D');
+        return asciiValue
+                .replaceAll("[\\\\/]+", "-")
+                .replaceAll("[^a-zA-Z0-9._ -]", "_")
+                .replaceAll("\\s+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^[_ .-]+|[_ .-]+$", "");
+    }
+
+    private String resolveUploadSource(String uploadSource, String description) {
+        if (uploadSource != null && !uploadSource.isBlank()) {
+            return uploadSource.trim().replaceAll("[^a-zA-Z0-9_-]", "_").toUpperCase(Locale.ROOT);
+        }
+        if (description != null && description.toLowerCase(Locale.ROOT).contains("ai chat")) {
+            return UPLOAD_SOURCE_AI_CHAT;
+        }
+        return UPLOAD_SOURCE_DIRECT;
+    }
+
+    private void deleteStorageObjectAfterCommit(String objectKey, UUID fileId, String objectKind) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return;
+        }
+        Runnable cleanup = () -> CompletableFuture.runAsync(() -> {
+            try {
+                objectStorageService.delete(objectKey);
+            } catch (RuntimeException ex) {
+                log.warn("Failed to delete {} object {} for file {}; metadata was already deleted", objectKind,
+                        objectKey, fileId, ex);
+            }
+        });
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cleanup.run();
+                }
+            });
+            return;
+        }
+
+        cleanup.run();
     }
 
     private void populateImageMetadata(MultipartFile file, FileTypeEnum fileType, FileEntity fileEntity)
@@ -347,17 +495,13 @@ public class FileManagementServiceImpl implements FileManagementService {
                 file.getPublicUrl(),
                 file.getCloudinaryUrl());
 
-        if (!shouldAttemptPresign(file)) {
-            return fallbackUrl;
-        }
-
         String objectKey = resolveObjectKey(file);
-        if (objectKey == null) {
-            return fallbackUrl;
+        if (shouldAttemptPresign(file) && objectKey != null) {
+            String signedUrl = objectStorageService.getPresignedGetUrl(objectKey);
+            return firstNonBlank(signedUrl, fallbackUrl);
         }
 
-        String signedUrl = objectStorageService.getPresignedGetUrl(objectKey);
-        return firstNonBlank(signedUrl, fallbackUrl);
+        return fallbackUrl;
     }
 
     private String resolveSignedThumbnailUrl(FileEntity file, String signedObjectUrl) {
@@ -365,18 +509,14 @@ public class FileManagementServiceImpl implements FileManagementService {
                 ? file.getThumbnailUrl()
                 : firstNonBlank(file.getThumbnailUrl(), signedObjectUrl);
 
-        if (!shouldAttemptPresign(file) && !isMinioUrl(file.getThumbnailUrl())) {
-            return fallbackThumbnailUrl;
-        }
-
         String thumbnailObjectKey = normalizeObjectKey(
                 firstNonBlank(file.getThumbnailObjectKey(), extractObjectPathFromUrl(file.getThumbnailUrl())));
-        if (thumbnailObjectKey == null) {
-            return fallbackThumbnailUrl;
+        if ((shouldAttemptPresign(file) || isMinioUrl(file.getThumbnailUrl())) && thumbnailObjectKey != null) {
+            String signedUrl = objectStorageService.getPresignedGetUrl(thumbnailObjectKey);
+            return firstNonBlank(signedUrl, fallbackThumbnailUrl);
         }
 
-        String signedUrl = objectStorageService.getPresignedGetUrl(thumbnailObjectKey);
-        return firstNonBlank(signedUrl, fallbackThumbnailUrl);
+        return fallbackThumbnailUrl;
     }
 
     private boolean isMinioStorageCandidate(FileEntity file) {
@@ -439,6 +579,19 @@ public class FileManagementServiceImpl implements FileManagementService {
             return URI.create(value).getHost();
         } catch (IllegalArgumentException ex) {
             return null;
+        }
+    }
+
+    private boolean isAbsoluteUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+
+        try {
+            URI uri = URI.create(value);
+            return uri.getScheme() != null && uri.getHost() != null;
+        } catch (IllegalArgumentException ex) {
+            return false;
         }
     }
 

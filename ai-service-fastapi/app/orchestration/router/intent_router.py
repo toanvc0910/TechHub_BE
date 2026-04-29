@@ -20,7 +20,7 @@ class IntentRouter:
             ("visualization", "chart", [r"\b(chart|bieu do|visual|plot|dashboard|do thi)\b"]),
             ("data_query", "analytics", [r"\b(so lieu|thong ke|bao nhieu|analytics|report|tong hop|bang du lieu|truy van|query)\b"]),
             ("recommendation", "course-advice", [r"\b(goi y|de xuat|recommend|phu hop|nen hoc)\b"]),
-            ("knowledge", "lesson-qa", [r"\b(giai thich|khai niem|la gi|how|tai sao)\b"]),
+            ("knowledge", "lesson-qa", [r"\b(giai thich|khai niem|la gi|ai la|who is|how|tai sao)\b"]),
             ("conversation", "greeting", [r"\b(xin chao|hello|hi|cam on)\b"]),
         ]
         self._semantic_templates: dict[str, list[str]] = {
@@ -61,7 +61,7 @@ class IntentRouter:
         raw_text = state.get("user_input", "")
         text = self._normalize_text(raw_text)
 
-        if state.get("has_fresh_file_context"):
+        if state.get("has_fresh_file_context") and (not text.strip() or self._is_file_reference(text)):
             return IntentResult(
                 intent="file_analysis",
                 sub_intent="file-context",
@@ -70,7 +70,7 @@ class IntentRouter:
                 matched_rule="tier0:file-context",
             )
 
-        if state.get("file_contexts") and re.search(r"\b(file|tai lieu|document|pdf|docx|upload|tep|noi dung nay|tai lieu nay)\b", text):
+        if state.get("file_contexts") and self._is_file_reference(text):
             return IntentResult(
                 intent="file_analysis",
                 sub_intent="session-file-context",
@@ -330,6 +330,18 @@ class IntentRouter:
         normalized = unicodedata.normalize("NFD", lowered)
         without_marks = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
         return re.sub(r"\s+", " ", without_marks)
+
+
+    @staticmethod
+    def _is_file_reference(text: str) -> bool:
+        if not text:
+            return False
+        return bool(
+            re.search(
+                r"\b(file|tai lieu|document|pdf|docx|upload|tep|noi dung nay|tai lieu nay|file nay|tep nay)\b",
+                text,
+            )
+        )
 
 
 intent_router = IntentRouter()

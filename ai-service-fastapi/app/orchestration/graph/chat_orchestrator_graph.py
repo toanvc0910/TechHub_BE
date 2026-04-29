@@ -28,17 +28,6 @@ def _make_node(name: str, fn, detail: str):
 
     async def _wrapper(state: OrchestratorState) -> dict[str, Any]:
         emitter = current_emitter.get()
-        if emitter is not None:
-            # Fire a lightweight "start" hint so the UI can show which step is running
-            try:
-                await emitter.emit("planning_step", {
-                    "step": name,
-                    "detail": f"Đang xử lý {name}…",
-                    "durationMs": 0,
-                    "status": "start",
-                })
-            except Exception:
-                pass
 
         started = perf_counter()
         updates = await fn(state)
@@ -47,6 +36,9 @@ def _make_node(name: str, fn, detail: str):
         timings[name] = duration_ms
         updates["node_timings"] = timings
 
+        # Emit a single progressive step event when the node completes so the
+        # UI can animate steps appearing one-by-one instead of jumping from 0
+        # to double the node count (start+end events).
         if emitter is not None:
             try:
                 await emitter.emit("planning_step", {

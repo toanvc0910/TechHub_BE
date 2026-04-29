@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from app.core.config import get_settings
@@ -39,6 +40,31 @@ class FileAgentNode:
                 ]
 
         if not excerpts:
+            normalized_input = self._normalize_text(state.get("user_input", ""))
+            if not self._is_file_reference(normalized_input):
+                response = await switchable_ai_gateway.stream_and_emit(
+                    prompt=(
+                        "Nguoi dung dang hoi mot cau hoi thong thuong, nhung request da bi route nham qua file-analysis.\n"
+                        "Hay tra loi nhu mot tro ly kien thuc tong quat bang tieng Viet, ngan gon, ro rang.\n"
+                        "Neu cau hoi nhac den mot nguoi/thuc the ma ban khong du ngu canh de xac dinh chinh xac, "
+                        "hay noi ro rang la ban chua du thong tin thay vi bịa them.\n\n"
+                        f"Cau hoi user: {state['user_input']}"
+                    ),
+                    system_prompt=settings.system_prompt,
+                    model=state.get("selected_model"),
+                )
+                trace_step(
+                    state,
+                    "file_agent",
+                    "Fallback to general answer because no analyzable file content was present and the user did not reference a file.",
+                )
+                return {
+                    "final_response": response,
+                    "response_streamed": True,
+                    "citations": citations,
+                    "execution_trace": list(state.get("execution_trace", [])),
+                }
+
             trace_step(state, "file_agent", "No analyzable file content found.")
             return {
                 "final_response": (
@@ -103,6 +129,21 @@ class FileAgentNode:
                 }
             )
         return citations
+
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        return re.sub(r"\s+", " ", (text or "").lower().strip())
+
+    @staticmethod
+    def _is_file_reference(text: str) -> bool:
+        if not text:
+            return False
+        return bool(
+            re.search(
+                r"\b(file|tai lieu|document|pdf|docx|upload|tep|noi dung nay|tai lieu nay|file nay|tep nay)\b",
+                text,
+            )
+        )
 
 
 file_agent_node = FileAgentNode()

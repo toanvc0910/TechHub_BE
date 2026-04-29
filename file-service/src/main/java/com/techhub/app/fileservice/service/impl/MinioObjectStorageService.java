@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 
 @Service
 @RequiredArgsConstructor
@@ -113,8 +114,12 @@ public class MinioObjectStorageService implements ObjectStorageService {
 
     private String buildPublicUrl(String objectKey) {
         String normalizedBase = minioProperties.getPublicUrl().replaceAll("/+$", "");
+        String normalizedBucket = minioProperties.getBucket().replaceAll("^/+", "").replaceAll("/+$", "");
         String normalizedKey = FilenameUtils.separatorsToUnix(objectKey).replaceFirst("^/+", "");
-        return normalizedBase + "/" + minioProperties.getBucket() + "/" + normalizedKey;
+        if (normalizedBase.endsWith("/" + normalizedBucket)) {
+            return normalizedBase + "/" + normalizedKey;
+        }
+        return normalizedBase + "/" + normalizedBucket + "/" + normalizedKey;
     }
 
     private MinioClient buildPresignClient() {
@@ -122,10 +127,23 @@ public class MinioObjectStorageService implements ObjectStorageService {
         if (presignEndpoint == null || presignEndpoint.isBlank()) {
             presignEndpoint = minioProperties.getEndpoint();
         }
+        presignEndpoint = stripPathFromEndpoint(presignEndpoint);
 
         return MinioClient.builder()
                 .endpoint(presignEndpoint)
                 .credentials(minioProperties.getAccessKey(), minioProperties.getSecretKey())
                 .build();
+    }
+
+    private String stripPathFromEndpoint(String endpoint) {
+        try {
+            URI uri = URI.create(endpoint);
+            if (uri.getScheme() == null || uri.getHost() == null) {
+                return endpoint;
+            }
+            return new URI(uri.getScheme(), uri.getAuthority(), null, null, null).toString();
+        } catch (Exception ex) {
+            return endpoint;
+        }
     }
 }

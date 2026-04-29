@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import re
+import unicodedata
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from time import perf_counter
@@ -391,10 +393,13 @@ class ChatService:
                     "name": item.get("name"),
                     "mimeType": item.get("mimeType"),
                     "fileType": item.get("fileType"),
+                    "size": item.get("size"),
                     "secureUrl": item.get("secureUrl"),
                     "publicUrl": item.get("publicUrl"),
                     "cloudinarySecureUrl": item.get("cloudinarySecureUrl"),
                     "thumbnailUrl": item.get("thumbnailUrl"),
+                    "content": item.get("content"),
+                    "excerpt": item.get("excerpt"),
                     "description": item.get("description"),
                     "processingStatus": item.get("processingStatus"),
                 }
@@ -484,11 +489,45 @@ class ChatService:
 
     @staticmethod
     def _legacy_intent(state: OrchestratorState) -> str:
-        if state.get("has_fresh_file_context") or state.get("file_contexts"):
+        normalized_text = ChatService._normalize_legacy_text(state.get("user_input", ""))
+        if state.get("has_fresh_file_context"):
+            return "file_analysis"
+        if state.get("file_contexts") and ChatService._is_file_reference(normalized_text):
             return "file_analysis"
         if state.get("mode") == "ADVISOR":
             return "recommendation"
+        if ChatService._looks_like_knowledge_question(normalized_text):
+            return "knowledge"
         return "conversation"
+
+    @staticmethod
+    def _normalize_legacy_text(text: str) -> str:
+        lowered = (text or "").lower().strip().replace("đ", "d")
+        normalized = unicodedata.normalize("NFD", lowered)
+        without_marks = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+        return re.sub(r"\s+", " ", without_marks)
+
+    @staticmethod
+    def _is_file_reference(text: str) -> bool:
+        if not text:
+            return False
+        return bool(
+            re.search(
+                r"\b(file|tai lieu|document|pdf|docx|upload|tep|noi dung nay|tai lieu nay|file nay|tep nay)\b",
+                text,
+            )
+        )
+
+    @staticmethod
+    def _looks_like_knowledge_question(text: str) -> bool:
+        if not text:
+            return False
+        return bool(
+            re.search(
+                r"\b(la gi|giai thich|khai niem|tai sao|how|what is|who is|ai la)\b",
+                text,
+            )
+        )
 
     @staticmethod
     def _build_legacy_prompt(state: OrchestratorState) -> str:

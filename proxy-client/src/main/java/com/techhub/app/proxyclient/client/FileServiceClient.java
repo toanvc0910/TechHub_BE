@@ -21,7 +21,8 @@ public interface FileServiceClient {
                         @RequestParam("userId") UUID userId,
                         @RequestParam(value = "folderId", required = false) UUID folderId,
                         @RequestParam(value = "tags", required = false) String[] tags,
-                        @RequestParam(value = "description", required = false) String description);
+                        @RequestParam(value = "description", required = false) String description,
+                        @RequestParam(value = "uploadSource", required = false) String uploadSource);
 
         @PostMapping(value = "/api/files/upload/multiple", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         ResponseEntity<Map<String, Object>> uploadMultipleFiles(
@@ -29,10 +30,21 @@ public interface FileServiceClient {
                         @RequestParam("userId") UUID userId,
                         @RequestParam(value = "folderId", required = false) UUID folderId,
                         @RequestParam(value = "tags", required = false) String[] tags,
-                        @RequestParam(value = "description", required = false) String description);
+                        @RequestParam(value = "description", required = false) String description,
+                        @RequestParam(value = "uploadSource", required = false) String uploadSource);
 
         @GetMapping("/api/files/{fileId}")
         ResponseEntity<Map<String, Object>> getFile(
+                        @PathVariable("fileId") UUID fileId,
+                        @RequestParam("userId") UUID userId);
+
+        @GetMapping("/api/files/{fileId}/content")
+        ResponseEntity<byte[]> getFileContent(
+                        @PathVariable("fileId") UUID fileId,
+                        @RequestParam("userId") UUID userId);
+
+        @GetMapping("/api/files/{fileId}/thumbnail")
+        ResponseEntity<byte[]> getFileThumbnail(
                         @PathVariable("fileId") UUID fileId,
                         @RequestParam("userId") UUID userId);
 
