@@ -204,4 +204,41 @@ public interface UserServiceClient {
     // Endpoint security policies — internal, no auth
     @GetMapping("/api/internal/endpoint-security-policies")
     ResponseEntity<String> getEndpointSecurityPolicies();
+
+    // ===== Instructor Applications =====
+    @PostMapping("/api/v1/instructor-applications")
+    ResponseEntity<String> submitInstructorApplication(
+            @RequestBody Object body,
+            @RequestHeader("X-User-Id") String userId);
+
+    @GetMapping("/api/v1/instructor-applications/me")
+    ResponseEntity<String> getMyInstructorApplications(
+            @RequestHeader("X-User-Id") String userId);
+
+    @GetMapping("/api/v1/instructor-applications")
+    ResponseEntity<String> listInstructorApplications(
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestHeader("X-User-Roles") String roles);
+
+    @GetMapping("/api/v1/instructor-applications/{id}")
+    ResponseEntity<String> getInstructorApplicationDetail(
+            @PathVariable String id,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Roles") String roles);
+
+    @PutMapping("/api/v1/instructor-applications/{id}/approve")
+    ResponseEntity<String> approveInstructorApplication(
+            @PathVariable String id,
+            @RequestBody(required = false) Object body,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Roles") String roles);
+
+    @PutMapping("/api/v1/instructor-applications/{id}/reject")
+    ResponseEntity<String> rejectInstructorApplication(
+            @PathVariable String id,
+            @RequestBody Object body,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Roles") String roles);
 }

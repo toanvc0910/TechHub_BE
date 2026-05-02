@@ -1158,6 +1158,48 @@ CREATE TABLE IF NOT EXISTS endpoint_security_policies (
 CREATE INDEX IF NOT EXISTS idx_esp_security_level ON endpoint_security_policies(security_level);
 CREATE INDEX IF NOT EXISTS idx_esp_is_active ON endpoint_security_policies(is_active);
 
+-- Instructor Applications (CV scan + admin approval)
+CREATE TABLE IF NOT EXISTS instructor_applications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    cv_file_id UUID NOT NULL,
+    cv_file_url TEXT,
+    ai_status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (ai_status IN ('PENDING','PROCESSED','FAILED')),
+    ai_extracted_data JSONB,
+    ai_error TEXT,
+    admin_status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (admin_status IN ('PENDING','APPROVED','REJECTED')),
+    admin_note TEXT,
+    reviewed_by UUID REFERENCES users(id),
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y','N'))
+);
+CREATE INDEX IF NOT EXISTS idx_instructor_apps_user ON instructor_applications(user_id);
+CREATE INDEX IF NOT EXISTS idx_instructor_apps_admin_status ON instructor_applications(admin_status);
+CREATE INDEX IF NOT EXISTS idx_instructor_apps_created ON instructor_applications(created);
+
+-- Endpoint security: callback PUBLIC, admin endpoints AUTHENTICATED
+INSERT INTO endpoint_security_policies (url_pattern, method, security_level, description)
+SELECT *
+FROM (
+    VALUES
+        ('/api/v1/instructor-applications/n8n-callback', '*', 'PUBLIC'::security_level, 'N8n CV scan callback (validated by X-Callback-Secret)'),
+        ('/api/v1/instructor-applications', '*', 'AUTHENTICATED'::security_level, 'Instructor app root direct'),
+        ('/api/v1/instructor-applications/**', '*', 'AUTHENTICATED'::security_level, 'Instructor application direct user-service'),
+        ('/api/users/instructor-applications', '*', 'AUTHENTICATED'::security_level, 'Instructor app root after normalize'),
+        ('/api/users/instructor-applications/**', '*', 'AUTHENTICATED'::security_level, 'Instructor application after proxy normalize'),
+        ('/api/proxy/users/instructor-applications', '*', 'AUTHENTICATED'::security_level, 'Instructor app root proxy raw'),
+        ('/api/proxy/users/instructor-applications/**', '*', 'AUTHENTICATED'::security_level, 'Instructor application proxy raw URL'),
+        ('/api/files/upload', '*', 'AUTHENTICATED'::security_level, 'Upload file - any logged-in user'),
+        ('/api/files/upload/multiple', '*', 'AUTHENTICATED'::security_level, 'Upload multiple files'),
+        ('/api/files/**', '*', 'AUTHENTICATED'::security_level, 'File endpoints baseline')
+) AS v(url_pattern, method, security_level, description)
+WHERE NOT EXISTS (
+    SELECT 1 FROM endpoint_security_policies p
+    WHERE p.url_pattern = v.url_pattern AND p.method = v.method AND p.is_active = 'Y'
+);
+
 INSERT INTO endpoint_security_policies (url_pattern, method, security_level, description)
 SELECT *
 FROM (
