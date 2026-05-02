@@ -217,6 +217,7 @@ CREATE TABLE courses (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'VND',
     instructor_id UUID NOT NULL REFERENCES users(id),
     status course_status DEFAULT 'DRAFT',
     level course_level DEFAULT 'ALL_LEVELS',

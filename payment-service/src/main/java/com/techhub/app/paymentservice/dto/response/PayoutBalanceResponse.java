@@ -13,4 +13,10 @@ public class PayoutBalanceResponse {
     BigDecimal totalEarned;
     BigDecimal pendingAmount;
     BigDecimal availableAmount;
+    // Quy đổi sang USD (làm tham khảo cho UI), tỉ giá tại thời điểm gọi.
+    BigDecimal totalEarnedUsd;
+    BigDecimal pendingAmountUsd;
+    BigDecimal availableAmountUsd;
+    BigDecimal usdRate;
+    String currency;
 }

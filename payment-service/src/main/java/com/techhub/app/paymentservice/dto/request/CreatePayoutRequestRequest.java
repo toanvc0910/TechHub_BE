@@ -14,4 +14,7 @@ public class CreatePayoutRequestRequest {
     private BigDecimal amount;
 
     private String note;
+
+    /** Currency của request: VND hoặc USD. Mặc định VND. BE sẽ quy đổi sang VND để xử lý. */
+    private String currency;
 }

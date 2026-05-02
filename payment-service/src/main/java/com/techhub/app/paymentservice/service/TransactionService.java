@@ -99,8 +99,8 @@ public class TransactionService {
                 .adminAmount(null)
                 .paymentMethod(payment.getMethod() == null ? null : payment.getMethod().name())
                 .status(payment.getStatus() == null ? null : payment.getStatus().name())
-                .created(payment.getCreated())
-                .updated(payment.getUpdated())
+                .created(payment.getCreated() == null ? null : payment.getCreated().toOffsetDateTime())
+                .updated(payment.getUpdated() == null ? null : payment.getUpdated().toOffsetDateTime())
                 .build();
     }
 

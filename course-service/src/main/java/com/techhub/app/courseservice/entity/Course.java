@@ -58,6 +58,9 @@ public class Course {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "currency", nullable = false, length = 3, columnDefinition = "VARCHAR(3) NOT NULL DEFAULT 'VND'")
+    private String currency = "VND";
+
     @Column(name = "instructor_id", nullable = false)
     private UUID instructorId;
 

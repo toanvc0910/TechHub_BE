@@ -1,7 +1,7 @@
 package com.techhub.app.paymentservice.repository.projection;
 
 import java.math.BigDecimal;
-import java.time.ZonedDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public interface PaymentHistoryProjection {
@@ -25,7 +25,7 @@ public interface PaymentHistoryProjection {
 
     String getStatus();
 
-    ZonedDateTime getCreated();
+    OffsetDateTime getCreated();
 
-    ZonedDateTime getUpdated();
+    OffsetDateTime getUpdated();
 }

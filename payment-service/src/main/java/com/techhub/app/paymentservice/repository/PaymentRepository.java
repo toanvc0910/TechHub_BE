@@ -21,13 +21,13 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             "p.id AS id, " +
             "t.id AS transactionId, " +
             "t.user_id AS userId, " +
-            "CAST(NULL AS TEXT) AS userName, " +
-            "CAST(NULL AS TEXT) AS userEmail, " +
+            "CAST('' AS VARCHAR(255)) AS userName, " +
+            "CAST('' AS VARCHAR(255)) AS userEmail, " +
             "CAST(MIN(CAST(c.id AS TEXT)) AS UUID) AS courseId, " +
-            "CASE WHEN COUNT(DISTINCT c.id) = 1 THEN MIN(c.title) ELSE 'Multiple courses' END AS courseName, " +
-            "COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0) AS grossAmount, " +
-            "CAST(p.method AS TEXT) AS paymentMethod, " +
-            "CAST(p.status AS TEXT) AS status, " +
+            "CAST(CASE WHEN COUNT(DISTINCT c.id) = 1 THEN MIN(c.title) ELSE 'Multiple courses' END AS VARCHAR(255)) AS courseName, " +
+            "CAST(COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0) AS NUMERIC(18,2)) AS grossAmount, " +
+            "CAST(p.method AS VARCHAR(50)) AS paymentMethod, " +
+            "CAST(p.status AS VARCHAR(50)) AS status, " +
             "p.created AS created, " +
             "p.updated AS updated " +
             "FROM payments p " +
@@ -43,13 +43,13 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             "p.id AS id, " +
             "t.id AS transactionId, " +
             "t.user_id AS userId, " +
-            "CAST(NULL AS TEXT) AS userName, " +
-            "CAST(NULL AS TEXT) AS userEmail, " +
+            "CAST('' AS VARCHAR(255)) AS userName, " +
+            "CAST('' AS VARCHAR(255)) AS userEmail, " +
             "CAST(MIN(CAST(c.id AS TEXT)) AS UUID) AS courseId, " +
-            "CASE WHEN COUNT(DISTINCT c.id) = 1 THEN MIN(c.title) ELSE 'Multiple courses' END AS courseName, " +
-            "COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0) AS grossAmount, " +
-            "CAST(p.method AS TEXT) AS paymentMethod, " +
-            "CAST(p.status AS TEXT) AS status, " +
+            "CAST(CASE WHEN COUNT(DISTINCT c.id) = 1 THEN MIN(c.title) ELSE 'Multiple courses' END AS VARCHAR(255)) AS courseName, " +
+            "CAST(COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0) AS NUMERIC(18,2)) AS grossAmount, " +
+            "CAST(p.method AS VARCHAR(50)) AS paymentMethod, " +
+            "CAST(p.status AS VARCHAR(50)) AS status, " +
             "p.created AS created, " +
             "p.updated AS updated " +
             "FROM payments p " +

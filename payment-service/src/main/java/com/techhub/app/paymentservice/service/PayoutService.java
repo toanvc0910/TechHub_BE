@@ -7,7 +7,6 @@ import com.techhub.app.paymentservice.dto.response.PayoutBalanceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutBatchResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutInvoiceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutRequestResponse;
-import com.techhub.app.paymentservice.dto.response.RevenueOverviewResponse;
 import com.techhub.app.paymentservice.entity.PayoutBatch;
 import com.techhub.app.paymentservice.entity.PayoutInvoice;
 import com.techhub.app.paymentservice.entity.PayoutLedgerEntry;
@@ -30,6 +29,7 @@ import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +50,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PayoutService {
 
     private static final DateTimeFormatter PERIOD_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
@@ -60,11 +61,13 @@ public class PayoutService {
     private final PayoutBatchRepository payoutBatchRepository;
     private final PayoutInvoiceRepository payoutInvoiceRepository;
     private final PayoutLedgerEntryRepository payoutLedgerEntryRepository;
-    private final RevenueAnalyticsService revenueAnalyticsService;
+    private final com.techhub.app.paymentservice.repository.TransactionItemRepository transactionItemRepository;
+    private final CurrencyExchangeService currencyExchangeService;
+    private final RevenueSplitPolicyService revenueSplitPolicyService;
 
     @Transactional
     public PayoutBalanceResponse getBalance(UUID instructorId) {
-        ensureRevenueCreditBootstrapped(instructorId);
+        syncRevenueCredit(instructorId);
         String instructorIdText = instructorId.toString();
 
         BigDecimal totalCredits = safeMoney(payoutLedgerEntryRepository.sumAmountByInstructorAndTypes(
@@ -82,11 +85,29 @@ public class PayoutService {
         BigDecimal available = totalEarned.subtract(pendingAmount).max(BigDecimal.ZERO).setScale(2,
                 RoundingMode.HALF_UP);
 
+        BigDecimal usdRate = BigDecimal.ZERO;
+        BigDecimal totalEarnedUsd = BigDecimal.ZERO;
+        BigDecimal pendingAmountUsd = BigDecimal.ZERO;
+        BigDecimal availableAmountUsd = BigDecimal.ZERO;
+        try {
+            usdRate = currencyExchangeService.getRate("VND", "USD");
+            totalEarnedUsd = totalEarned.multiply(usdRate).setScale(2, RoundingMode.HALF_UP);
+            pendingAmountUsd = pendingAmount.multiply(usdRate).setScale(2, RoundingMode.HALF_UP);
+            availableAmountUsd = available.multiply(usdRate).setScale(2, RoundingMode.HALF_UP);
+        } catch (Exception ignored) {
+            // Nếu FX fail thì để 0, không chặn balance.
+        }
+
         return PayoutBalanceResponse.builder()
                 .instructorId(instructorId)
                 .totalEarned(totalEarned)
                 .pendingAmount(pendingAmount)
                 .availableAmount(available)
+                .totalEarnedUsd(totalEarnedUsd)
+                .pendingAmountUsd(pendingAmountUsd)
+                .availableAmountUsd(availableAmountUsd)
+                .usdRate(usdRate)
+                .currency("VND")
                 .build();
     }
 
@@ -98,14 +119,27 @@ public class PayoutService {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be greater than 0");
         }
-        if (amount.compareTo(balance.getAvailableAmount()) > 0) {
+
+        // Nếu instructor request bằng USD, quy đổi sang VND (canonical) để trừ ledger.
+        String reqCurrency = request.getCurrency() == null ? "VND" : request.getCurrency().toUpperCase();
+        BigDecimal amountVnd = "USD".equals(reqCurrency)
+                ? currencyExchangeService.convert(amount, "USD", "VND")
+                : amount;
+
+        if (amountVnd.compareTo(balance.getAvailableAmount()) > 0) {
             throw new IllegalArgumentException("Requested amount exceeds available balance");
+        }
+
+        String note = request.getNote();
+        if ("USD".equals(reqCurrency)) {
+            String fxNote = "Requested " + amount.toPlainString() + " USD ≈ " + amountVnd.toPlainString() + " VND";
+            note = note == null || note.isBlank() ? fxNote : note + " | " + fxNote;
         }
 
         PayoutRequest saved = payoutRequestRepository.save(PayoutRequest.builder()
                 .instructorId(instructorId.toString())
-                .amount(amount)
-                .note(request.getNote())
+                .amount(amountVnd)
+                .note(note)
                 .status(PayoutRequestStatus.REQUESTED)
                 .build());
 
@@ -372,27 +406,64 @@ public class PayoutService {
         }
     }
 
-    private void ensureRevenueCreditBootstrapped(UUID instructorId) {
+    private void syncRevenueCredit(UUID instructorId) {
         String instructorIdText = instructorId.toString();
-        boolean alreadyBootstrapped = payoutLedgerEntryRepository
-                .existsByInstructorIdAndReferenceTypeAndIsActive(instructorIdText, REVENUE_BOOTSTRAP_REFERENCE, "Y");
-        if (alreadyBootstrapped) {
-            return;
-        }
+        log.info("[PayoutSync] START instructorId={}", instructorIdText);
 
-        RevenueOverviewResponse overview = revenueAnalyticsService.getInstructorOverview(instructorId, null, null);
-        BigDecimal earned = safeMoney(overview.getEstimatedInstructorRevenue());
+        // Tổng gross theo từng currency rồi quy đổi về VND (canonical cho payout).
+        java.util.List<com.techhub.app.paymentservice.repository.projection.RevenueByCurrencyProjection> rows =
+                transactionItemRepository.getInstructorRevenueByCurrency(instructorId, null, null);
+        log.info("[PayoutSync] revenue rows count={} instructorId={}", rows.size(), instructorIdText);
+
+        BigDecimal grossInVnd = BigDecimal.ZERO;
+        for (com.techhub.app.paymentservice.repository.projection.RevenueByCurrencyProjection row : rows) {
+            BigDecimal gross = safeMoney(row.getGrossRevenue());
+            String currency = row.getCurrency() == null ? "VND" : row.getCurrency().toUpperCase();
+            log.info("[PayoutSync] revenue row currency={} gross={}", currency, gross);
+            if (gross.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal grossVnd = "VND".equals(currency)
+                    ? gross
+                    : currencyExchangeService.convert(gross, currency, "VND");
+            log.info("[PayoutSync] convert {} {} -> {} VND", gross, currency, grossVnd);
+            grossInVnd = grossInVnd.add(grossVnd);
+        }
+        grossInVnd = grossInVnd.setScale(2, RoundingMode.HALF_UP);
+        log.info("[PayoutSync] grossInVnd total={} instructorId={}", grossInVnd, instructorIdText);
+
+        // Áp dụng policy chia doanh thu cho giảng viên.
+        BigDecimal instructorRate = revenueSplitPolicyService
+                .resolvePolicy(instructorId, null, OffsetDateTime.now())
+                .getInstructorRate();
+        if (instructorRate == null) {
+            instructorRate = BigDecimal.valueOf(0.7);
+        }
+        BigDecimal earned = grossInVnd.multiply(instructorRate).setScale(2, RoundingMode.HALF_UP);
+        log.info("[PayoutSync] instructorRate={} earned={} instructorId={}", instructorRate, earned, instructorIdText);
         if (earned.compareTo(BigDecimal.ZERO) <= 0) {
+            log.info("[PayoutSync] earned<=0, skip insert ledger. instructorId={}", instructorIdText);
             return;
         }
 
-        payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
-                .instructorId(instructorId.toString())
+        BigDecimal alreadySynced = safeMoney(payoutLedgerEntryRepository
+                .sumAmountByInstructorAndReferenceType(instructorIdText, REVENUE_BOOTSTRAP_REFERENCE));
+        BigDecimal delta = earned.subtract(alreadySynced).setScale(2, RoundingMode.HALF_UP);
+        log.info("[PayoutSync] alreadySynced={} delta={} instructorId={}", alreadySynced, delta, instructorIdText);
+        if (delta.compareTo(BigDecimal.ZERO) <= 0) {
+            log.info("[PayoutSync] delta<=0, no new credit needed. instructorId={}", instructorIdText);
+            return;
+        }
+
+        PayoutLedgerEntry inserted = payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
+                .instructorId(instructorIdText)
                 .entryType(PayoutLedgerEntryType.CREDIT_SALE)
-                .amount(earned)
+                .amount(delta)
                 .referenceType(REVENUE_BOOTSTRAP_REFERENCE)
-                .note("Bootstrap instructor earnings from revenue overview")
+                .note("Sync instructor earnings from revenue overview (delta)")
                 .build());
+        log.info("[PayoutSync] INSERTED ledger entry id={} amount={} instructorId={}",
+                inserted.getId(), inserted.getAmount(), instructorIdText);
     }
 
     private PayoutRequestResponse toResponse(PayoutRequest request) {

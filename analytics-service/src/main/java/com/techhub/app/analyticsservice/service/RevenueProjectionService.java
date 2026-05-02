@@ -5,6 +5,7 @@ import com.techhub.app.analyticsservice.dto.RevenueDailyTrendResponse;
 import com.techhub.app.analyticsservice.entity.RevenueDailyAggregate;
 import com.techhub.app.analyticsservice.repository.RevenueDailyAggregateRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RevenueProjectionService {
 
         private static final LocalDate MIN_METRIC_DATE = LocalDate.of(1970, 1, 1);
@@ -28,19 +30,25 @@ public class RevenueProjectionService {
         public void applyRevenueSplit(UUID instructorId, BigDecimal gross, BigDecimal instructorAmount,
                         BigDecimal adminAmount, String policyScope, Integer policyVersion,
                         int quantity, LocalDate metricDate, boolean firstItemForTransaction) {
-                String instructorIdText = stringifyUuid(instructorId);
-                RevenueDailyAggregate row = revenueRepository
-                                .findByMetricDateAndInstructorId(metricDate, instructorIdText)
-                                .orElseGet(() -> RevenueDailyAggregate.builder()
-                                                .metricDate(metricDate)
-                                                .instructorId(instructorIdText)
-                                                .grossRevenue(BigDecimal.ZERO)
-                                                .instructorRevenue(BigDecimal.ZERO)
-                                                .adminRevenue(BigDecimal.ZERO)
-                                                .orderCount(0L)
-                                                .itemCount(0L)
-                                                .build());
+                log.info("[RevenueProjection] applyRevenueSplit START instructorId={} metricDate={} gross={} instructor={} admin={} qty={} firstItem={}",
+                                instructorId, metricDate, gross, instructorAmount, adminAmount, quantity, firstItemForTransaction);
 
+                java.util.Optional<RevenueDailyAggregate> existing = revenueRepository
+                                .findByMetricDateAndInstructorId(metricDate, instructorId);
+                log.info("[RevenueProjection] existing row found={} for metricDate={} instructorId={}",
+                                existing.isPresent(), metricDate, instructorId);
+
+                RevenueDailyAggregate row = existing.orElseGet(() -> RevenueDailyAggregate.builder()
+                                .metricDate(metricDate)
+                                .instructorId(instructorId)
+                                .grossRevenue(BigDecimal.ZERO)
+                                .instructorRevenue(BigDecimal.ZERO)
+                                .adminRevenue(BigDecimal.ZERO)
+                                .orderCount(0L)
+                                .itemCount(0L)
+                                .build());
+
+                BigDecimal beforeGross = row.getGrossRevenue();
                 row.setGrossRevenue(row.getGrossRevenue().add(safe(gross)));
                 row.setInstructorRevenue(row.getInstructorRevenue().add(safe(instructorAmount)));
                 row.setAdminRevenue(row.getAdminRevenue().add(safe(adminAmount)));
@@ -51,31 +59,40 @@ public class RevenueProjectionService {
                         row.setOrderCount(row.getOrderCount() + 1);
                 }
 
-                revenueRepository.save(row);
+                try {
+                        RevenueDailyAggregate saved = revenueRepository.save(row);
+                        log.info("[RevenueProjection] SAVED id={} instructorId={} metricDate={} grossBefore={} grossAfter={} instructorRevenue={} adminRevenue={} orderCount={} itemCount={}",
+                                        saved.getId(), saved.getInstructorId(), saved.getMetricDate(),
+                                        beforeGross, saved.getGrossRevenue(), saved.getInstructorRevenue(),
+                                        saved.getAdminRevenue(), saved.getOrderCount(), saved.getItemCount());
+                } catch (Exception ex) {
+                        log.error("[RevenueProjection] SAVE FAILED instructorId={} metricDate={} error={}",
+                                        instructorId, metricDate, ex.getMessage(), ex);
+                        throw ex;
+                }
         }
 
         @Transactional(readOnly = true)
         public RevenueOverviewResponse getInstructorOverview(UUID instructorId, LocalDate fromDate, LocalDate toDate) {
                 LocalDate effectiveFromDate = normalizeFromDate(fromDate);
                 LocalDate effectiveToDate = normalizeToDate(toDate);
-                String instructorIdText = stringifyUuid(instructorId);
                 return RevenueOverviewResponse.builder()
                                 .scope("INSTRUCTOR")
                                 .instructorId(instructorId)
                                 .grossRevenue(safe(
-                                                revenueRepository.sumInstructorGrossRevenue(instructorIdText,
+                                                revenueRepository.sumInstructorGrossRevenue(instructorId,
                                                                 effectiveFromDate,
                                                                 effectiveToDate)))
-                                .instructorRevenue(safe(revenueRepository.sumInstructorNetRevenue(instructorIdText,
+                                .instructorRevenue(safe(revenueRepository.sumInstructorNetRevenue(instructorId,
                                                 effectiveFromDate, effectiveToDate)))
                                 .adminRevenue(BigDecimal.ZERO)
                                 .policyScope("MIXED")
                                 .policyVersion(null)
                                 .totalOrders(safeLong(
-                                                revenueRepository.sumOrderCount(instructorIdText, effectiveFromDate,
+                                                revenueRepository.sumOrderCount(instructorId, effectiveFromDate,
                                                                 effectiveToDate)))
                                 .totalItems(safeLong(
-                                                revenueRepository.sumItemCount(instructorIdText, effectiveFromDate,
+                                                revenueRepository.sumItemCount(instructorId, effectiveFromDate,
                                                                 effectiveToDate)))
                                 .build();
         }
@@ -84,26 +101,25 @@ public class RevenueProjectionService {
         public RevenueOverviewResponse getAdminOverview(UUID instructorId, LocalDate fromDate, LocalDate toDate) {
                 LocalDate effectiveFromDate = normalizeFromDate(fromDate);
                 LocalDate effectiveToDate = normalizeToDate(toDate);
-                String instructorIdText = stringifyNullableUuid(instructorId);
                 return RevenueOverviewResponse.builder()
                                 .scope("ADMIN")
                                 .instructorId(instructorId)
                                 .grossRevenue(safe(
-                                                revenueRepository.sumAdminGrossRevenue(instructorIdText,
+                                                revenueRepository.sumAdminGrossRevenue(instructorId,
                                                                 effectiveFromDate,
                                                                 effectiveToDate)))
                                 .instructorRevenue(BigDecimal.ZERO)
                                 .adminRevenue(safe(
-                                                revenueRepository.sumAdminNetRevenue(instructorIdText,
+                                                revenueRepository.sumAdminNetRevenue(instructorId,
                                                                 effectiveFromDate,
                                                                 effectiveToDate)))
                                 .policyScope("MIXED")
                                 .policyVersion(null)
                                 .totalOrders(safeLong(
-                                                revenueRepository.sumOrderCount(instructorIdText, effectiveFromDate,
+                                                revenueRepository.sumOrderCount(instructorId, effectiveFromDate,
                                                                 effectiveToDate)))
                                 .totalItems(safeLong(
-                                                revenueRepository.sumItemCount(instructorIdText, effectiveFromDate,
+                                                revenueRepository.sumItemCount(instructorId, effectiveFromDate,
                                                                 effectiveToDate)))
                                 .build();
         }
@@ -113,7 +129,7 @@ public class RevenueProjectionService {
                         LocalDate toDate) {
                 LocalDate effectiveFromDate = normalizeFromDate(fromDate);
                 LocalDate effectiveToDate = normalizeToDate(toDate);
-                return revenueRepository.findInstructorTrendRows(stringifyUuid(instructorId), effectiveFromDate,
+                return revenueRepository.findInstructorTrendRows(instructorId, effectiveFromDate,
                                 effectiveToDate)
                                 .stream()
                                 .map(row -> RevenueDailyTrendResponse.builder()

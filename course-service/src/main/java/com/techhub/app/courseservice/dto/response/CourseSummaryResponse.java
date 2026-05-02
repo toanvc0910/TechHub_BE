@@ -25,6 +25,7 @@ public class CourseSummaryResponse {
     private String title;
     private String description;
     private BigDecimal price;
+    private String currency;
     private BigDecimal discountPrice;
     private OffsetDateTime promoEndDate;
     private CourseStatus status;

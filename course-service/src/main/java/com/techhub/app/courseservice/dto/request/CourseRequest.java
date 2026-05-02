@@ -30,6 +30,9 @@ public class CourseRequest {
     @DecimalMin(value = "0.0", inclusive = true)
     private BigDecimal price;
 
+    @Size(min = 3, max = 3)
+    private String currency;
+
     private CourseStatus status;
 
     private CourseLevel level;
