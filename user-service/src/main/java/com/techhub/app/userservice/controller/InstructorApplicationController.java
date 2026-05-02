@@ -2,7 +2,6 @@ package com.techhub.app.userservice.controller;
 
 import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.userservice.dto.request.CreateInstructorApplicationRequest;
-import com.techhub.app.userservice.dto.request.N8nCallbackRequest;
 import com.techhub.app.userservice.dto.request.ReviewInstructorApplicationRequest;
 import com.techhub.app.userservice.dto.response.InstructorApplicationResponse;
 import com.techhub.app.userservice.enums.InstructorApplicationAdminStatus;
@@ -140,20 +139,6 @@ public class InstructorApplicationController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
-        }
-    }
-
-    @PostMapping("/n8n-callback")
-    public ResponseEntity<GlobalResponse<String>> n8nCallback(
-            @RequestHeader(value = "X-Callback-Secret", required = false) String secret,
-            @RequestBody N8nCallbackRequest payload) {
-        try {
-            service.handleCallback(secret, payload);
-            return ResponseEntity.ok(GlobalResponse.success("OK", "ok"));
-        } catch (IllegalArgumentException ex) {
-            log.warn("[N8nCallback] {}", ex.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.UNAUTHORIZED.value()));
         }
     }
 

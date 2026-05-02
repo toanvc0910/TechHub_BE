@@ -1,8 +1,6 @@
 package com.techhub.app.userservice.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techhub.app.userservice.dto.request.CreateInstructorApplicationRequest;
-import com.techhub.app.userservice.dto.request.N8nCallbackRequest;
 import com.techhub.app.userservice.dto.request.ReviewInstructorApplicationRequest;
 import com.techhub.app.userservice.dto.response.InstructorApplicationResponse;
 import com.techhub.app.userservice.entity.InstructorApplication;
@@ -39,23 +37,31 @@ public class InstructorApplicationService {
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
     private final N8nCvScanClient n8nClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
     public InstructorApplicationResponse submit(UUID userId, CreateInstructorApplicationRequest request) {
-        // Block nếu đang có app PENDING (chưa duyệt).
-        Optional<InstructorApplication> existing = applicationRepository
-                .findFirstByUserIdAndAdminStatusAndIsActiveTrueOrderByCreatedDesc(
-                        userId, InstructorApplicationAdminStatus.PENDING);
-        if (existing.isPresent()) {
-            throw new IllegalArgumentException("Bạn đang có đơn ứng tuyển chờ duyệt");
-        }
         // Block nếu đã APPROVED (đã là instructor).
         Optional<InstructorApplication> approved = applicationRepository
                 .findFirstByUserIdAndAdminStatusAndIsActiveTrueOrderByCreatedDesc(
                         userId, InstructorApplicationAdminStatus.APPROVED);
         if (approved.isPresent()) {
             throw new IllegalArgumentException("Bạn đã được duyệt làm giảng viên");
+        }
+        // Block nếu đang có app PENDING + AI đã PROCESSED (đợi admin duyệt).
+        // Nếu AI FAILED hoặc PENDING quá lâu → cho nộp lại, đánh dấu đơn cũ inactive.
+        Optional<InstructorApplication> existingPending = applicationRepository
+                .findFirstByUserIdAndAdminStatusAndIsActiveTrueOrderByCreatedDesc(
+                        userId, InstructorApplicationAdminStatus.PENDING);
+        if (existingPending.isPresent()) {
+            InstructorApplication oldApp = existingPending.get();
+            if (oldApp.getAiStatus() == InstructorApplicationAiStatus.PROCESSED) {
+                throw new IllegalArgumentException("Bạn đang có đơn ứng tuyển chờ admin duyệt");
+            }
+            // AI failed hoặc đang pending - cho phép thay thế.
+            oldApp.setIsActive(false);
+            applicationRepository.save(oldApp);
+            log.info("[InstructorApp] Soft-deleted old failed/pending app id={} for userId={}",
+                    oldApp.getId(), userId);
         }
 
         InstructorApplication app = InstructorApplication.builder()
@@ -72,36 +78,6 @@ public class InstructorApplicationService {
         // Async fire N8n
         n8nClient.triggerCvScan(saved.getId(), saved.getCvFileUrl());
         return toResponse(saved);
-    }
-
-    @Transactional
-    public void handleCallback(String secretHeader, N8nCallbackRequest payload) {
-        if (secretHeader == null || !secretHeader.equals(n8nClient.getCallbackSecret())) {
-            throw new IllegalArgumentException("Invalid callback secret");
-        }
-        if (payload.getApplicationId() == null) {
-            throw new IllegalArgumentException("Missing applicationId");
-        }
-        InstructorApplication app = applicationRepository.findById(payload.getApplicationId())
-                .orElseThrow(() -> new IllegalArgumentException("Application not found"));
-
-        if ("PROCESSED".equalsIgnoreCase(payload.getStatus())) {
-            app.setAiStatus(InstructorApplicationAiStatus.PROCESSED);
-            app.setAiError(null);
-            try {
-                app.setAiExtractedData(payload.getData() == null ? "{}"
-                        : objectMapper.writeValueAsString(payload.getData()));
-            } catch (Exception ex) {
-                log.warn("[InstructorApp] Failed to serialize ai data: {}", ex.getMessage());
-                app.setAiExtractedData("{}");
-            }
-        } else {
-            app.setAiStatus(InstructorApplicationAiStatus.FAILED);
-            app.setAiError(payload.getError() == null ? "Unknown error" : payload.getError());
-        }
-        applicationRepository.save(app);
-        log.info("[InstructorApp] Callback applied applicationId={} status={}",
-                payload.getApplicationId(), app.getAiStatus());
     }
 
     @Transactional(readOnly = true)
