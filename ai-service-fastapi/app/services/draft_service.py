@@ -40,7 +40,14 @@ class DraftService:
             result = await session.execute(
                 select(AiGenerationTaskModel)
                 .where(AiGenerationTaskModel.task_type == AiTaskType.LEARNING_PATH_GENERATION.value)
-                .where(AiGenerationTaskModel.status == AiTaskStatus.DRAFT.value)
+                .where(
+                    AiGenerationTaskModel.status.in_(
+                        [
+                            AiTaskStatus.DRAFT.value,
+                            AiTaskStatus.APPROVED.value,
+                        ]
+                    )
+                )
                 .order_by(AiGenerationTaskModel.created.desc())
             )
             return [self._to_item(item) for item in result.scalars().all()]

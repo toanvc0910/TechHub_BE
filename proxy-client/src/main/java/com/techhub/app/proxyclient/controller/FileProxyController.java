@@ -3,6 +3,7 @@ package com.techhub.app.proxyclient.controller;
 import com.techhub.app.proxyclient.client.FileServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,12 +28,13 @@ public class FileProxyController {
             @RequestParam("userId") UUID userId,
             @RequestParam(value = "folderId", required = false) UUID folderId,
             @RequestParam(value = "tags", required = false) String[] tags,
-            @RequestParam(value = "description", required = false) String description) {
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "uploadSource", required = false) String uploadSource) {
 
         log.info("[PROXY] Uploading file: {} by user: {}", file.getOriginalFilename(), userId);
 
         ResponseEntity<Map<String, Object>> response = fileServiceClient.uploadFile(
-                file, userId, folderId, tags, description);
+                file, userId, folderId, tags, description, uploadSource);
         log.info("[PROXY] File uploaded successfully: {}", file.getOriginalFilename());
         return response;
     }
@@ -43,12 +45,13 @@ public class FileProxyController {
             @RequestParam("userId") UUID userId,
             @RequestParam(value = "folderId", required = false) UUID folderId,
             @RequestParam(value = "tags", required = false) String[] tags,
-            @RequestParam(value = "description", required = false) String description) {
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "uploadSource", required = false) String uploadSource) {
 
         log.info("[PROXY] Uploading {} files by user: {}", files.size(), userId);
 
         ResponseEntity<Map<String, Object>> response = fileServiceClient.uploadMultipleFiles(
-                files, userId, folderId, tags, description);
+                files, userId, folderId, tags, description, uploadSource);
         log.info("[PROXY] {} files uploaded successfully", files.size());
         return response;
     }
@@ -62,6 +65,22 @@ public class FileProxyController {
         ResponseEntity<Map<String, Object>> response = fileServiceClient.getFile(fileId, userId);
         log.info("[PROXY] File retrieved: {}", fileId);
         return response;
+    }
+
+    @GetMapping("/{fileId}/content")
+    public ResponseEntity<byte[]> getFileContent(
+            @PathVariable UUID fileId,
+            @RequestParam UUID userId) {
+        log.info("[PROXY] Streaming file content: {} for user: {}", fileId, userId);
+        return relayBinaryResponse(fileServiceClient.getFileContent(fileId, userId));
+    }
+
+    @GetMapping("/{fileId}/thumbnail")
+    public ResponseEntity<byte[]> getFileThumbnail(
+            @PathVariable UUID fileId,
+            @RequestParam UUID userId) {
+        log.info("[PROXY] Streaming file thumbnail: {} for user: {}", fileId, userId);
+        return relayBinaryResponse(fileServiceClient.getFileThumbnail(fileId, userId));
     }
 
     @GetMapping
@@ -216,5 +235,20 @@ public class FileProxyController {
         ResponseEntity<Map<String, Object>> response = fileServiceClient.listFileUsages(fileId);
         log.info("[PROXY] File usages retrieved for file: {}", fileId);
         return response;
+    }
+
+    private ResponseEntity<byte[]> relayBinaryResponse(ResponseEntity<byte[]> response) {
+        HttpHeaders headers = new HttpHeaders();
+        if (response.getHeaders().getContentType() != null) {
+            headers.setContentType(response.getHeaders().getContentType());
+        }
+        if (response.getHeaders().getContentDisposition() != null) {
+            headers.setContentDisposition(response.getHeaders().getContentDisposition());
+        }
+        byte[] body = response.getBody();
+        if (body != null) {
+            headers.setContentLength(body.length);
+        }
+        return new ResponseEntity<>(body, headers, response.getStatusCode());
     }
 }

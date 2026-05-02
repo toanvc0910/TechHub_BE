@@ -4,11 +4,14 @@ import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.commonservice.payload.PageGlobalResponse;
 import com.techhub.app.fileservice.dto.response.FileResponse;
 import com.techhub.app.fileservice.dto.response.FileStatisticsResponse;
+import com.techhub.app.fileservice.service.StoredFileContent;
 import com.techhub.app.fileservice.service.FileManagementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -34,11 +37,13 @@ public class FileController {
             @RequestParam(value = "folderId", required = false) UUID folderId,
             @RequestParam(value = "tags", required = false) String[] tags,
             @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "uploadSource", required = false) String uploadSource,
             HttpServletRequest request) {
 
         log.info("Uploading file: {} by user: {}", file.getOriginalFilename(), userId);
 
-        FileResponse response = fileManagementService.uploadFile(file, userId, folderId, tags, description);
+        FileResponse response = fileManagementService.uploadFile(file, userId, folderId, tags, description,
+                uploadSource);
 
         return ResponseEntity.ok(
                 GlobalResponse.success("File uploaded successfully", response)
@@ -52,12 +57,13 @@ public class FileController {
             @RequestParam(value = "folderId", required = false) UUID folderId,
             @RequestParam(value = "tags", required = false) String[] tags,
             @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "uploadSource", required = false) String uploadSource,
             HttpServletRequest request) {
 
         log.info("Uploading {} files by user: {}", files.size(), userId);
 
         List<FileResponse> responses = fileManagementService.uploadMultipleFiles(files, userId, folderId, tags,
-                description);
+                description, uploadSource);
 
         return ResponseEntity.ok(
                 GlobalResponse.success("Files uploaded successfully", responses)
@@ -88,6 +94,22 @@ public class FileController {
         return ResponseEntity.ok(
                 GlobalResponse.success("File retrieved successfully", response)
                         .withPath(request.getRequestURI()));
+    }
+
+    @GetMapping("/{fileId}/content")
+    public ResponseEntity<InputStreamResource> getFileContent(
+            @PathVariable UUID fileId,
+            @RequestParam UUID userId) {
+        log.info("Streaming file content: {} for user: {}", fileId, userId);
+        return buildStreamResponse(fileManagementService.getFileContent(userId, fileId));
+    }
+
+    @GetMapping("/{fileId}/thumbnail")
+    public ResponseEntity<InputStreamResource> getFileThumbnail(
+            @PathVariable UUID fileId,
+            @RequestParam UUID userId) {
+        log.info("Streaming file thumbnail: {} for user: {}", fileId, userId);
+        return buildStreamResponse(fileManagementService.getFileThumbnail(userId, fileId));
     }
 
     @GetMapping("/folder/{folderId}")
@@ -137,5 +159,26 @@ public class FileController {
         return ResponseEntity.ok(
                 GlobalResponse.success("Statistics retrieved successfully", stats)
                         .withPath(request.getRequestURI()));
+    }
+
+    private ResponseEntity<InputStreamResource> buildStreamResponse(StoredFileContent content) {
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (content.getContentType() != null && !content.getContentType().isBlank()) {
+            mediaType = MediaType.parseMediaType(content.getContentType());
+        }
+
+        String safeFilename = content.getFilename() == null || content.getFilename().isBlank()
+                ? "file"
+                : content.getFilename().replace("\"", "");
+
+        ResponseEntity.BodyBuilder responseBuilder = ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + safeFilename + "\"");
+
+        if (content.getContentLength() != null && content.getContentLength() >= 0) {
+            responseBuilder.contentLength(content.getContentLength());
+        }
+
+        return responseBuilder.body(new InputStreamResource(content.getInputStream()));
     }
 }

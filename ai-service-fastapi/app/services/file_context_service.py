@@ -204,12 +204,24 @@ class FileContextService:
             response = await self._client.get(url)
             response.raise_for_status()
             raw = response.content[: self._settings.file_max_download_bytes]
+            response_content_type = response.headers.get("content-type", "")
+            if self._looks_like_wrong_html_payload(
+                raw,
+                response_content_type=response_content_type,
+                expected_mime_type=mime_type,
+                name=name,
+            ):
+                logger.warning("Downloaded HTML shell instead of file content for %s from %s", name, url)
+                return None
+
+            effective_mime_type = mime_type or response_content_type.split(";", 1)[0].strip()
             # Use async version that supports OCR fallback
-            extracted = await self._extract_bytes_async(raw, mime_type=mime_type, name=name)
+            extracted = await self._extract_bytes_async(raw, mime_type=effective_mime_type, name=name)
             if not extracted:
                 return None
-            return self._normalize_text(extracted, mime_type=mime_type, name=name)[: self._settings.file_max_chars]
-        except Exception:
+            return self._normalize_text(extracted, mime_type=effective_mime_type, name=name)[: self._settings.file_max_chars]
+        except Exception as exc:
+            logger.warning("Failed to download or extract file content for %s: %s", name, exc)
             return None
 
     @staticmethod
@@ -258,6 +270,25 @@ class FileContextService:
         normalized = re.sub(r"\n{3,}", "\n\n", normalized)
         normalized = re.sub(r"[ \t]{2,}", " ", normalized)
         return normalized.strip()
+
+    @staticmethod
+    def _looks_like_wrong_html_payload(
+        raw: bytes,
+        *,
+        response_content_type: str,
+        expected_mime_type: str,
+        name: str,
+    ) -> bool:
+        lowered_name = name.lower()
+        expected_html = expected_mime_type.lower() == "text/html" or lowered_name.endswith((".html", ".htm"))
+        sample = raw[:4096].decode("utf-8", errors="ignore").lower()
+
+        if "minio console" in sample or "you need to enable javascript to run this app" in sample:
+            return True
+
+        response_is_html = "text/html" in response_content_type.lower()
+        payload_starts_like_html = bool(re.search(r"^\s*(<!doctype html|<html[\s>])", sample))
+        return not expected_html and response_is_html and payload_starts_like_html
 
     @classmethod
     def _metadata_text(cls, file_item: dict[str, Any]) -> str | None:

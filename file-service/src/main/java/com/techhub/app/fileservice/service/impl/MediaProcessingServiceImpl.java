@@ -15,13 +15,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -50,27 +51,41 @@ public class MediaProcessingServiceImpl implements MediaProcessingService {
                 Files.copy(inputStream, videoFile, StandardCopyOption.REPLACE_EXISTING);
             }
 
-            Map<String, String> metadata = extractVideoMetadata(videoFile);
-            file.setWidth(parseInteger(metadata.get("width")));
-            file.setHeight(parseInteger(metadata.get("height")));
-            file.setDuration(parseDuration(metadata.get("duration")));
+            String processingWarning = null;
 
-            thumbnailFile = Files.createTempFile("techhub-thumbnail-", ".jpg");
-            generateVideoThumbnail(videoFile, thumbnailFile);
+            try {
+                Map<String, String> metadata = extractVideoMetadata(videoFile);
+                file.setWidth(parseInteger(metadata.get("width")));
+                file.setHeight(parseInteger(metadata.get("height")));
+                file.setDuration(parseDuration(metadata.get("duration")));
+            } catch (Exception e) {
+                processingWarning = appendProcessingWarning(processingWarning,
+                        "Video metadata unavailable: " + safeErrorMessage(e));
+                log.warn("Video metadata extraction failed for file {}", file.getId(), e);
+            }
 
-            String thumbnailObjectKey = buildThumbnailObjectKey(file.getId());
-            try (InputStream thumbnailInputStream = Files.newInputStream(thumbnailFile)) {
-                StoredObjectDetails thumbnailObject = objectStorageService.upload(
-                        thumbnailInputStream,
-                        Files.size(thumbnailFile),
-                        "image/jpeg",
-                        thumbnailObjectKey);
-                file.setThumbnailObjectKey(thumbnailObject.getObjectKey());
-                file.setThumbnailUrl(thumbnailObject.getPublicUrl());
+            try {
+                thumbnailFile = Files.createTempFile("techhub-thumbnail-", ".jpg");
+                generateVideoThumbnail(videoFile, thumbnailFile);
+
+                String thumbnailObjectKey = buildThumbnailObjectKey(file);
+                try (InputStream thumbnailInputStream = Files.newInputStream(thumbnailFile)) {
+                    StoredObjectDetails thumbnailObject = objectStorageService.upload(
+                            thumbnailInputStream,
+                            Files.size(thumbnailFile),
+                            "image/jpeg",
+                            thumbnailObjectKey);
+                    file.setThumbnailObjectKey(thumbnailObject.getObjectKey());
+                    file.setThumbnailUrl(thumbnailObject.getPublicUrl());
+                }
+            } catch (Exception e) {
+                processingWarning = appendProcessingWarning(processingWarning,
+                        "Video thumbnail unavailable: " + safeErrorMessage(e));
+                log.warn("Video thumbnail generation failed for file {}", file.getId(), e);
             }
 
             file.setProcessingStatus("READY");
-            file.setProcessingError(null);
+            file.setProcessingError(processingWarning);
             file.setProcessedAt(LocalDateTime.now());
             fileRepository.save(file);
         } catch (Exception e) {
@@ -85,7 +100,7 @@ public class MediaProcessingServiceImpl implements MediaProcessingService {
     }
 
     private Map<String, String> extractVideoMetadata(Path videoFile) throws IOException, InterruptedException {
-        ProcessBuilder processBuilder = new ProcessBuilder(
+        List<String> command = List.of(
                 "ffprobe",
                 "-v", "error",
                 "-select_streams", "v:0",
@@ -93,10 +108,12 @@ public class MediaProcessingServiceImpl implements MediaProcessingService {
                 "-of", "default=noprint_wrappers=1",
                 videoFile.toAbsolutePath().toString());
 
-        Process process = processBuilder.start();
+        String output = runProcess(command, "ffprobe");
         Map<String, String> result = new HashMap<>();
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new java.io.ByteArrayInputStream(output.getBytes(StandardCharsets.UTF_8)),
+                StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split("=", 2);
@@ -106,32 +123,97 @@ public class MediaProcessingServiceImpl implements MediaProcessingService {
             }
         }
 
-        int exitCode = process.waitFor();
-        if (exitCode != 0) {
-            throw new RuntimeException("ffprobe failed with exit code " + exitCode);
-        }
-
         return result;
     }
 
     private void generateVideoThumbnail(Path videoFile, Path thumbnailFile) throws IOException, InterruptedException {
-        ProcessBuilder processBuilder = new ProcessBuilder(
-                "ffmpeg",
-                "-y",
-                "-i", videoFile.toAbsolutePath().toString(),
-                "-ss", "00:00:01",
-                "-vframes", "1",
-                thumbnailFile.toAbsolutePath().toString());
+        String videoPath = videoFile.toAbsolutePath().toString();
+        String thumbnailPath = thumbnailFile.toAbsolutePath().toString();
+        List<List<String>> attempts = List.of(
+                List.of("ffmpeg", "-y", "-ss", "00:00:00.5", "-i", videoPath,
+                        "-frames:v", "1", "-q:v", "2", thumbnailPath),
+                List.of("ffmpeg", "-y", "-i", videoPath,
+                        "-frames:v", "1", "-q:v", "2", thumbnailPath));
 
-        Process process = processBuilder.start();
-        int exitCode = process.waitFor();
-        if (exitCode != 0) {
-            throw new RuntimeException("ffmpeg failed with exit code " + exitCode);
+        Exception lastError = null;
+        for (List<String> command : attempts) {
+            Files.deleteIfExists(thumbnailFile);
+            try {
+                runProcess(command, "ffmpeg");
+                if (Files.exists(thumbnailFile) && Files.size(thumbnailFile) > 0) {
+                    return;
+                }
+                throw new RuntimeException("ffmpeg did not produce a thumbnail");
+            } catch (Exception e) {
+                lastError = e;
+            }
         }
+
+        if (lastError instanceof IOException ioException) {
+            throw ioException;
+        }
+        if (lastError instanceof InterruptedException interruptedException) {
+            throw interruptedException;
+        }
+        throw new RuntimeException(lastError);
     }
 
-    private String buildThumbnailObjectKey(UUID fileId) {
-        return "thumbnails/" + fileId + ".jpg";
+    private String runProcess(List<String> command, String commandName) throws IOException, InterruptedException {
+        ProcessBuilder processBuilder = new ProcessBuilder(command);
+        processBuilder.redirectErrorStream(true);
+
+        Process process = processBuilder.start();
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (output.length() < 4000) {
+                    output.append(line).append(System.lineSeparator());
+                }
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new RuntimeException(commandName + " failed with exit code " + exitCode
+                    + formatProcessOutput(output.toString()));
+        }
+
+        return output.toString();
+    }
+
+    private String buildThumbnailObjectKey(FileEntity file) {
+        return "users/" + file.getUserId() + "/thumbnails/videos/" + file.getId() + ".jpg";
+    }
+
+    private String appendProcessingWarning(String current, String warning) {
+        if (current == null || current.isBlank()) {
+            return truncate(warning, 1000);
+        }
+        return truncate(current + "; " + warning, 1000);
+    }
+
+    private String safeErrorMessage(Exception e) {
+        String message = e.getMessage();
+        if (message == null || message.isBlank()) {
+            return e.getClass().getSimpleName();
+        }
+        return truncate(message.replaceAll("\\s+", " ").trim(), 500);
+    }
+
+    private String formatProcessOutput(String output) {
+        if (output == null || output.isBlank()) {
+            return "";
+        }
+        return ": " + truncate(output.replaceAll("\\s+", " ").trim(), 500);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     private Integer parseInteger(String value) {
