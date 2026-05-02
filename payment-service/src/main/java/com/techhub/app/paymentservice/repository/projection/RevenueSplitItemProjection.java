@@ -10,4 +10,6 @@ public interface RevenueSplitItemProjection {
     BigDecimal getGrossAmount();
 
     Integer getQuantity();
+
+    String getCurrency();
 }

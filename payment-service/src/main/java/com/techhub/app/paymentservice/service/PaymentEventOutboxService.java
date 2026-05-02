@@ -34,6 +34,7 @@ public class PaymentEventOutboxService {
     private final OutboxEventRepository outboxEventRepository;
     private final TransactionItemRepository transactionItemRepository;
     private final RevenueSplitPolicyService revenueSplitPolicyService;
+    private final CurrencyExchangeService currencyExchangeService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -83,7 +84,16 @@ public class PaymentEventOutboxService {
             BigDecimal normalizedInstructorRate = normalizeRate(resolvedPolicy.getInstructorRate());
             BigDecimal adminRate = BigDecimal.ONE.subtract(normalizedInstructorRate).setScale(4, RoundingMode.HALF_UP);
 
-            BigDecimal grossAmount = safeMoney(row.getGrossAmount());
+            BigDecimal rawGross = safeMoney(row.getGrossAmount());
+            String currency = row.getCurrency() == null ? "VND" : row.getCurrency().toUpperCase();
+            // Quy đổi sang VND (canonical cho analytics) nếu course không phải VND.
+            BigDecimal grossAmount = "VND".equals(currency)
+                    ? rawGross
+                    : currencyExchangeService.convert(rawGross, currency, "VND");
+            if (!"VND".equals(currency)) {
+                log.info("[RevenueSplit] convert {} {} -> {} VND for txId={} courseId={}",
+                        rawGross, currency, grossAmount, transaction.getId(), courseId);
+            }
             BigDecimal instructorAmount = grossAmount.multiply(normalizedInstructorRate).setScale(2,
                     RoundingMode.HALF_UP);
             BigDecimal adminAmount = grossAmount.subtract(instructorAmount).setScale(2, RoundingMode.HALF_UP);

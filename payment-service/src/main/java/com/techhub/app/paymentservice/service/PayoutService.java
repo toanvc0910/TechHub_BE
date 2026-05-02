@@ -65,6 +65,53 @@ public class PayoutService {
     private final CurrencyExchangeService currencyExchangeService;
     private final RevenueSplitPolicyService revenueSplitPolicyService;
 
+    /** Tổng doanh thu của hệ thống (admin share) cộng dồn theo VND, không phụ thuộc ledger. */
+    @Transactional(readOnly = true)
+    public PayoutBalanceResponse getAdminBalance(UUID adminUserId) {
+        BigDecimal grossInVnd = BigDecimal.ZERO;
+        for (com.techhub.app.paymentservice.repository.projection.RevenueByCurrencyProjection row :
+                transactionItemRepository.getAllRevenueByCurrency()) {
+            BigDecimal gross = safeMoney(row.getGrossRevenue());
+            if (gross.compareTo(BigDecimal.ZERO) <= 0) continue;
+            String currency = row.getCurrency() == null ? "VND" : row.getCurrency().toUpperCase();
+            BigDecimal grossVnd = "VND".equals(currency)
+                    ? gross
+                    : currencyExchangeService.convert(gross, currency, "VND");
+            grossInVnd = grossInVnd.add(grossVnd);
+        }
+        // Lấy adminRate từ policy GLOBAL hiện tại; fallback 0.3.
+        BigDecimal adminRate = BigDecimal.valueOf(0.3);
+        try {
+            RevenueSplitPolicyService.ResolvedPolicy policy = revenueSplitPolicyService
+                    .resolvePolicy(null, null, OffsetDateTime.now());
+            if (policy.getInstructorRate() != null) {
+                adminRate = BigDecimal.ONE.subtract(policy.getInstructorRate());
+            }
+        } catch (Exception ignored) {
+        }
+        BigDecimal totalEarned = grossInVnd.multiply(adminRate).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal usdRate = BigDecimal.ZERO;
+        BigDecimal totalEarnedUsd = BigDecimal.ZERO;
+        try {
+            usdRate = currencyExchangeService.getRate("VND", "USD");
+            totalEarnedUsd = totalEarned.multiply(usdRate).setScale(2, RoundingMode.HALF_UP);
+        } catch (Exception ignored) {
+        }
+
+        return PayoutBalanceResponse.builder()
+                .instructorId(adminUserId)
+                .totalEarned(totalEarned)
+                .pendingAmount(BigDecimal.ZERO)
+                .availableAmount(totalEarned)
+                .totalEarnedUsd(totalEarnedUsd)
+                .pendingAmountUsd(BigDecimal.ZERO)
+                .availableAmountUsd(totalEarnedUsd)
+                .usdRate(usdRate)
+                .currency("VND")
+                .build();
+    }
+
     @Transactional
     public PayoutBalanceResponse getBalance(UUID instructorId) {
         syncRevenueCredit(instructorId);

@@ -60,6 +60,19 @@ public interface TransactionItemRepository extends JpaRepository<TransactionItem
                         @Param("toDate") OffsetDateTime toDate);
 
         @Query(value = "SELECT " +
+                        "COALESCE(c.currency, 'VND') AS currency, " +
+                        "COALESCE(SUM(ti.price_at_purchase * ti.quantity), 0) AS grossRevenue " +
+                        "FROM transaction_items ti " +
+                        "JOIN transactions t ON t.id = ti.transaction_id " +
+                        "JOIN courses c ON c.id = ti.course_id " +
+                        "WHERE ti.is_active = 'Y' " +
+                        "AND t.is_active = 'Y' " +
+                        "AND c.is_active = 'Y' " +
+                        "AND t.status = 'COMPLETED' " +
+                        "GROUP BY COALESCE(c.currency, 'VND')", nativeQuery = true)
+        java.util.List<RevenueByCurrencyProjection> getAllRevenueByCurrency();
+
+        @Query(value = "SELECT " +
                         "COALESCE(SUM(ti.price_at_purchase * ti.quantity), 0) AS grossRevenue, " +
                         "COUNT(DISTINCT t.id) AS totalOrders, " +
                         "COALESCE(SUM(ti.quantity), 0) AS totalItems, " +
@@ -104,7 +117,8 @@ public interface TransactionItemRepository extends JpaRepository<TransactionItem
                         "CAST(ti.course_id AS TEXT) AS courseId, " +
                         "CAST(c.instructor_id AS TEXT) AS instructorId, " +
                         "(ti.price_at_purchase * ti.quantity) AS grossAmount, " +
-                        "COALESCE(ti.quantity, 1) AS quantity " +
+                        "COALESCE(ti.quantity, 1) AS quantity, " +
+                        "COALESCE(c.currency, 'VND') AS currency " +
                         "FROM transaction_items ti " +
                         "JOIN courses c ON c.id = ti.course_id " +
                         "WHERE ti.transaction_id = :transactionId " +

@@ -78,9 +78,23 @@ public class TransactionService {
 
     @Transactional(readOnly = true)
     public PaymentHistoryItemResponse getPaymentById(UUID paymentId) {
-        Payment payment = paymentRepository.findByIdAndIsActive(paymentId, "Y")
+        return paymentRepository.findPaymentHistoryDetail(paymentId)
+                .map(row -> {
+                    // Resolve instructor rate dựa trên courseId nếu có; fallback default 0.7.
+                    BigDecimal rate = BigDecimal.valueOf(0.7);
+                    try {
+                        if (row.getCourseId() != null) {
+                            RevenueSplitPolicyService.ResolvedPolicy policy = revenueSplitPolicyService
+                                    .resolvePolicy(null, row.getCourseId(), OffsetDateTime.now());
+                            if (policy.getInstructorRate() != null) {
+                                rate = policy.getInstructorRate();
+                            }
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    return toHistoryItem(row, rate);
+                })
                 .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
-        return toHistoryItem(payment);
     }
 
     private PaymentHistoryItemResponse toHistoryItem(Payment payment) {
@@ -126,8 +140,9 @@ public class TransactionService {
                 .adminAmount(adminAmount)
                 .paymentMethod(row.getPaymentMethod())
                 .status(row.getStatus())
-                .created(row.getCreated())
-                .updated(row.getUpdated())
+                .currency(row.getCurrency() == null ? "VND" : row.getCurrency())
+                .created(row.getCreated() == null ? null : row.getCreated().atOffset(java.time.ZoneOffset.UTC))
+                .updated(row.getUpdated() == null ? null : row.getUpdated().atOffset(java.time.ZoneOffset.UTC))
                 .build();
     }
 

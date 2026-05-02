@@ -23,6 +23,7 @@ public class PaymentHistoryItemResponse {
     private BigDecimal adminAmount;
     private String paymentMethod;
     private String status;
+    private String currency;
     private OffsetDateTime created;
     private OffsetDateTime updated;
 }

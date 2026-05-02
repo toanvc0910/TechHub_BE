@@ -46,6 +46,12 @@ public class PayoutController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             @RequestParam(value = "instructorId", required = false) UUID instructorId) {
         try {
+            // Admin xem tổng doanh thu hệ thống (không truyền instructorId).
+            if (hasAdminRole(userRoles) && instructorId == null) {
+                UUID adminId = parseRequiredUserId(userId);
+                PayoutBalanceResponse response = payoutService.getAdminBalance(adminId);
+                return ResponseEntity.ok(GlobalResponse.success("Admin payout balance", response));
+            }
             UUID targetInstructorId = resolveInstructorId(userRoles, userId, instructorId);
             PayoutBalanceResponse response = payoutService.getBalance(targetInstructorId);
             return ResponseEntity.ok(GlobalResponse.success("Payout balance", response));
