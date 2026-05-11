@@ -101,6 +101,12 @@
             <artifactId>httpclient5-fluent</artifactId>
         </dependency>
 
+		<dependency>
+			<groupId>com.github.librepdf</groupId>
+			<artifactId>openpdf</artifactId>
+			<version>1.3.39</version>
+		</dependency>
+
         <!-- Hibernate Types for JSONB support -->
         <dependency>
             <groupId>com.vladmihalcea</groupId>

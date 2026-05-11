@@ -1,12 +1,14 @@
 package com.techhub.app.paymentservice.entity;
 
 import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
-import com.techhub.app.paymentservice.entity.enums.PayoutLedgerEntryType;
+import com.techhub.app.paymentservice.entity.enums.InvoiceStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -19,19 +21,15 @@ import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.UUID;
-
-import org.hibernate.annotations.Type;
-import org.hibernate.annotations.TypeDef;
 
 @Entity
-@Table(name = "payout_ledger_entries")
+@Table(name = "payout_invoices")
 @TypeDef(name = "pgsql_enum", typeClass = PostgreSQLEnumType.class)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PayoutLedgerEntry {
+public class PayoutInvoice {
 
     @Id
     @GeneratedValue(generator = "UUID")
@@ -39,25 +37,34 @@ public class PayoutLedgerEntry {
     @Column(name = "id", updatable = false, nullable = false)
     private String id;
 
+    @Column(name = "invoice_number", nullable = false, unique = true, length = 64)
+    private String invoiceNumber;
+
+    @Column(name = "payout_request_id", nullable = false, unique = true)
+    private String payoutRequestId;
+
     @Column(name = "instructor_id", nullable = false)
     private String instructorId;
-
-    @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.paymentservice.entity.enums.PayoutLedgerEntryType"))
-    @Column(name = "entry_type", nullable = false, length = 20)
-    private PayoutLedgerEntryType entryType;
 
     @Column(name = "amount", nullable = false, precision = 14, scale = 2)
     private BigDecimal amount;
 
-    @Column(name = "reference_id")
-    private String referenceId;
+    @Column(name = "transfer_reference", length = 120)
+    private String transferReference;
 
-    @Column(name = "reference_type", length = 40)
-    private String referenceType;
+    @Column(name = "pdf_url", length = 500)
+    private String pdfUrl;
 
-    @Column(name = "note", length = 500)
-    private String note;
+    @Column(name = "email_sent", nullable = false)
+    private Boolean emailSent;
+
+    @Column(name = "ui_visible", nullable = false)
+    private Boolean uiVisible;
+
+    @Enumerated(EnumType.STRING)
+    @Type(type = "pgsql_enum", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.paymentservice.entity.enums.InvoiceStatus"))
+    @Column(name = "status", nullable = false, length = 20)
+    private InvoiceStatus status;
 
     @Column(name = "created", nullable = false)
     private OffsetDateTime created;
@@ -75,6 +82,15 @@ public class PayoutLedgerEntry {
         this.updated = now;
         if (this.isActive == null) {
             this.isActive = "Y";
+        }
+        if (this.emailSent == null) {
+            this.emailSent = Boolean.FALSE;
+        }
+        if (this.uiVisible == null) {
+            this.uiVisible = Boolean.TRUE;
+        }
+        if (this.status == null) {
+            this.status = InvoiceStatus.GENERATED;
         }
     }
 

@@ -109,8 +109,10 @@ public class PaymentProxyController {
     @GetMapping("/history")
     public ResponseEntity<String> getPaymentHistory(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request,
             @RequestHeader("Authorization") String authHeader) {
-        return paymentServiceClient.getPaymentHistory(page, size, authHeader);
+        return paymentServiceClient.getPaymentHistory(page, size, getRolesHeader(request), getUserIdHeader(request),
+                authHeader);
     }
 
     @GetMapping("/analytics/instructor/overview")
@@ -194,6 +196,14 @@ public class PaymentProxyController {
                 payload);
     }
 
+    @PutMapping("/payouts/requests/{requestId}/settle")
+    public ResponseEntity<String> settleApprovedPayoutRequest(HttpServletRequest request,
+            @PathVariable String requestId,
+            @RequestBody(required = false) Object payload) {
+        return paymentServiceClient.settleApprovedPayoutRequest(getRolesHeader(request), getUserIdHeader(request),
+                requestId, payload);
+    }
+
     @PutMapping("/payouts/requests/{requestId}/reject")
     public ResponseEntity<String> rejectPayoutRequest(HttpServletRequest request,
             @PathVariable String requestId,
@@ -214,6 +224,26 @@ public class PaymentProxyController {
     @GetMapping("/payouts/batches")
     public ResponseEntity<String> listPayoutBatches(HttpServletRequest request) {
         return paymentServiceClient.listPayoutBatches(getRolesHeader(request));
+    }
+
+    @GetMapping("/payouts/invoices")
+    public ResponseEntity<String> listPayoutInvoices(HttpServletRequest request,
+            @RequestParam(required = false) String instructorId) {
+        return paymentServiceClient.listPayoutInvoices(getRolesHeader(request), getUserIdHeader(request),
+                instructorId);
+    }
+
+    @GetMapping("/payouts/invoices/{invoiceId}")
+    public ResponseEntity<String> getPayoutInvoice(HttpServletRequest request,
+            @PathVariable String invoiceId) {
+        return paymentServiceClient.getPayoutInvoice(getRolesHeader(request), getUserIdHeader(request), invoiceId);
+    }
+
+    @GetMapping("/payouts/invoices/{invoiceId}/pdf")
+    public ResponseEntity<byte[]> downloadPayoutInvoicePdf(HttpServletRequest request,
+            @PathVariable String invoiceId) {
+        return paymentServiceClient.downloadPayoutInvoicePdf(getRolesHeader(request), getUserIdHeader(request),
+                invoiceId);
     }
 
     @PostMapping("/payouts/batches/monthly")

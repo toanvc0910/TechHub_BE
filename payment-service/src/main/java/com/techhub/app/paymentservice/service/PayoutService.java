@@ -5,22 +5,36 @@ import com.techhub.app.paymentservice.dto.request.MarkPaidPayoutRequest;
 import com.techhub.app.paymentservice.dto.request.ReviewPayoutRequestRequest;
 import com.techhub.app.paymentservice.dto.response.PayoutBalanceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutBatchResponse;
+import com.techhub.app.paymentservice.dto.response.PayoutInvoiceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutRequestResponse;
-import com.techhub.app.paymentservice.dto.response.RevenueOverviewResponse;
 import com.techhub.app.paymentservice.entity.PayoutBatch;
+import com.techhub.app.paymentservice.entity.PayoutInvoice;
 import com.techhub.app.paymentservice.entity.PayoutLedgerEntry;
 import com.techhub.app.paymentservice.entity.PayoutRequest;
+import com.techhub.app.paymentservice.entity.enums.InvoiceStatus;
 import com.techhub.app.paymentservice.entity.enums.PayoutBatchStatus;
 import com.techhub.app.paymentservice.entity.enums.PayoutLedgerEntryType;
 import com.techhub.app.paymentservice.entity.enums.PayoutRequestStatus;
 import com.techhub.app.paymentservice.repository.PayoutBatchRepository;
+import com.techhub.app.paymentservice.repository.PayoutInvoiceRepository;
 import com.techhub.app.paymentservice.repository.PayoutLedgerEntryRepository;
 import com.techhub.app.paymentservice.repository.PayoutRequestRepository;
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -28,6 +42,7 @@ import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -35,19 +50,71 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PayoutService {
 
     private static final DateTimeFormatter PERIOD_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
+    private static final DateTimeFormatter INVOICE_NUMBER_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String REVENUE_BOOTSTRAP_REFERENCE = "REVENUE_BOOTSTRAP";
 
     private final PayoutRequestRepository payoutRequestRepository;
     private final PayoutBatchRepository payoutBatchRepository;
+    private final PayoutInvoiceRepository payoutInvoiceRepository;
     private final PayoutLedgerEntryRepository payoutLedgerEntryRepository;
-    private final RevenueAnalyticsService revenueAnalyticsService;
+    private final com.techhub.app.paymentservice.repository.TransactionItemRepository transactionItemRepository;
+    private final CurrencyExchangeService currencyExchangeService;
+    private final RevenueSplitPolicyService revenueSplitPolicyService;
+
+    /** Tổng doanh thu của hệ thống (admin share) cộng dồn theo VND, không phụ thuộc ledger. */
+    @Transactional(readOnly = true)
+    public PayoutBalanceResponse getAdminBalance(UUID adminUserId) {
+        BigDecimal grossInVnd = BigDecimal.ZERO;
+        for (com.techhub.app.paymentservice.repository.projection.RevenueByCurrencyProjection row :
+                transactionItemRepository.getAllRevenueByCurrency()) {
+            BigDecimal gross = safeMoney(row.getGrossRevenue());
+            if (gross.compareTo(BigDecimal.ZERO) <= 0) continue;
+            String currency = row.getCurrency() == null ? "VND" : row.getCurrency().toUpperCase();
+            BigDecimal grossVnd = "VND".equals(currency)
+                    ? gross
+                    : currencyExchangeService.convert(gross, currency, "VND");
+            grossInVnd = grossInVnd.add(grossVnd);
+        }
+        // Lấy adminRate từ policy GLOBAL hiện tại; fallback 0.3.
+        BigDecimal adminRate = BigDecimal.valueOf(0.3);
+        try {
+            RevenueSplitPolicyService.ResolvedPolicy policy = revenueSplitPolicyService
+                    .resolvePolicy(null, null, OffsetDateTime.now());
+            if (policy.getInstructorRate() != null) {
+                adminRate = BigDecimal.ONE.subtract(policy.getInstructorRate());
+            }
+        } catch (Exception ignored) {
+        }
+        BigDecimal totalEarned = grossInVnd.multiply(adminRate).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal usdRate = BigDecimal.ZERO;
+        BigDecimal totalEarnedUsd = BigDecimal.ZERO;
+        try {
+            usdRate = currencyExchangeService.getRate("VND", "USD");
+            totalEarnedUsd = totalEarned.multiply(usdRate).setScale(2, RoundingMode.HALF_UP);
+        } catch (Exception ignored) {
+        }
+
+        return PayoutBalanceResponse.builder()
+                .instructorId(adminUserId)
+                .totalEarned(totalEarned)
+                .pendingAmount(BigDecimal.ZERO)
+                .availableAmount(totalEarned)
+                .totalEarnedUsd(totalEarnedUsd)
+                .pendingAmountUsd(BigDecimal.ZERO)
+                .availableAmountUsd(totalEarnedUsd)
+                .usdRate(usdRate)
+                .currency("VND")
+                .build();
+    }
 
     @Transactional
     public PayoutBalanceResponse getBalance(UUID instructorId) {
-        ensureRevenueCreditBootstrapped(instructorId);
+        syncRevenueCredit(instructorId);
         String instructorIdText = instructorId.toString();
 
         BigDecimal totalCredits = safeMoney(payoutLedgerEntryRepository.sumAmountByInstructorAndTypes(
@@ -65,11 +132,29 @@ public class PayoutService {
         BigDecimal available = totalEarned.subtract(pendingAmount).max(BigDecimal.ZERO).setScale(2,
                 RoundingMode.HALF_UP);
 
+        BigDecimal usdRate = BigDecimal.ZERO;
+        BigDecimal totalEarnedUsd = BigDecimal.ZERO;
+        BigDecimal pendingAmountUsd = BigDecimal.ZERO;
+        BigDecimal availableAmountUsd = BigDecimal.ZERO;
+        try {
+            usdRate = currencyExchangeService.getRate("VND", "USD");
+            totalEarnedUsd = totalEarned.multiply(usdRate).setScale(2, RoundingMode.HALF_UP);
+            pendingAmountUsd = pendingAmount.multiply(usdRate).setScale(2, RoundingMode.HALF_UP);
+            availableAmountUsd = available.multiply(usdRate).setScale(2, RoundingMode.HALF_UP);
+        } catch (Exception ignored) {
+            // Nếu FX fail thì để 0, không chặn balance.
+        }
+
         return PayoutBalanceResponse.builder()
                 .instructorId(instructorId)
                 .totalEarned(totalEarned)
                 .pendingAmount(pendingAmount)
                 .availableAmount(available)
+                .totalEarnedUsd(totalEarnedUsd)
+                .pendingAmountUsd(pendingAmountUsd)
+                .availableAmountUsd(availableAmountUsd)
+                .usdRate(usdRate)
+                .currency("VND")
                 .build();
     }
 
@@ -81,14 +166,27 @@ public class PayoutService {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be greater than 0");
         }
-        if (amount.compareTo(balance.getAvailableAmount()) > 0) {
+
+        // Nếu instructor request bằng USD, quy đổi sang VND (canonical) để trừ ledger.
+        String reqCurrency = request.getCurrency() == null ? "VND" : request.getCurrency().toUpperCase();
+        BigDecimal amountVnd = "USD".equals(reqCurrency)
+                ? currencyExchangeService.convert(amount, "USD", "VND")
+                : amount;
+
+        if (amountVnd.compareTo(balance.getAvailableAmount()) > 0) {
             throw new IllegalArgumentException("Requested amount exceeds available balance");
         }
 
+        String note = request.getNote();
+        if ("USD".equals(reqCurrency)) {
+            String fxNote = "Requested " + amount.toPlainString() + " USD ≈ " + amountVnd.toPlainString() + " VND";
+            note = note == null || note.isBlank() ? fxNote : note + " | " + fxNote;
+        }
+
         PayoutRequest saved = payoutRequestRepository.save(PayoutRequest.builder()
-                .instructorId(instructorId)
-                .amount(amount)
-                .note(request.getNote())
+                .instructorId(instructorId.toString())
+                .amount(amountVnd)
+                .note(note)
                 .status(PayoutRequestStatus.REQUESTED)
                 .build());
 
@@ -105,10 +203,10 @@ public class PayoutService {
 
     @Transactional(readOnly = true)
     public PayoutRequestResponse getRequest(UUID requestId, UUID requesterId, boolean adminView) {
-        PayoutRequest request = payoutRequestRepository.findActiveById(requestId)
+        PayoutRequest request = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
-        if (!adminView && !request.getInstructorId().equals(requesterId)) {
+        if (!adminView && !request.getInstructorId().equals(requesterId.toString())) {
             throw new IllegalArgumentException("You do not have permission to view this payout request");
         }
 
@@ -117,7 +215,7 @@ public class PayoutService {
 
     @Transactional
     public PayoutRequestResponse approveRequest(UUID requestId, UUID approverId, ReviewPayoutRequestRequest request) {
-        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId)
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (payoutRequest.getStatus() != PayoutRequestStatus.REQUESTED) {
@@ -125,16 +223,43 @@ public class PayoutService {
         }
 
         payoutRequest.setStatus(PayoutRequestStatus.APPROVED);
-        payoutRequest.setApprovedBy(approverId);
+        payoutRequest.setApprovedBy(approverId.toString());
         payoutRequest.setApprovedAt(OffsetDateTime.now());
         payoutRequest.setReviewNote(request.getNote());
 
-        return toResponse(payoutRequestRepository.save(payoutRequest));
+        PayoutRequest approved = payoutRequestRepository.save(payoutRequest);
+        PayoutInvoice invoice = createInvoiceForRequest(approved);
+
+        // MVP auto-transfer sandbox: approved request is settled immediately.
+        String transferReference = generateTransferReference(approved.getId());
+        approved.setStatus(PayoutRequestStatus.MARKED_PAID);
+        approved.setPaymentReference(transferReference);
+        approved.setMarkedPaidBy(approverId.toString());
+        approved.setMarkedPaidAt(OffsetDateTime.now());
+        approved.setReviewNote(mergeReviewNote(request.getNote(), "AUTO_TRANSFERRED"));
+
+        invoice.setTransferReference(transferReference);
+        invoice.setStatus(InvoiceStatus.PAID);
+        invoice.setEmailSent(Boolean.TRUE);
+        invoice.setUiVisible(Boolean.TRUE);
+
+        payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
+                .instructorId(approved.getInstructorId())
+                .entryType(PayoutLedgerEntryType.DEBIT_PAYOUT)
+                .amount(safeMoney(approved.getAmount()))
+                .referenceId(approved.getId())
+                .referenceType("PAYOUT_REQUEST")
+                .note("Auto transfer on approval: " + transferReference)
+                .build());
+
+        payoutInvoiceRepository.save(invoice);
+        PayoutRequest settled = payoutRequestRepository.save(approved);
+        return toResponse(settled, invoice);
     }
 
     @Transactional
     public PayoutRequestResponse rejectRequest(UUID requestId, UUID reviewerId, ReviewPayoutRequestRequest request) {
-        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId)
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (payoutRequest.getStatus() != PayoutRequestStatus.REQUESTED
@@ -143,7 +268,7 @@ public class PayoutService {
         }
 
         payoutRequest.setStatus(PayoutRequestStatus.REJECTED);
-        payoutRequest.setApprovedBy(reviewerId);
+        payoutRequest.setApprovedBy(reviewerId.toString());
         payoutRequest.setReviewNote(request.getNote());
         payoutRequest.setApprovedAt(OffsetDateTime.now());
 
@@ -151,8 +276,45 @@ public class PayoutService {
     }
 
     @Transactional
+    public PayoutRequestResponse settleApprovedRequest(UUID requestId, UUID reviewerId,
+            ReviewPayoutRequestRequest request) {
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId.toString())
+                .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
+
+        if (payoutRequest.getStatus() != PayoutRequestStatus.APPROVED) {
+            throw new IllegalArgumentException("Only APPROVED payout can be settled");
+        }
+
+        PayoutInvoice invoice = createInvoiceForRequest(payoutRequest);
+        String transferReference = generateTransferReference(payoutRequest.getId());
+
+        payoutRequest.setStatus(PayoutRequestStatus.MARKED_PAID);
+        payoutRequest.setPaymentReference(transferReference);
+        payoutRequest.setMarkedPaidBy(reviewerId.toString());
+        payoutRequest.setMarkedPaidAt(OffsetDateTime.now());
+        payoutRequest.setReviewNote(mergeReviewNote(request.getNote(), "AUTO_TRANSFERRED"));
+
+        invoice.setTransferReference(transferReference);
+        invoice.setStatus(InvoiceStatus.PAID);
+        invoice.setEmailSent(Boolean.TRUE);
+        invoice.setUiVisible(Boolean.TRUE);
+
+        payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
+                .instructorId(payoutRequest.getInstructorId())
+                .entryType(PayoutLedgerEntryType.DEBIT_PAYOUT)
+                .amount(safeMoney(payoutRequest.getAmount()))
+                .referenceId(payoutRequest.getId())
+                .referenceType("PAYOUT_REQUEST")
+                .note("Legacy settlement on approved payout: " + transferReference)
+                .build());
+
+        payoutInvoiceRepository.save(invoice);
+        return toResponse(payoutRequestRepository.save(payoutRequest), invoice);
+    }
+
+    @Transactional
     public PayoutRequestResponse markPaid(UUID requestId, UUID markerId, MarkPaidPayoutRequest request) {
-        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId)
+        PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
 
         if (payoutRequest.getStatus() != PayoutRequestStatus.APPROVED) {
@@ -161,9 +323,18 @@ public class PayoutService {
 
         payoutRequest.setStatus(PayoutRequestStatus.MARKED_PAID);
         payoutRequest.setPaymentReference(request.getPaymentReference());
-        payoutRequest.setMarkedPaidBy(markerId);
+        payoutRequest.setMarkedPaidBy(markerId.toString());
         payoutRequest.setMarkedPaidAt(OffsetDateTime.now());
         payoutRequest.setReviewNote(request.getNote());
+
+        payoutInvoiceRepository.findByPayoutRequestIdAndIsActive(payoutRequest.getId(), "Y")
+                .ifPresent(invoice -> {
+                    invoice.setTransferReference(request.getPaymentReference());
+                    invoice.setStatus(InvoiceStatus.PAID);
+                    invoice.setEmailSent(Boolean.TRUE);
+                    invoice.setUiVisible(Boolean.TRUE);
+                    payoutInvoiceRepository.save(invoice);
+                });
 
         payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
                 .instructorId(payoutRequest.getInstructorId())
@@ -175,6 +346,42 @@ public class PayoutService {
                 .build());
 
         return toResponse(payoutRequestRepository.save(payoutRequest));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PayoutInvoiceResponse> listInvoices(UUID requesterId, boolean adminView,
+            UUID instructorIdFilter) {
+        if (adminView) {
+            if (instructorIdFilter != null) {
+                return payoutInvoiceRepository.findByInstructorIdAndIsActiveOrderByCreatedDesc(
+                        instructorIdFilter.toString(), "Y")
+                        .stream()
+                        .map(this::toInvoiceResponse)
+                        .collect(Collectors.toList());
+            }
+            return payoutInvoiceRepository.findByIsActiveOrderByCreatedDesc("Y")
+                    .stream()
+                    .map(this::toInvoiceResponse)
+                    .collect(Collectors.toList());
+        }
+
+        return payoutInvoiceRepository.findByInstructorIdAndIsActiveOrderByCreatedDesc(
+                requesterId.toString(), "Y")
+                .stream()
+                .map(this::toInvoiceResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public PayoutInvoiceResponse getInvoice(UUID invoiceId, UUID requesterId, boolean adminView) {
+        PayoutInvoice invoice = getAccessibleInvoice(invoiceId, requesterId, adminView);
+        return toInvoiceResponse(invoice);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] getInvoicePdf(UUID invoiceId, UUID requesterId, boolean adminView) {
+        PayoutInvoice invoice = getAccessibleInvoice(invoiceId, requesterId, adminView);
+        return buildInvoicePdf(invoice);
     }
 
     @Transactional(readOnly = true)
@@ -246,34 +453,80 @@ public class PayoutService {
         }
     }
 
-    private void ensureRevenueCreditBootstrapped(UUID instructorId) {
+    private void syncRevenueCredit(UUID instructorId) {
         String instructorIdText = instructorId.toString();
-        boolean alreadyBootstrapped = payoutLedgerEntryRepository
-                .existsByInstructorIdAndReferenceTypeAndIsActive(instructorIdText, REVENUE_BOOTSTRAP_REFERENCE, "Y");
-        if (alreadyBootstrapped) {
-            return;
-        }
+        log.info("[PayoutSync] START instructorId={}", instructorIdText);
 
-        RevenueOverviewResponse overview = revenueAnalyticsService.getInstructorOverview(instructorId, null, null);
-        BigDecimal earned = safeMoney(overview.getEstimatedInstructorRevenue());
+        // Tổng gross theo từng currency rồi quy đổi về VND (canonical cho payout).
+        java.util.List<com.techhub.app.paymentservice.repository.projection.RevenueByCurrencyProjection> rows =
+                transactionItemRepository.getInstructorRevenueByCurrency(instructorId, null, null);
+        log.info("[PayoutSync] revenue rows count={} instructorId={}", rows.size(), instructorIdText);
+
+        BigDecimal grossInVnd = BigDecimal.ZERO;
+        for (com.techhub.app.paymentservice.repository.projection.RevenueByCurrencyProjection row : rows) {
+            BigDecimal gross = safeMoney(row.getGrossRevenue());
+            String currency = row.getCurrency() == null ? "VND" : row.getCurrency().toUpperCase();
+            log.info("[PayoutSync] revenue row currency={} gross={}", currency, gross);
+            if (gross.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal grossVnd = "VND".equals(currency)
+                    ? gross
+                    : currencyExchangeService.convert(gross, currency, "VND");
+            log.info("[PayoutSync] convert {} {} -> {} VND", gross, currency, grossVnd);
+            grossInVnd = grossInVnd.add(grossVnd);
+        }
+        grossInVnd = grossInVnd.setScale(2, RoundingMode.HALF_UP);
+        log.info("[PayoutSync] grossInVnd total={} instructorId={}", grossInVnd, instructorIdText);
+
+        // Áp dụng policy chia doanh thu cho giảng viên.
+        BigDecimal instructorRate = revenueSplitPolicyService
+                .resolvePolicy(instructorId, null, OffsetDateTime.now())
+                .getInstructorRate();
+        if (instructorRate == null) {
+            instructorRate = BigDecimal.valueOf(0.7);
+        }
+        BigDecimal earned = grossInVnd.multiply(instructorRate).setScale(2, RoundingMode.HALF_UP);
+        log.info("[PayoutSync] instructorRate={} earned={} instructorId={}", instructorRate, earned, instructorIdText);
         if (earned.compareTo(BigDecimal.ZERO) <= 0) {
+            log.info("[PayoutSync] earned<=0, skip insert ledger. instructorId={}", instructorIdText);
             return;
         }
 
-        payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
-                .instructorId(instructorId)
+        BigDecimal alreadySynced = safeMoney(payoutLedgerEntryRepository
+                .sumAmountByInstructorAndReferenceType(instructorIdText, REVENUE_BOOTSTRAP_REFERENCE));
+        BigDecimal delta = earned.subtract(alreadySynced).setScale(2, RoundingMode.HALF_UP);
+        log.info("[PayoutSync] alreadySynced={} delta={} instructorId={}", alreadySynced, delta, instructorIdText);
+        if (delta.compareTo(BigDecimal.ZERO) <= 0) {
+            log.info("[PayoutSync] delta<=0, no new credit needed. instructorId={}", instructorIdText);
+            return;
+        }
+
+        PayoutLedgerEntry inserted = payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
+                .instructorId(instructorIdText)
                 .entryType(PayoutLedgerEntryType.CREDIT_SALE)
-                .amount(earned)
+                .amount(delta)
                 .referenceType(REVENUE_BOOTSTRAP_REFERENCE)
-                .note("Bootstrap instructor earnings from revenue overview")
+                .note("Sync instructor earnings from revenue overview (delta)")
                 .build());
+        log.info("[PayoutSync] INSERTED ledger entry id={} amount={} instructorId={}",
+                inserted.getId(), inserted.getAmount(), instructorIdText);
     }
 
     private PayoutRequestResponse toResponse(PayoutRequest request) {
+        PayoutInvoice invoice = payoutInvoiceRepository
+                .findByPayoutRequestIdAndIsActive(request.getId(), "Y")
+                .orElse(null);
+        return toResponse(request, invoice);
+    }
+
+    private PayoutRequestResponse toResponse(PayoutRequest request, PayoutInvoice invoice) {
         return PayoutRequestResponse.builder()
-                .id(request.getId())
-                .instructorId(request.getInstructorId())
+                .id(parseUuidOrNull(request.getId()))
+                .instructorId(parseUuidOrNull(request.getInstructorId()))
                 .batchId(parseUuidOrNull(request.getBatchIdRaw()))
+                .invoiceId(invoice == null ? null : parseUuidOrNull(invoice.getId()))
+                .invoiceNumber(invoice == null ? null : invoice.getInvoiceNumber())
                 .amount(request.getAmount())
                 .status(request.getStatus().name())
                 .note(request.getNote())
@@ -284,6 +537,125 @@ public class PayoutService {
                 .created(request.getCreated())
                 .updated(request.getUpdated())
                 .build();
+    }
+
+    private PayoutInvoice createInvoiceForRequest(PayoutRequest request) {
+        return payoutInvoiceRepository.findByPayoutRequestIdAndIsActive(request.getId(), "Y")
+                .orElseGet(() -> payoutInvoiceRepository.save(PayoutInvoice.builder()
+                        .invoiceNumber(generateInvoiceNumber(request.getId()))
+                        .payoutRequestId(request.getId())
+                        .instructorId(request.getInstructorId())
+                        .amount(safeMoney(request.getAmount()))
+                        .status(InvoiceStatus.GENERATED)
+                        .emailSent(Boolean.FALSE)
+                        .uiVisible(Boolean.TRUE)
+                        .build()));
+    }
+
+    private PayoutInvoice getAccessibleInvoice(UUID invoiceId, UUID requesterId, boolean adminView) {
+        PayoutInvoice invoice = payoutInvoiceRepository.findById(invoiceId.toString())
+                .orElseThrow(() -> new IllegalArgumentException("Payout invoice not found"));
+
+        if (!"Y".equals(invoice.getIsActive())) {
+            throw new IllegalArgumentException("Payout invoice not found");
+        }
+
+        if (!adminView && !invoice.getInstructorId().equals(requesterId.toString())) {
+            throw new IllegalArgumentException("You do not have permission to view this payout invoice");
+        }
+
+        return invoice;
+    }
+
+    private byte[] buildInvoicePdf(PayoutInvoice invoice) {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            Document document = new Document();
+            PdfWriter.getInstance(document, outputStream);
+            document.open();
+
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+            Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
+            Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 11);
+
+            document.add(new Paragraph("TechHub Payout Invoice", titleFont));
+            document.add(new Paragraph(" "));
+
+            PdfPTable table = new PdfPTable(2);
+            table.setWidthPercentage(100f);
+            table.setWidths(new float[] { 3f, 5f });
+
+            addPdfRow(table, "Invoice Number", invoice.getInvoiceNumber(), sectionFont, bodyFont);
+            addPdfRow(table, "Invoice ID", invoice.getId(), sectionFont, bodyFont);
+            addPdfRow(table, "Payout Request ID", invoice.getPayoutRequestId(), sectionFont, bodyFont);
+            addPdfRow(table, "Instructor ID", invoice.getInstructorId(), sectionFont, bodyFont);
+            addPdfRow(table, "Amount", safeMoney(invoice.getAmount()).toPlainString(), sectionFont, bodyFont);
+            addPdfRow(table, "Transfer Reference", nullableText(invoice.getTransferReference()), sectionFont, bodyFont);
+            addPdfRow(table, "Status", invoice.getStatus() == null ? "N/A" : invoice.getStatus().name(), sectionFont,
+                    bodyFont);
+            addPdfRow(table, "Created", nullableText(invoice.getCreated()), sectionFont, bodyFont);
+            addPdfRow(table, "Updated", nullableText(invoice.getUpdated()), sectionFont, bodyFont);
+
+            document.add(table);
+            document.add(new Paragraph(" "));
+            document.add(
+                    new Paragraph("This document is generated automatically by TechHub payout service.", bodyFont));
+
+            document.close();
+            return outputStream.toByteArray();
+        } catch (DocumentException ex) {
+            throw new IllegalStateException("Unable to generate payout invoice pdf", ex);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to generate payout invoice pdf", ex);
+        }
+    }
+
+    private void addPdfRow(PdfPTable table, String label, String value, Font labelFont, Font valueFont) {
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, labelFont));
+        PdfPCell valueCell = new PdfPCell(new Phrase(nullableText(value), valueFont));
+        labelCell.setPadding(6f);
+        valueCell.setPadding(6f);
+        table.addCell(labelCell);
+        table.addCell(valueCell);
+    }
+
+    private String nullableText(Object value) {
+        return value == null ? "N/A" : String.valueOf(value);
+    }
+
+    private PayoutInvoiceResponse toInvoiceResponse(PayoutInvoice invoice) {
+        return PayoutInvoiceResponse.builder()
+                .id(parseUuidOrNull(invoice.getId()))
+                .invoiceNumber(invoice.getInvoiceNumber())
+                .payoutRequestId(parseUuidOrNull(invoice.getPayoutRequestId()))
+                .instructorId(parseUuidOrNull(invoice.getInstructorId()))
+                .amount(invoice.getAmount())
+                .transferReference(invoice.getTransferReference())
+                .status(invoice.getStatus() == null ? null : invoice.getStatus().name())
+                .emailSent(invoice.getEmailSent())
+                .uiVisible(invoice.getUiVisible())
+                .pdfUrl(invoice.getPdfUrl())
+                .created(invoice.getCreated())
+                .updated(invoice.getUpdated())
+                .build();
+    }
+
+    private String generateInvoiceNumber(String payoutRequestId) {
+        String shortRequest = payoutRequestId == null ? "NA"
+                : payoutRequestId.replace("-", "").substring(0, Math.min(8, payoutRequestId.length()));
+        return "INV-" + OffsetDateTime.now().format(INVOICE_NUMBER_DATE_FORMAT) + "-" + shortRequest;
+    }
+
+    private String generateTransferReference(String payoutRequestId) {
+        String shortRequest = payoutRequestId == null ? "NA"
+                : payoutRequestId.replace("-", "").substring(0, Math.min(10, payoutRequestId.length()));
+        return "TRF-" + OffsetDateTime.now().format(INVOICE_NUMBER_DATE_FORMAT) + "-" + shortRequest;
+    }
+
+    private String mergeReviewNote(String userNote, String systemTag) {
+        if (userNote == null || userNote.isBlank()) {
+            return systemTag;
+        }
+        return userNote + " | " + systemTag;
     }
 
     private UUID parseUuidOrNull(String value) {
@@ -299,7 +671,7 @@ public class PayoutService {
 
     private PayoutBatchResponse toBatchResponse(PayoutBatch batch) {
         return PayoutBatchResponse.builder()
-                .id(batch.getId())
+                .id(parseUuidOrNull(batch.getId()))
                 .batchName(batch.getBatchName())
                 .periodKey(batch.getPeriodKey())
                 .fromDate(batch.getFromDate())

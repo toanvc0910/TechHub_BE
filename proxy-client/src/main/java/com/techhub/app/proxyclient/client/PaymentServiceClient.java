@@ -54,6 +54,8 @@ public interface PaymentServiceClient {
         @GetMapping("/api/payments/history")
         ResponseEntity<String> getPaymentHistory(@RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
                         @RequestHeader("Authorization") String authHeader);
 
         @GetMapping("/api/v1/analytics/instructor/overview")
@@ -128,6 +130,13 @@ public interface PaymentServiceClient {
                         @PathVariable("requestId") String requestId,
                         @RequestBody(required = false) Object payload);
 
+        @PutMapping("/api/v1/payouts/requests/{requestId}/settle")
+        ResponseEntity<String> settleApprovedPayoutRequest(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @PathVariable("requestId") String requestId,
+                        @RequestBody(required = false) Object payload);
+
         @PutMapping("/api/v1/payouts/requests/{requestId}/reject")
         ResponseEntity<String> rejectPayoutRequest(
                         @RequestHeader(value = "X-User-Roles", required = false) String roles,
@@ -145,6 +154,24 @@ public interface PaymentServiceClient {
         @GetMapping("/api/v1/payouts/batches")
         ResponseEntity<String> listPayoutBatches(
                         @RequestHeader(value = "X-User-Roles", required = false) String roles);
+
+        @GetMapping("/api/v1/payouts/invoices")
+        ResponseEntity<String> listPayoutInvoices(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @RequestParam(value = "instructorId", required = false) String instructorId);
+
+        @GetMapping("/api/v1/payouts/invoices/{invoiceId}")
+        ResponseEntity<String> getPayoutInvoice(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @PathVariable("invoiceId") String invoiceId);
+
+        @GetMapping("/api/v1/payouts/invoices/{invoiceId}/pdf")
+        ResponseEntity<byte[]> downloadPayoutInvoicePdf(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
+                        @PathVariable("invoiceId") String invoiceId);
 
         @PostMapping("/api/v1/payouts/batches/monthly")
         ResponseEntity<String> createMonthlyPayoutBatch(

@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface PayoutLedgerEntryRepository extends JpaRepository<PayoutLedgerEntry, UUID> {
+public interface PayoutLedgerEntryRepository extends JpaRepository<PayoutLedgerEntry, String> {
 
     @Query(value = "SELECT * FROM payout_ledger_entries le " +
             "WHERE CAST(le.instructor_id AS TEXT) = :instructorId " +
@@ -33,4 +33,10 @@ public interface PayoutLedgerEntryRepository extends JpaRepository<PayoutLedgerE
     boolean existsByInstructorIdAndReferenceTypeAndIsActive(@Param("instructorId") String instructorId,
             @Param("referenceType") String referenceType,
             @Param("isActive") String isActive);
+
+    @Query(value = "SELECT COALESCE(SUM(le.amount), 0) FROM payout_ledger_entries le " +
+            "WHERE CAST(le.instructor_id AS TEXT) = :instructorId " +
+            "AND le.reference_type = :referenceType AND le.is_active = 'Y'", nativeQuery = true)
+    BigDecimal sumAmountByInstructorAndReferenceType(@Param("instructorId") String instructorId,
+            @Param("referenceType") String referenceType);
 }

@@ -688,6 +688,7 @@ public class CourseServiceImpl implements CourseService {
                 .title(course.getTitle())
                 .description(course.getDescription())
                 .price(course.getPrice())
+                .currency(course.getCurrency())
                 .discountPrice(course.getDiscountPrice())
                 .promoEndDate(course.getPromoEndDate())
                 .status(course.getStatus())

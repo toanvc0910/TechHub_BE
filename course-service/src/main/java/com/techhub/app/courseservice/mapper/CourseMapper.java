@@ -33,6 +33,7 @@ public class CourseMapper {
         course.setTitle(normalizeTitle(request.getTitle()));
         course.setDescription(normalizeText(request.getDescription()));
         course.setPrice(normalizePrice(request.getPrice()));
+        course.setCurrency(normalizeCurrency(request.getCurrency()));
         course.setInstructorId(instructorId);
         course.setStatus(request.getStatus() != null ? request.getStatus() : CourseStatus.DRAFT);
         course.setLevel(request.getLevel() != null ? request.getLevel() : CourseLevel.ALL_LEVELS);
@@ -59,6 +60,9 @@ public class CourseMapper {
         }
         if (request.getPrice() != null) {
             course.setPrice(normalizePrice(request.getPrice()));
+        }
+        if (request.getCurrency() != null) {
+            course.setCurrency(normalizeCurrency(request.getCurrency()));
         }
         if (request.getStatus() != null) {
             course.setStatus(request.getStatus());
@@ -287,6 +291,14 @@ public class CourseMapper {
             return null;
         }
         return price.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : price;
+    }
+
+    private String normalizeCurrency(String currency) {
+        if (currency == null || currency.isBlank()) {
+            return "VND";
+        }
+        String normalized = currency.trim().toUpperCase();
+        return ("USD".equals(normalized) || "VND".equals(normalized)) ? normalized : "VND";
     }
 
     private List<String> normalizeList(List<String> values, boolean toLowercase) {

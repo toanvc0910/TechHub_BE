@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.ZonedDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Data
@@ -13,9 +13,17 @@ public class PaymentHistoryItemResponse {
     private UUID id;
     private UUID transactionId;
     private UUID userId;
+    private String userName;
+    private String userEmail;
+    private UUID courseId;
+    private String courseName;
     private BigDecimal amount;
+    private BigDecimal grossAmount;
+    private BigDecimal instructorAmount;
+    private BigDecimal adminAmount;
     private String paymentMethod;
     private String status;
-    private ZonedDateTime created;
-    private ZonedDateTime updated;
+    private String currency;
+    private OffsetDateTime created;
+    private OffsetDateTime updated;
 }

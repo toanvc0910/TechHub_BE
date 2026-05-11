@@ -35,6 +35,7 @@ public class PayPalPaymentService {
     private final EnrollmentService enrollmentService;
     private final TransactionItemRepository transactionItemRepository;
     private final PaymentEventOutboxService paymentEventOutboxService;
+    private final CurrencyExchangeService currencyExchangeService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public PayPalPaymentService(PayPalConfig config,
@@ -43,7 +44,8 @@ public class PayPalPaymentService {
             PaymentGatewayMappingRepository gatewayMappingRepository,
             EnrollmentService enrollmentService,
             TransactionItemRepository transactionItemRepository,
-            PaymentEventOutboxService paymentEventOutboxService) {
+            PaymentEventOutboxService paymentEventOutboxService,
+            CurrencyExchangeService currencyExchangeService) {
         this.config = config;
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
@@ -51,6 +53,7 @@ public class PayPalPaymentService {
         this.enrollmentService = enrollmentService;
         this.transactionItemRepository = transactionItemRepository;
         this.paymentEventOutboxService = paymentEventOutboxService;
+        this.currencyExchangeService = currencyExchangeService;
     }
 
     // Lấy access token
@@ -128,12 +131,20 @@ public class PayPalPaymentService {
             Map<String, Object> order = new HashMap<>();
             order.put("intent", "CAPTURE");
 
-            // Format amount correctly for PayPal
-            BigDecimal amountDecimal = BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP);
-            String amountString = amountDecimal.toPlainString();
+            // PayPal yêu cầu currency là USD (hoặc các loại tiền PayPal hỗ trợ).
+            // Nếu currency input không phải USD (ví dụ VND), tự động quy đổi sang USD.
+            String paypalCurrency = currency == null ? "USD" : currency.toUpperCase();
+            BigDecimal originalAmount = BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal paypalAmount = originalAmount;
+            if (!"USD".equals(paypalCurrency)) {
+                paypalAmount = currencyExchangeService.convert(originalAmount, paypalCurrency, "USD");
+                log.info("Converted {} {} -> {} USD for PayPal", originalAmount, paypalCurrency, paypalAmount);
+                paypalCurrency = "USD";
+            }
+            String amountString = paypalAmount.toPlainString();
 
             Map<String, Object> amountMap = new HashMap<>();
-            amountMap.put("currency_code", currency);
+            amountMap.put("currency_code", paypalCurrency);
             amountMap.put("value", amountString);
 
             Map<String, Object> purchaseUnit = new HashMap<>();
