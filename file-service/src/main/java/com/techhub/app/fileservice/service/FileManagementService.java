@@ -27,6 +27,8 @@ public interface FileManagementService {
 
     Page<FileResponse> getFilesByFolderPaginated(UUID userId, UUID folderId, Pageable pageable);
 
+    Page<FileResponse> searchFilesByFolder(UUID userId, UUID folderId, String keyword, Pageable pageable);
+
     Page<FileResponse> getFilesByUser(UUID userId, Pageable pageable);
 
     Page<FileResponse> getFilesByType(UUID userId, FileTypeEnum fileType, Pageable pageable);

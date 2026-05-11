@@ -1,6 +1,7 @@
 package com.techhub.app.courseservice.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techhub.app.commonservice.context.UserContext;
 import com.techhub.app.commonservice.enums.UserRole;
@@ -8,12 +9,15 @@ import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
+import com.techhub.app.courseservice.client.AiExerciseFeedbackClient;
 import com.techhub.app.courseservice.dto.ExerciseTestCaseDto;
 import com.techhub.app.courseservice.dto.request.ExerciseRequest;
 import com.techhub.app.courseservice.dto.request.ExerciseSubmissionRequest;
 import com.techhub.app.courseservice.dto.request.LessonProgressRequest;
 import com.techhub.app.courseservice.dto.response.ExerciseResponse;
 import com.techhub.app.courseservice.dto.response.ExerciseSubmissionResponse;
+import com.techhub.app.courseservice.dto.response.QuizFeedbackResponse;
+import com.techhub.app.courseservice.dto.response.ReviewSuggestionResponse;
 import com.techhub.app.courseservice.dto.response.TestCaseResultResponse;
 import com.techhub.app.courseservice.entity.Course;
 import com.techhub.app.courseservice.entity.Enrollment;
@@ -42,7 +46,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,6 +70,7 @@ public class ExerciseServiceImpl implements ExerciseService {
     private final CourseProgressService courseProgressService;
     private final CourseNotificationService courseNotificationService;
     private final ObjectMapper objectMapper;
+    private final AiExerciseFeedbackClient aiExerciseFeedbackClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -273,8 +280,7 @@ public class ExerciseServiceImpl implements ExerciseService {
         Lesson lesson = resolveLesson(courseId, lessonId);
         ensureLearnerOrManager(lesson.getChapter().getCourse(), userId);
 
-        Exercise exercise = exerciseRepository.findByLesson_IdAndIsActiveTrue(lesson.getId())
-                .orElseThrow(() -> new NotFoundException("Exercise not found for lesson"));
+        Exercise exercise = resolveSubmissionExercise(lesson, request.getExerciseId());
 
         Submission submission = new Submission();
         submission.setExercise(exercise);
@@ -287,6 +293,7 @@ public class ExerciseServiceImpl implements ExerciseService {
         List<ExerciseTestCase> testCases = testCaseRepository
                 .findByExercise_IdAndIsActiveTrueOrderByOrderIndexAsc(exercise.getId());
         ExerciseEvaluationResult evaluation = evaluateSubmission(exercise, testCases, request);
+        QuizFeedbackResponse feedback = buildQuizFeedback(lesson, exercise, request, evaluation);
 
         submission.setStatus(evaluation.status());
         submission.setGrade(evaluation.grade());
@@ -314,6 +321,7 @@ public class ExerciseServiceImpl implements ExerciseService {
                 .gradedAt(submission.getGradedAt())
                 .passed(evaluation.status() == SubmissionStatus.PASSED)
                 .testCaseResults(evaluation.testCaseResults())
+                .feedback(feedback)
                 .build();
     }
 
@@ -335,31 +343,45 @@ public class ExerciseServiceImpl implements ExerciseService {
 
     private ExerciseEvaluationResult evaluateMultipleChoice(Exercise exercise, ExerciseSubmissionRequest request) {
         try {
-            Map<String, Object> optionPayload = objectMapper.convertValue(
-                    exercise.getOptions() != null ? exercise.getOptions() : Map.of(),
-                    new TypeReference<Map<String, Object>>() {
-                    });
-            List<Map<String, Object>> choices = (List<Map<String, Object>>) optionPayload.getOrDefault("choices",
-                    List.of());
-
-            Set<String> correctIds = choices.stream()
-                    .filter(choice -> Boolean.TRUE.equals(choice.get("correct")))
-                    .map(choice -> String.valueOf(choice.get("id")))
-                    .collect(Collectors.toSet());
+            List<Map<String, Object>> choices = extractChoices(exercise);
 
             List<String> answers = objectMapper.readValue(request.getAnswer(), new TypeReference<List<String>>() {
             });
             Set<String> submitted = new HashSet<>(answers);
 
-            boolean passed = submitted.equals(correctIds);
+            int correctCount = 0;
+            int selectedCorrectCount = 0;
+            int selectedIncorrectCount = 0;
+
+            for (int index = 0; index < choices.size(); index++) {
+                Map<String, Object> choice = choices.get(index);
+                boolean correctChoice = isChoiceCorrect(choice);
+                boolean selected = isChoiceSelected(choice, index, submitted);
+                if (correctChoice) {
+                    correctCount++;
+                }
+                if (selected && correctChoice) {
+                    selectedCorrectCount++;
+                }
+                if (selected && !correctChoice) {
+                    selectedIncorrectCount++;
+                }
+            }
+
+            boolean passed = correctCount > 0
+                    && selectedCorrectCount == correctCount
+                    && selectedIncorrectCount == 0
+                    && countSelectedChoices(choices, submitted) == correctCount;
             float grade = passed ? 100f : 0f;
+            List<String> correctAnswers = collectChoiceTexts(choices, submitted, true, false);
+            List<String> selectedAnswers = collectChoiceTexts(choices, submitted, false, true);
 
             TestCaseResultResponse result = TestCaseResultResponse.builder()
                     .testCaseId(null)
                     .passed(passed)
                     .input(null)
-                    .expectedOutput(String.join(",", correctIds))
-                    .actualOutput(String.join(",", submitted))
+                    .expectedOutput(String.join(",", correctAnswers))
+                    .actualOutput(String.join(",", selectedAnswers))
                     .visibility(TestCaseVisibility.PUBLIC)
                     .weight(1f)
                     .build();
@@ -426,6 +448,270 @@ public class ExerciseServiceImpl implements ExerciseService {
         }
 
         return new ExerciseEvaluationResult(grade, status, results);
+    }
+
+    private QuizFeedbackResponse buildQuizFeedback(
+            Lesson lesson,
+            Exercise exercise,
+            ExerciseSubmissionRequest request,
+            ExerciseEvaluationResult evaluation) {
+        if (exercise.getType() != ExerciseType.MULTIPLE_CHOICE) {
+            return null;
+        }
+
+        List<Map<String, Object>> choices = extractChoices(exercise);
+        Set<String> submitted = parseSubmittedAnswers(request);
+        List<String> selectedAnswers = collectChoiceTexts(choices, submitted, false, true);
+        List<String> correctAnswers = collectChoiceTexts(choices, submitted, true, false);
+        boolean correct = evaluation.status() == SubmissionStatus.PASSED;
+        String baseExplanation = extractExerciseExplanation(exercise);
+
+        QuizFeedbackResponse fallback = buildFallbackQuizFeedback(
+                lesson,
+                exercise,
+                correct,
+                selectedAnswers,
+                correctAnswers,
+                baseExplanation);
+
+        if (correct) {
+            return fallback;
+        }
+
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("courseId", String.valueOf(lesson.getChapter().getCourse().getId()));
+            payload.put("courseTitle", lesson.getChapter().getCourse().getTitle());
+            payload.put("lessonId", String.valueOf(lesson.getId()));
+            payload.put("lessonTitle", lesson.getTitle());
+            payload.put("question", exercise.getQuestion());
+            payload.put("options", choices);
+            payload.put("selectedAnswers", selectedAnswers);
+            payload.put("correctAnswers", correctAnswers);
+            payload.put("isCorrect", correct);
+            payload.put("explanation", baseExplanation);
+            payload.put("language", "vi");
+
+            String body = aiExerciseFeedbackClient.generateQuizFeedback(payload).getBody();
+            if (body == null || body.isBlank()) {
+                return fallback;
+            }
+
+            JsonNode root = objectMapper.readTree(body);
+            JsonNode data = root.has("data") ? root.get("data") : root;
+            QuizFeedbackResponse aiFeedback = objectMapper.convertValue(data, QuizFeedbackResponse.class);
+            if (aiFeedback == null) {
+                return fallback;
+            }
+
+            if (aiFeedback.getCorrect() == null) {
+                aiFeedback.setCorrect(correct);
+            }
+            if (aiFeedback.getSelectedAnswers() == null || aiFeedback.getSelectedAnswers().isEmpty()) {
+                aiFeedback.setSelectedAnswers(selectedAnswers);
+            }
+            if (aiFeedback.getCorrectAnswers() == null || aiFeedback.getCorrectAnswers().isEmpty()) {
+                aiFeedback.setCorrectAnswers(correctAnswers);
+            }
+            if (aiFeedback.getReviewSuggestions() == null || aiFeedback.getReviewSuggestions().isEmpty()) {
+                aiFeedback.setReviewSuggestions(fallback.getReviewSuggestions());
+            }
+            if (aiFeedback.getSource() == null || aiFeedback.getSource().isBlank()) {
+                aiFeedback.setSource("AI_SERVICE");
+            }
+            return aiFeedback;
+        } catch (Exception ex) {
+            log.warn("AI quiz feedback unavailable for exercise {}: {}", exercise.getId(), ex.getMessage());
+            return fallback;
+        }
+    }
+
+    private QuizFeedbackResponse buildFallbackQuizFeedback(
+            Lesson lesson,
+            Exercise exercise,
+            boolean correct,
+            List<String> selectedAnswers,
+            List<String> correctAnswers,
+            String baseExplanation) {
+        String lessonTitle = lesson.getTitle() != null ? lesson.getTitle() : "bai hoc nay";
+        String selectedText = selectedAnswers.isEmpty() ? "chua chon dap an" : String.join(", ", selectedAnswers);
+        String correctText = correctAnswers.isEmpty() ? "dap an dung" : String.join(", ", correctAnswers);
+
+        return QuizFeedbackResponse.builder()
+                .correct(correct)
+                .summary(correct
+                        ? "Ban da nam dung y chinh cua cau hoi nay."
+                        : "Cau tra loi cua ban chua khop voi trong tam kien thuc cua bai hoc.")
+                .explanation(correct
+                        ? "Lua chon cua ban phu hop voi noi dung bai hoc."
+                        : buildFallbackExplanation(baseExplanation, selectedText, correctText))
+                .selectedAnswers(selectedAnswers)
+                .correctAnswers(correctAnswers)
+                .weakConcepts(extractWeakConcepts(exercise.getQuestion()))
+                .reviewSuggestions(List.of(ReviewSuggestionResponse.builder()
+                        .lessonId(lesson.getId())
+                        .title(lessonTitle)
+                        .reason(correct
+                                ? "Tiep tuc hoc bai tiep theo de giu mach kien thuc."
+                                : "On lai phan noi dung lien quan truc tiep den cau hoi vua sai.")
+                        .action(correct
+                                ? "Chuyen sang cau tiep theo hoac bai tiep theo."
+                                : "Doc lai noi dung bai, sau do lam lai cau hoi nay.")
+                        .build()))
+                .nextAction(correct
+                        ? "Tiep tuc voi cau hoi tiep theo."
+                        : "On lai bai '" + lessonTitle + "' truoc khi lam lai.")
+                .source("COURSE_SERVICE_FALLBACK")
+                .build();
+    }
+
+    private String buildFallbackExplanation(String baseExplanation, String selectedText, String correctText) {
+        if (baseExplanation != null && !baseExplanation.isBlank()) {
+            return baseExplanation + " Dap an ban chon: " + selectedText + ". Dap an dung: " + correctText + ".";
+        }
+        return "Dap an ban chon la " + selectedText
+                + ", trong khi dap an dung la " + correctText
+                + ". Hay xem lai noi dung bai hoc lien quan den cau hoi nay.";
+    }
+
+    private Exercise resolveSubmissionExercise(Lesson lesson, UUID exerciseId) {
+        if (exerciseId == null) {
+            return exerciseRepository.findByLesson_IdAndIsActiveTrue(lesson.getId())
+                    .orElseThrow(() -> new NotFoundException("Exercise not found for lesson"));
+        }
+
+        Exercise exercise = exerciseRepository.findById(exerciseId)
+                .orElseThrow(() -> new NotFoundException("Exercise not found"));
+        if (!lesson.getId().equals(exercise.getLesson().getId())) {
+            throw new ForbiddenException("Exercise does not belong to the specified lesson");
+        }
+        if (exercise.getIsActive() != null && !exercise.getIsActive()) {
+            throw new NotFoundException("Exercise is not active");
+        }
+        return exercise;
+    }
+
+    private List<Map<String, Object>> extractChoices(Exercise exercise) {
+        Map<String, Object> optionPayload = parseOptions(exercise.getOptions());
+        Object rawChoices = optionPayload.getOrDefault("choices", List.of());
+        if (!(rawChoices instanceof List<?>)) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> choices = new ArrayList<>();
+        for (Object rawChoice : (List<?>) rawChoices) {
+            if (rawChoice instanceof Map<?, ?>) {
+                choices.add(objectMapper.convertValue(rawChoice, new TypeReference<Map<String, Object>>() {
+                }));
+            }
+        }
+        return choices;
+    }
+
+    private Map<String, Object> parseOptions(Object rawOptions) {
+        if (rawOptions == null) {
+            return Collections.emptyMap();
+        }
+        try {
+            if (rawOptions instanceof String) {
+                return objectMapper.readValue((String) rawOptions, new TypeReference<Map<String, Object>>() {
+                });
+            }
+            return objectMapper.convertValue(rawOptions, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (Exception ex) {
+            log.warn("Invalid exercise options payload: {}", ex.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    private Set<String> parseSubmittedAnswers(ExerciseSubmissionRequest request) {
+        try {
+            List<String> answers = objectMapper.readValue(request.getAnswer(), new TypeReference<List<String>>() {
+            });
+            return new HashSet<>(answers);
+        } catch (Exception ex) {
+            if (request.getAnswer() == null || request.getAnswer().isBlank()) {
+                return Set.of();
+            }
+            return Set.of(request.getAnswer());
+        }
+    }
+
+    private boolean isChoiceCorrect(Map<String, Object> choice) {
+        return Boolean.TRUE.equals(choice.get("correct")) || Boolean.TRUE.equals(choice.get("isCorrect"));
+    }
+
+    private boolean isChoiceSelected(Map<String, Object> choice, int index, Set<String> submitted) {
+        String id = choiceId(choice, index);
+        String text = choiceText(choice);
+        return submitted.contains(id) || submitted.contains(String.valueOf(index)) || submitted.contains(text);
+    }
+
+    private String choiceId(Map<String, Object> choice, int index) {
+        Object rawId = choice.get("id");
+        if (rawId == null || String.valueOf(rawId).isBlank()) {
+            return String.valueOf(index);
+        }
+        return String.valueOf(rawId);
+    }
+
+    private String choiceText(Map<String, Object> choice) {
+        Object rawText = choice.get("text");
+        return rawText == null ? "" : String.valueOf(rawText);
+    }
+
+    private int countSelectedChoices(List<Map<String, Object>> choices, Set<String> submitted) {
+        int selected = 0;
+        for (int index = 0; index < choices.size(); index++) {
+            if (isChoiceSelected(choices.get(index), index, submitted)) {
+                selected++;
+            }
+        }
+        return selected;
+    }
+
+    private List<String> collectChoiceTexts(
+            List<Map<String, Object>> choices,
+            Set<String> submitted,
+            boolean correctOnly,
+            boolean selectedOnly) {
+        List<String> labels = new ArrayList<>();
+        for (int index = 0; index < choices.size(); index++) {
+            Map<String, Object> choice = choices.get(index);
+            if (correctOnly && !isChoiceCorrect(choice)) {
+                continue;
+            }
+            if (selectedOnly && !isChoiceSelected(choice, index, submitted)) {
+                continue;
+            }
+            String text = choiceText(choice);
+            if (!text.isBlank()) {
+                labels.add(text);
+            }
+        }
+        return labels;
+    }
+
+    private String extractExerciseExplanation(Exercise exercise) {
+        Map<String, Object> options = parseOptions(exercise.getOptions());
+        Object explanation = options.get("explanation");
+        return explanation == null ? null : String.valueOf(explanation);
+    }
+
+    private List<String> extractWeakConcepts(String question) {
+        if (question == null || question.isBlank()) {
+            return List.of("noi dung bai hoc");
+        }
+        String normalized = question.replaceAll("<[^>]+>", " ");
+        String[] tokens = normalized.split("[^\\p{L}\\p{N}_]+");
+        List<String> concepts = new ArrayList<>();
+        for (String token : tokens) {
+            if (token.length() >= 5 && concepts.size() < 3) {
+                concepts.add(token);
+            }
+        }
+        return concepts.isEmpty() ? List.of("noi dung bai hoc") : concepts;
     }
 
     private ExerciseResponse mapToResponse(Exercise exercise, List<ExerciseTestCase> testCases,

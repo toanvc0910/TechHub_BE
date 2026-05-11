@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class FileEventPublisher {
 
+    private static final long ENQUEUE_TIMEOUT_SECONDS = 1;
+
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${kafka.topics.file-uploaded:file-uploaded}")
@@ -21,7 +23,7 @@ public class FileEventPublisher {
     public boolean publishFileUploaded(FileUploadedEvent event) {
         try {
             kafkaTemplate.send(fileUploadedTopic, event.getFileId().toString(), event)
-                    .get(5, TimeUnit.SECONDS);
+                    .get(ENQUEUE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             log.info("Published FileUploadedEvent for file {}", event.getFileId());
             return true;
         } catch (Exception ex) {

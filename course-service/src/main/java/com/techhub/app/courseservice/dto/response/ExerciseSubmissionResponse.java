@@ -24,4 +24,5 @@ public class ExerciseSubmissionResponse {
     private OffsetDateTime gradedAt;
     private Boolean passed;
     private List<TestCaseResultResponse> testCaseResults;
+    private QuizFeedbackResponse feedback;
 }

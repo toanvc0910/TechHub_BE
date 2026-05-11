@@ -52,12 +52,16 @@ public interface FileServiceClient {
         ResponseEntity<Map<String, Object>> listFiles(
                         @RequestParam("userId") UUID userId,
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "20") int size);
+                        @RequestParam(defaultValue = "20") int size,
+                        @RequestParam(value = "keyword", required = false) String keyword);
 
         @GetMapping("/api/files/folder/{folderId}")
         ResponseEntity<Map<String, Object>> getFilesByFolder(
                         @PathVariable("folderId") UUID folderId,
-                        @RequestParam("userId") UUID userId);
+                        @RequestParam("userId") UUID userId,
+                        @RequestParam(value = "page", required = false) Integer page,
+                        @RequestParam(value = "size", required = false) Integer size,
+                        @RequestParam(value = "keyword", required = false) String keyword);
 
         @DeleteMapping("/api/files/{fileId}")
         ResponseEntity<Map<String, Object>> deleteFile(

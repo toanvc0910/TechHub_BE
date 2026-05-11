@@ -113,11 +113,32 @@ public class FileController {
     }
 
     @GetMapping("/folder/{folderId}")
-    public ResponseEntity<GlobalResponse<List<FileResponse>>> getFilesByFolder(
+    public ResponseEntity<?> getFilesByFolder(
             @PathVariable UUID folderId,
             @RequestParam UUID userId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String keyword,
             HttpServletRequest request) {
         log.info("Getting files in folder: {} for user: {}", folderId, userId);
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+
+        if (page != null || size != null || !normalizedKeyword.isEmpty()) {
+            PageRequest pageRequest = PageRequest.of(
+                    Math.max(page != null ? page : 0, 0),
+                    Math.max(size != null ? size : 20, 1));
+            Page<FileResponse> files = normalizedKeyword.isEmpty()
+                    ? fileManagementService.getFilesByFolderPaginated(userId, folderId, pageRequest)
+                    : fileManagementService.searchFilesByFolder(userId, folderId, normalizedKeyword, pageRequest);
+
+            return ResponseEntity.ok(
+                    PageGlobalResponse.success(
+                            "Files retrieved successfully",
+                            files.getContent(),
+                            buildPaginationInfo(files))
+                            .withPath(request.getRequestURI()));
+        }
+
         List<FileResponse> files = fileManagementService.getFilesByFolder(userId, folderId);
 
         return ResponseEntity.ok(
@@ -130,23 +151,16 @@ public class FileController {
             @RequestParam UUID userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
             HttpServletRequest request) {
         log.info("Listing files for user: {}", userId);
-        Page<FileResponse> files = fileManagementService.getFilesByUser(userId, PageRequest.of(page, size));
-
-        PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
-                .page(files.getNumber())
-                .size(files.getSize())
-                .totalElements(files.getTotalElements())
-                .totalPages(files.getTotalPages())
-                .first(files.isFirst())
-                .last(files.isLast())
-                .hasNext(files.hasNext())
-                .hasPrevious(files.hasPrevious())
-                .build();
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        Page<FileResponse> files = normalizedKeyword.isEmpty()
+                ? fileManagementService.getFilesByUser(userId, PageRequest.of(page, size))
+                : fileManagementService.searchFiles(userId, normalizedKeyword, PageRequest.of(page, size));
 
         return ResponseEntity.ok(
-                PageGlobalResponse.success("Files listed successfully", files.getContent(), paginationInfo)
+                PageGlobalResponse.success("Files listed successfully", files.getContent(), buildPaginationInfo(files))
                         .withPath(request.getRequestURI()));
     }
 
@@ -180,5 +194,18 @@ public class FileController {
         }
 
         return responseBuilder.body(new InputStreamResource(content.getInputStream()));
+    }
+
+    private PageGlobalResponse.PaginationInfo buildPaginationInfo(Page<?> page) {
+        return PageGlobalResponse.PaginationInfo.builder()
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .first(page.isFirst())
+                .last(page.isLast())
+                .hasNext(page.hasNext())
+                .hasPrevious(page.hasPrevious())
+                .build();
     }
 }

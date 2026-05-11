@@ -87,10 +87,11 @@ public class FileProxyController {
     public ResponseEntity<Map<String, Object>> listFiles(
             @RequestParam UUID userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
         log.info("[PROXY] Listing files for user: {}", userId);
 
-        ResponseEntity<Map<String, Object>> response = fileServiceClient.listFiles(userId, page, size);
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.listFiles(userId, page, size, keyword);
         log.info("[PROXY] Files listed for user: {}", userId);
         return response;
     }
@@ -98,10 +99,18 @@ public class FileProxyController {
     @GetMapping("/folder/{folderId}")
     public ResponseEntity<Map<String, Object>> getFilesByFolder(
             @PathVariable UUID folderId,
-            @RequestParam UUID userId) {
+            @RequestParam UUID userId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String keyword) {
         log.info("[PROXY] Getting files in folder: {} for user: {}", folderId, userId);
 
-        ResponseEntity<Map<String, Object>> response = fileServiceClient.getFilesByFolder(folderId, userId);
+        ResponseEntity<Map<String, Object>> response = fileServiceClient.getFilesByFolder(
+                folderId,
+                userId,
+                page,
+                size,
+                keyword);
         log.info("[PROXY] Files retrieved for folder: {}", folderId);
         return response;
     }

@@ -33,6 +33,39 @@ class AiExerciseGenerationResponse(BaseModel):
     drafts: Any | None = None
 
 
+class QuizFeedbackRequest(BaseModel):
+    courseId: str | None = None
+    courseTitle: str | None = None
+    lessonId: str | None = None
+    lessonTitle: str | None = None
+    question: str
+    options: list[dict[str, Any]] = Field(default_factory=list)
+    selectedAnswers: list[str] = Field(default_factory=list)
+    correctAnswers: list[str] = Field(default_factory=list)
+    isCorrect: bool = False
+    explanation: str | None = None
+    language: str = "vi"
+
+
+class QuizReviewSuggestion(BaseModel):
+    lessonId: str | None = None
+    title: str
+    reason: str
+    action: str
+
+
+class QuizFeedbackResponse(BaseModel):
+    correct: bool
+    summary: str
+    explanation: str
+    selectedAnswers: list[str] = Field(default_factory=list)
+    correctAnswers: list[str] = Field(default_factory=list)
+    weakConcepts: list[str] = Field(default_factory=list)
+    reviewSuggestions: list[QuizReviewSuggestion] = Field(default_factory=list)
+    nextAction: str
+    source: str = "AI_SERVICE"
+
+
 class DraftMetadata(BaseModel):
     courseId: str
     lessonId: str

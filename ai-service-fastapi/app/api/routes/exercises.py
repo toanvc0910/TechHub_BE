@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from app.core.responses import success_response
-from app.schemas.exercise import AiExerciseGenerateRequest
+from app.schemas.exercise import AiExerciseGenerateRequest, QuizFeedbackRequest
 from app.services.exercise_service import exercise_service
 
 router = APIRouter()
@@ -17,4 +17,15 @@ async def generate_exercises(payload: AiExerciseGenerateRequest, request: Reques
         data=response.model_dump(mode="json"),
         path=request.url.path,
         status="AI_EXERCISE_DRAFT",
+    )
+
+
+@router.post("/feedback")
+async def generate_quiz_feedback(payload: QuizFeedbackRequest, request: Request) -> dict:
+    response = await exercise_service.generate_feedback(payload)
+    return success_response(
+        message="AI quiz feedback generated",
+        data=response.model_dump(mode="json"),
+        path=request.url.path,
+        status="AI_QUIZ_FEEDBACK",
     )

@@ -9,7 +9,13 @@ from app.core.config import get_settings
 from app.core.enums import AiTaskStatus, AiTaskType, DifficultyLevel, ExerciseFormat
 from app.db.models import AiGenerationTaskModel
 from app.db.session import get_db_session
-from app.schemas.exercise import AiExerciseGenerateRequest, AiExerciseGenerationResponse
+from app.schemas.exercise import (
+    AiExerciseGenerateRequest,
+    AiExerciseGenerationResponse,
+    QuizFeedbackRequest,
+    QuizFeedbackResponse,
+    QuizReviewSuggestion,
+)
 from app.services.catalog_service import catalog_service
 from app.services.llm_gateway import switchable_ai_gateway
 from app.services.provider_config import provider_config_service
@@ -81,6 +87,18 @@ class ExerciseService:
                     },
                 )
 
+    async def generate_feedback(self, request: QuizFeedbackRequest) -> QuizFeedbackResponse:
+        fallback = self._fallback_quiz_feedback(request)
+        if self._settings.business_safe_mode_enabled:
+            return fallback
+
+        prompt = self._build_feedback_prompt(request)
+        ai_payload = await switchable_ai_gateway.generate_structured_json(
+            prompt=prompt,
+            fallback_payload=fallback.model_dump(mode="json"),
+        )
+        return self._normalize_feedback_payload(ai_payload, fallback)
+
     def _build_prompt(self, request: AiExerciseGenerateRequest, lesson: dict[str, Any]) -> str:
         formats = [fmt.value for fmt in request.formats]
         difficulties = [level.value for level in request.difficulties]
@@ -121,6 +139,134 @@ class ExerciseService:
             '"difficulty": "ADVANCED", "explanation": "..."}]}\n\n'
             "Tra ve JSON exercises voi chat luong production-ready."
         )
+
+    def _build_feedback_prompt(self, request: QuizFeedbackRequest) -> str:
+        selected = ", ".join(request.selectedAnswers) or "khong co dap an nao"
+        correct = ", ".join(request.correctAnswers) or "khong co dap an dung duoc gui"
+        options = "\n".join(
+            f"- {str(item.get('text') or '').strip()} | correct={item.get('correct') or item.get('isCorrect')}"
+            for item in request.options[:8]
+            if isinstance(item, dict)
+        )
+        existing_explanation = request.explanation or "N/A"
+
+        return (
+            "# ROLE\n"
+            "Ban la tro ly hoc tap cua TechHub, giai thich dap an trac nghiem cho hoc vien.\n\n"
+            "# RULES\n"
+            "- Tra ve JSON only, dung schema duoc yeu cau.\n"
+            "- Viet bang tieng Viet co dau, ngan gon, dung ngu canh bai hoc.\n"
+            "- Khong chi trich nguoi hoc; tap trung vao ly do sai va buoc hoc lai.\n"
+            "- Neu dap an sai, giai thich vi sao dap an da chon sai va vi sao dap an dung phu hop hon.\n"
+            "- Goi y hoc lai phai gan voi lesson hien tai, khong bia course/lesson khong co trong context.\n\n"
+            "# CONTEXT\n"
+            f"Course: {request.courseTitle or 'N/A'}\n"
+            f"Lesson: {request.lessonTitle or 'N/A'}\n"
+            f"Question: {request.question}\n"
+            f"Options:\n{options or 'N/A'}\n"
+            f"Selected answers: {selected}\n"
+            f"Correct answers: {correct}\n"
+            f"Existing explanation: {existing_explanation}\n\n"
+            "# OUTPUT JSON SCHEMA\n"
+            "{\n"
+            '  "correct": false,\n'
+            '  "summary": "Mot cau tom tat ket qua",\n'
+            '  "explanation": "Giai thich ngan gon 2-4 cau",\n'
+            '  "selectedAnswers": ["..."],\n'
+            '  "correctAnswers": ["..."],\n'
+            '  "weakConcepts": ["khai niem yeu"],\n'
+            '  "reviewSuggestions": [{"lessonId": "id neu co", "title": "ten bai", "reason": "ly do", "action": "viec can lam"}],\n'
+            '  "nextAction": "Buoc tiep theo",\n'
+            '  "source": "AI_SERVICE"\n'
+            "}"
+        )
+
+    def _fallback_quiz_feedback(self, request: QuizFeedbackRequest) -> QuizFeedbackResponse:
+        selected = ", ".join(request.selectedAnswers) or "chua chon dap an"
+        correct = ", ".join(request.correctAnswers) or "dap an dung"
+        lesson_title = request.lessonTitle or "bai hoc hien tai"
+        explanation = request.explanation or (
+            f"Dap an ban chon la {selected}, trong khi dap an dung la {correct}. "
+            "Hay doc lai phan noi dung lien quan truc tiep den cau hoi nay."
+        )
+        if request.isCorrect:
+            explanation = request.explanation or "Ban da chon dap an phu hop voi noi dung bai hoc."
+
+        return QuizFeedbackResponse(
+            correct=request.isCorrect,
+            summary=(
+                "Ban da tra loi dung cau hoi nay."
+                if request.isCorrect
+                else "Cau tra loi chua khop voi trong tam kien thuc cua bai hoc."
+            ),
+            explanation=explanation,
+            selectedAnswers=request.selectedAnswers,
+            correctAnswers=request.correctAnswers,
+            weakConcepts=self._extract_feedback_concepts(request.question),
+            reviewSuggestions=[
+                QuizReviewSuggestion(
+                    lessonId=request.lessonId,
+                    title=lesson_title,
+                    reason=(
+                        "Tiep tuc hoc bai tiep theo de giu mach kien thuc."
+                        if request.isCorrect
+                        else "On lai phan noi dung lien quan den cau hoi vua sai."
+                    ),
+                    action=(
+                        "Chuyen sang cau hoi tiep theo."
+                        if request.isCorrect
+                        else "Doc lai lesson, ghi chu y chinh, sau do lam lai cau hoi."
+                    ),
+                )
+            ],
+            nextAction=(
+                "Tiep tuc voi cau hoi tiep theo."
+                if request.isCorrect
+                else f"On lai '{lesson_title}' truoc khi lam lai."
+            ),
+            source="AI_SERVICE_FALLBACK",
+        )
+
+    def _normalize_feedback_payload(
+        self,
+        payload: dict[str, Any],
+        fallback: QuizFeedbackResponse,
+    ) -> QuizFeedbackResponse:
+        if not isinstance(payload, dict):
+            return fallback
+        merged = fallback.model_dump(mode="json")
+        for key, value in payload.items():
+            if value not in (None, "", []):
+                merged[key] = value
+        try:
+            return QuizFeedbackResponse.model_validate(merged)
+        except Exception:
+            return fallback
+
+    @staticmethod
+    def _extract_feedback_concepts(question: str) -> list[str]:
+        tokens = [
+            token
+            for token in re.findall(r"\w{5,}", question or "")
+            if token.lower()
+            not in {
+                "trong",
+                "duoc",
+                "nhung",
+                "chinh",
+                "question",
+                "which",
+                "about",
+                "lesson",
+            }
+        ]
+        concepts: list[str] = []
+        for token in tokens:
+            if token not in concepts:
+                concepts.append(token)
+            if len(concepts) >= 3:
+                break
+        return concepts or ["noi dung bai hoc"]
 
     def _fallback_exercises(self, lesson: dict[str, Any], request: AiExerciseGenerateRequest) -> dict[str, list[dict[str, Any]]]:
         concepts = self._extract_concepts(lesson)

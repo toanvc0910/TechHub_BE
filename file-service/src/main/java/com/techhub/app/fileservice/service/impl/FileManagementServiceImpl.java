@@ -14,6 +14,7 @@ import com.techhub.app.fileservice.repository.FileUsageRepository;
 import com.techhub.app.fileservice.service.FileManagementService;
 import com.techhub.app.fileservice.service.MediaProcessingService;
 import com.techhub.app.fileservice.service.ObjectStorageService;
+import com.techhub.app.fileservice.service.StorageObjectKeyUtils;
 import com.techhub.app.fileservice.service.StoredFileContent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -189,6 +190,13 @@ public class FileManagementServiceImpl implements FileManagementService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<FileResponse> searchFilesByFolder(UUID userId, UUID folderId, String keyword, Pageable pageable) {
+        Page<FileEntity> files = fileRepository.searchByFolderAndKeyword(userId, folderId, keyword, "Y", pageable);
+        return files.map(this::mapToResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<FileResponse> getFilesByUser(UUID userId, Pageable pageable) {
         Page<FileEntity> files = fileRepository.findByUserIdAndIsActive(userId, "Y", pageable);
         return files.map(this::mapToResponse);
@@ -345,11 +353,7 @@ public class FileManagementServiceImpl implements FileManagementService {
             return "users/" + userId + "/ai-chat";
         }
 
-        String folderPath = folder != null ? sanitizeFolderPath(folder.getPath()) : null;
-        if (folderPath == null || folderPath.isBlank()) {
-            return "users/" + userId + "/library";
-        }
-        return "users/" + userId + "/library/" + folderPath;
+        return StorageObjectKeyUtils.buildLibraryPrefix(userId, folder != null ? folder.getPath() : null);
     }
 
     private String storageTypeSegment(FileTypeEnum fileType) {
@@ -480,12 +484,30 @@ public class FileManagementServiceImpl implements FileManagementService {
             return;
         }
 
-        log.warn("Kafka enqueue failed for file {}, fallback to inline processing", saved.getId());
-        mediaProcessingService.processUploadedVideo(event);
+        log.warn("Kafka enqueue failed for file {}, fallback to background processing", saved.getId());
+        runVideoProcessingFallbackAfterCommit(event);
+    }
 
-        FileEntity refreshed = fileRepository.findById(saved.getId()).orElse(saved);
-        log.info("Inline fallback processing completed for file {} with status {}", refreshed.getId(),
-                refreshed.getProcessingStatus());
+    private void runVideoProcessingFallbackAfterCommit(FileUploadedEvent event) {
+        Runnable fallback = () -> CompletableFuture.runAsync(() -> {
+            try {
+                mediaProcessingService.processUploadedVideo(event);
+            } catch (Exception ex) {
+                log.error("Background fallback processing failed for file {}", event.getFileId(), ex);
+            }
+        });
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    fallback.run();
+                }
+            });
+            return;
+        }
+
+        fallback.run();
     }
 
     private String resolveSignedObjectUrl(FileEntity file) {

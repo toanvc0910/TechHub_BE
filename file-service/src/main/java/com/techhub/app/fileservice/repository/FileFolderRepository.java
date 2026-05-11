@@ -33,4 +33,8 @@ public interface FileFolderRepository extends JpaRepository<FileFolderEntity, UU
             @Param("pathPattern") String pathPattern, @Param("isActive") String isActive);
 
     boolean existsByUserIdAndNameAndParentIdAndIsActive(UUID userId, String name, UUID parentId, String isActive);
+
+    boolean existsByUserIdAndPathAndIsActive(UUID userId, String path, String isActive);
+
+    boolean existsByUserIdAndPathAndIsActiveAndIdNot(UUID userId, String path, String isActive, UUID id);
 }
