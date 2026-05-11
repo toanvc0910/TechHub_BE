@@ -11,6 +11,7 @@ from app.orchestration.state.orchestrator_state import OrchestratorState, trace_
 from app.schemas.recommendation import RecommendationRequest
 from app.services.llm_gateway import switchable_ai_gateway
 from app.services.recommendation_service import recommendation_service
+from app.services.request_instructions import append_request_instructions
 
 
 class RagResponseNode:
@@ -59,7 +60,7 @@ class RagResponseNode:
         # Build personalization context
         user_context = self._build_user_context(state)
 
-        prompt = (
+        prompt = append_request_instructions((
             "Du lieu tham khao tu TechHub:\n"
             + "\n".join(context_lines)
             + "\n\n"
@@ -67,7 +68,7 @@ class RagResponseNode:
             + f"Cau hoi nguoi dung: {state['user_input']}\n\n"
             + "Tra loi bang tieng Viet. Uu tien nhac den khoa hoc co trong danh sach.\n"
             + "Neu dang goi y, hay giai thich tai sao khoa hoc phu hop voi trinh do va muc tieu cua nguoi dung."
-        )
+        ), state.get("request_context"))
         response = await switchable_ai_gateway.stream_and_emit(
             prompt=prompt,
             system_prompt=settings.system_prompt,
@@ -126,13 +127,13 @@ class RagResponseNode:
     async def _knowledge_fallback(state: OrchestratorState) -> dict[str, Any]:
         settings = get_settings()
         response = await switchable_ai_gateway.stream_and_emit(
-            prompt=(
+            prompt=append_request_instructions((
                 "Ban la tro ly hoc tap cua TechHub.\n"
                 "Nguoi dung dang hoi mot cau ly thuyet hoac khai niem tong quat.\n"
                 "Neu kho tri thuc noi bo chua co tai lieu lien quan, hay van tra loi dua tren kien thuc chung mot cach ngan gon,"
                 " chinh xac va de hieu. Khong duoc bịa them khoa hoc hay du lieu noi bo.\n"
                 f"Cau hoi: {state['user_input']}"
-            ),
+            ), state.get("request_context")),
             system_prompt=settings.system_prompt,
             model=state.get("selected_model"),
         )

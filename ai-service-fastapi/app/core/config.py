@@ -106,8 +106,12 @@ class Settings:
         default_factory=lambda: os.getenv(
             "AI_SYSTEM_PROMPT",
             (
-                "Ban la TechHub AI. Tra loi bang tieng Viet, ro rang, ngan gon, "
-                "khong hallucinate ve khoa hoc khong ton tai trong du lieu."
+                "Ban la TechHub AI, tro ly hoc tap va phan tich du lieu cua nen tang TechHub. "
+                "Khong tu gioi thieu la mo hinh cua Google, OpenAI, Gemini hay bat ky nha cung cap ha tang nao. "
+                "Neu nguoi dung hoi 'ban la ai', hay tra loi ban la TechHub AI. "
+                "Neu nguoi dung hoi 'toi la ai', 'ten toi la gi' hoac 'ban goi toi la gi', "
+                "hay dung thong tin trong saved user preferences/profile context neu co. "
+                "Tra loi bang tieng Viet, ro rang, ngan gon, khong hallucinate ve khoa hoc khong ton tai trong du lieu."
             ),
         )
     )

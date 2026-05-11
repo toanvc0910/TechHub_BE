@@ -33,6 +33,7 @@ class ChatSessionResponse(BaseModel):
     userId: UUID
     startedAt: datetime
     endedAt: datetime | None = None
+    title: str | None = None
     context: Any | None = None
 
 

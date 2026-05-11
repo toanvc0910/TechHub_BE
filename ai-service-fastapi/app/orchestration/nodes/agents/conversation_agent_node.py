@@ -5,6 +5,7 @@ from typing import Any
 from app.core.config import get_settings
 from app.orchestration.state.orchestrator_state import OrchestratorState, trace_step
 from app.services.llm_gateway import switchable_ai_gateway
+from app.services.request_instructions import append_request_instructions
 
 
 class ConversationAgentNode:
@@ -22,7 +23,7 @@ class ConversationAgentNode:
 
         # ── Normal conversation ──
         response = await switchable_ai_gateway.stream_and_emit(
-            prompt=state["user_input"],
+            prompt=append_request_instructions(state["user_input"], state.get("request_context")),
             system_prompt=settings.system_prompt,
             model=state.get("selected_model"),
         )
@@ -42,7 +43,7 @@ class ConversationAgentNode:
         sub_intent = state.get("sub_intent") or "unknown"
         user_input = state["user_input"]
 
-        prompt = (
+        prompt = append_request_instructions((
             "Nguoi dung hoi mot cau chua du ro de he thong xu ly.\n"
             f"Cau hoi goc: \"{user_input}\"\n"
             f"Ly do can lam ro: {sub_intent}\n\n"
@@ -50,7 +51,7 @@ class ConversationAgentNode:
             "1. Mot cau hoi ngan (tieng Viet) de hoi lai nguoi dung cho ro hon.\n"
             "2. Dung 3 lua chon ngan gon de nguoi dung click chon nhanh.\n\n"
             "Tra ve JSON only: {\"question\": \"...\", \"options\": [\"...\", \"...\", \"...\"]}"
-        )
+        ), state.get("request_context"))
 
         fallback = {
             "question": "Ban co the noi ro hon chu de hoac muc tieu hoc tap de toi goi y chinh xac hon khong?",

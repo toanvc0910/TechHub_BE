@@ -142,8 +142,27 @@ class FileContextService:
             normalized["ingestionStatus"] = "READY"
             return normalized
 
-        url = self._best_url(normalized)
         attempted_download = False
+        if (
+            file_id
+            and user_id
+            and self._settings.file_service_base_url
+            and self._can_extract_content(mime_type=mime_type, name=name)
+        ):
+            attempted_download = True
+            downloaded = await self._download_file_service_content(
+                file_id=file_id,
+                user_id=user_id,
+                mime_type=mime_type,
+                name=name,
+            )
+            if downloaded:
+                normalized["content"] = downloaded[: self._settings.file_max_chars]
+                normalized["excerpt"] = downloaded[: self._settings.file_excerpt_chars]
+                normalized["ingestionStatus"] = "READY"
+                return normalized
+
+        url = self._best_url(normalized)
         if url and self._can_extract_content(mime_type=mime_type, name=name):
             attempted_download = True
             downloaded = await self._download_and_extract_content(url, mime_type=mime_type, name=name)
@@ -196,6 +215,58 @@ class FileContextService:
                 if data:
                     return data
             except Exception:
+                continue
+        return None
+
+    async def _download_file_service_content(
+        self,
+        *,
+        file_id: str,
+        user_id: str,
+        mime_type: str,
+        name: str,
+    ) -> str | None:
+        base_url = (self._settings.file_service_base_url or "").rstrip("/")
+        if not base_url:
+            return None
+        candidates = []
+        if "/api/files" in base_url:
+            candidates.append(f"{base_url}/{file_id}/content")
+        else:
+            candidates.extend(
+                [
+                    f"{base_url}/api/files/{file_id}/content",
+                    f"{base_url}/files/{file_id}/content",
+                    f"{base_url}/{file_id}/content",
+                ]
+            )
+        seen = set()
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            try:
+                response = await self._client.get(candidate, params={"userId": user_id})
+                response.raise_for_status()
+                raw = response.content[: self._settings.file_max_download_bytes]
+                response_content_type = response.headers.get("content-type", "")
+                if self._looks_like_wrong_html_payload(
+                    raw,
+                    response_content_type=response_content_type,
+                    expected_mime_type=mime_type,
+                    name=name,
+                ):
+                    continue
+                effective_mime_type = mime_type or response_content_type.split(";", 1)[0].strip()
+                extracted = await self._extract_bytes_async(raw, mime_type=effective_mime_type, name=name)
+                if extracted:
+                    return self._normalize_text(
+                        extracted,
+                        mime_type=effective_mime_type,
+                        name=name,
+                    )[: self._settings.file_max_chars]
+            except Exception as exc:
+                logger.warning("Failed to fetch file-service content for %s from %s: %s", name, candidate, exc)
                 continue
         return None
 

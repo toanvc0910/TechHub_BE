@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.orchestration.state.orchestrator_state import OrchestratorState, trace_step
 from app.services.file_context_service import file_context_service
 from app.services.llm_gateway import switchable_ai_gateway
+from app.services.request_instructions import append_request_instructions
 
 
 class FileAgentNode:
@@ -43,13 +44,13 @@ class FileAgentNode:
             normalized_input = self._normalize_text(state.get("user_input", ""))
             if not self._is_file_reference(normalized_input):
                 response = await switchable_ai_gateway.stream_and_emit(
-                    prompt=(
+                    prompt=append_request_instructions((
                         "Nguoi dung dang hoi mot cau hoi thong thuong, nhung request da bi route nham qua file-analysis.\n"
                         "Hay tra loi nhu mot tro ly kien thuc tong quat bang tieng Viet, ngan gon, ro rang.\n"
                         "Neu cau hoi nhac den mot nguoi/thuc the ma ban khong du ngu canh de xac dinh chinh xac, "
                         "hay noi ro rang la ban chua du thong tin thay vi bịa them.\n\n"
                         f"Cau hoi user: {state['user_input']}"
-                    ),
+                    ), state.get("request_context")),
                     system_prompt=settings.system_prompt,
                     model=state.get("selected_model"),
                 )
@@ -75,13 +76,13 @@ class FileAgentNode:
                 "execution_trace": list(state.get("execution_trace", [])),
             }
 
-        prompt = (
+        prompt = append_request_instructions((
             "Ban dang phan tich tai lieu do nguoi dung cung cap cho TechHub.\n"
             "Chi duoc dua tren doan trich sau, khong suy dien ngoai tai lieu.\n"
             "Hay tom tat ngan gon va tra loi cau hoi cua user neu trong tai lieu co thong tin.\n\n"
             f"Cau hoi user: {state['user_input']}\n"
             f"Tai lieu:\n{excerpts}"
-        )
+        ), state.get("request_context"))
         response = await switchable_ai_gateway.stream_and_emit(
             prompt=prompt,
             system_prompt=settings.system_prompt,

@@ -17,6 +17,7 @@ from app.schemas.analytics_contract import (
     detect_empty_state,
 )
 from app.services.llm_gateway import switchable_ai_gateway
+from app.services.request_instructions import append_request_instructions
 from app.services.runtime_policy_service import runtime_policy_service
 
 
@@ -130,7 +131,13 @@ When grouping, alias the category column as label and the numeric aggregation as
 
         rows = self._normalize_rows(rows)
 
-        summary = await self._summarize(question, rows, active_plan, scope=scope)
+        summary = await self._summarize(
+            question,
+            rows,
+            active_plan,
+            scope=scope,
+            request_context=request_context,
+        )
         chart_type = active_plan.get("chartType") or "bar"
         suggested_actions = self._build_suggested_actions(
             plan=active_plan,
@@ -579,7 +586,15 @@ When grouping, alias the category column as label and the numeric aggregation as
             "scope": scope,
         }
 
-    async def _summarize(self, question: str, rows: list[dict[str, Any]], plan: dict[str, Any], *, scope: str) -> str:
+    async def _summarize(
+        self,
+        question: str,
+        rows: list[dict[str, Any]],
+        plan: dict[str, Any],
+        *,
+        scope: str,
+        request_context: Any | None = None,
+    ) -> str:
         if not rows:
             return "Khong co du lieu phu hop voi bo loc hien tai."
 
@@ -593,7 +608,9 @@ When grouping, alias the category column as label and the numeric aggregation as
             f"Rows preview: {preview}\n"
             "Tra ve 1-2 cau ngan gon, chi noi insight quan trong nhat."
         )
-        summary = await switchable_ai_gateway.generate_text(prompt=prompt)
+        summary = await switchable_ai_gateway.generate_text(
+            prompt=append_request_instructions(prompt, request_context)
+        )
         cleaned = summary.strip()
         return cleaned or fallback
 

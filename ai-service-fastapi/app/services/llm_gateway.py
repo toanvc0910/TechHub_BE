@@ -17,10 +17,26 @@ from app.services.provider_config import provider_config_service
 from app.services.runtime_request_context import runtime_request_context_service
 
 
+PLATFORM_SYSTEM_GUARDRAILS = (
+    "You are TechHub AI, the assistant for the TechHub learning platform. "
+    "Do not identify yourself as Google, Gemini, OpenAI, Qwen, or another base-model provider. "
+    "If asked who you are, say you are TechHub AI. "
+    "If the user asks who they are, their words 'toi', 'minh', or 'em' refer to the user, not to the assistant. "
+    "Use saved user preferences/profile context when relevant, especially preferred names. "
+    "Do not treat a preferred name as verified legal identity."
+)
+
+
 class SwitchableAiGateway:
     def __init__(self) -> None:
         self._settings = get_settings()
         self._client = httpx.AsyncClient(timeout=60.0)
+
+    def _effective_system_prompt(self, system_prompt: str | None) -> str:
+        base_prompt = system_prompt or self._settings.system_prompt
+        if "JSON-only assistant" in base_prompt:
+            return base_prompt
+        return f"{PLATFORM_SYSTEM_GUARDRAILS}\n\n{base_prompt}"
 
     async def generate_text(
         self,
@@ -101,7 +117,7 @@ class SwitchableAiGateway:
                     as_type="generation",
                     model=actual_used_model,
                     input=prompt,
-                    metadata={"system_prompt": (system_prompt or "")[:200]},
+                    metadata={"system_prompt": self._effective_system_prompt(system_prompt)[:200]},
                 )
                 gen.update(output=response_text, usage_details={"input": prompt_tokens, "output": completion_tokens})
                 gen.end()
@@ -213,21 +229,26 @@ class SwitchableAiGateway:
         if provider != "gemini" and self._settings.gemini_api_key:
             attempts.append(("gemini", self._settings.gemini_chat_model))
 
+        emitted_any = False
         for candidate_provider, candidate_model in attempts:
             try:
                 if candidate_provider == "openai" and self._settings.openai_api_key:
                     async for delta in self._stream_openai_text(
                         prompt=prompt, system_prompt=system_prompt, model=candidate_model
                     ):
+                        emitted_any = True
                         yield delta
                     return
                 if candidate_provider == "gemini" and self._settings.gemini_api_key:
                     async for delta in self._stream_gemini_text(
                         prompt=prompt, system_prompt=system_prompt, model=candidate_model
                     ):
+                        emitted_any = True
                         yield delta
                     return
             except Exception:
+                if emitted_any:
+                    return
                 continue
 
         # Fallback: no streaming-capable provider — emit fake chunks from full text
@@ -254,21 +275,26 @@ class SwitchableAiGateway:
         if provider != "gemini" and self._settings.gemini_api_key:
             attempts.append(("gemini", self._settings.gemini_chat_model))
 
+        emitted_any = False
         for candidate_provider, candidate_model in attempts:
             try:
                 if candidate_provider == "openai" and self._settings.openai_api_key:
                     async for event in self._stream_openai_events(
                         prompt=prompt, system_prompt=system_prompt, model=candidate_model
                     ):
+                        emitted_any = True
                         yield event
                     return
                 if candidate_provider == "gemini" and self._settings.gemini_api_key:
                     async for event in self._stream_gemini_events(
                         prompt=prompt, system_prompt=system_prompt, model=candidate_model
                     ):
+                        emitted_any = True
                         yield event
                     return
             except Exception:
+                if emitted_any:
+                    return
                 continue
 
         text = await self.generate_text(prompt=prompt, system_prompt=system_prompt, model=model)
@@ -313,6 +339,8 @@ class SwitchableAiGateway:
         except Exception:
             # If streaming blows up mid-way, fall back to non-streaming and
             # emit the remainder so the UI still gets a response.
+            if full:
+                return "".join(full)
             remainder = await self.generate_text(prompt=prompt, system_prompt=system_prompt, model=model)
             if remainder:
                 full.append(remainder)
@@ -329,7 +357,7 @@ class SwitchableAiGateway:
             "model": model,
             "stream": True,
             "messages": [
-                {"role": "system", "content": system_prompt or self._settings.system_prompt},
+                {"role": "system", "content": self._effective_system_prompt(system_prompt)},
                 {"role": "user", "content": prompt},
             ],
         }
@@ -374,7 +402,7 @@ class SwitchableAiGateway:
             "model": model,
             "stream": True,
             "messages": [
-                {"role": "system", "content": system_prompt or self._settings.system_prompt},
+                {"role": "system", "content": self._effective_system_prompt(system_prompt)},
                 {"role": "user", "content": prompt},
             ],
         }
@@ -417,7 +445,7 @@ class SwitchableAiGateway:
         self, *, prompt: str, system_prompt: str | None, model: str
     ) -> AsyncIterator[str]:
         payload = {
-            "system_instruction": {"parts": [{"text": system_prompt or self._settings.system_prompt}]},
+            "system_instruction": {"parts": [{"text": self._effective_system_prompt(system_prompt)}]},
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         }
         async with self._client.stream(
@@ -452,7 +480,7 @@ class SwitchableAiGateway:
         self, *, prompt: str, system_prompt: str | None, model: str
     ) -> AsyncIterator[dict[str, str]]:
         payload = {
-            "system_instruction": {"parts": [{"text": system_prompt or self._settings.system_prompt}]},
+            "system_instruction": {"parts": [{"text": self._effective_system_prompt(system_prompt)}]},
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         }
         async with self._client.stream(
@@ -508,7 +536,7 @@ class SwitchableAiGateway:
             json={
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": system_prompt or self._settings.system_prompt},
+                    {"role": "system", "content": self._effective_system_prompt(system_prompt)},
                     {"role": "user", "content": prompt},
                 ],
             },
@@ -525,7 +553,7 @@ class SwitchableAiGateway:
             f"{self._settings.gemini_base_url}/models/{model}:generateContent",
             params={"key": self._settings.gemini_api_key},
             json={
-                "system_instruction": {"parts": [{"text": system_prompt or self._settings.system_prompt}]},
+                "system_instruction": {"parts": [{"text": self._effective_system_prompt(system_prompt)}]},
                 "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             },
         )

@@ -32,6 +32,7 @@ from app.services.llm_gateway import switchable_ai_gateway
 from app.services.observability_service import runtime_observability_service
 from app.services.prompt_sanitization import prompt_sanitization_service
 from app.services.rate_limit import rate_limiting_service
+from app.services.request_instructions import append_request_instructions
 from app.services.runtime_request_context import runtime_request_context_service
 
 
@@ -299,7 +300,27 @@ class ChatService:
                 .where(ChatSessionModel.is_active == "Y")
                 .order_by(ChatSessionModel.started_at.desc())
             )
-            return [self._to_session_response(item) for item in result.scalars().all()]
+            sessions = list(result.scalars().all())
+            session_ids = [item.id for item in sessions]
+            first_user_messages: dict[UUID, ChatMessageModel] = {}
+            if session_ids:
+                message_result = await session.execute(
+                    select(ChatMessageModel)
+                    .where(ChatMessageModel.session_id.in_(session_ids))
+                    .where(ChatMessageModel.sender == ChatSender.USER.value)
+                    .where(ChatMessageModel.is_active == "Y")
+                    .order_by(ChatMessageModel.timestamp.asc())
+                )
+                for message in message_result.scalars().all():
+                    first_user_messages.setdefault(message.session_id, message)
+
+            return [
+                self._to_session_response(
+                    item,
+                    title=self._build_session_title(first_user_messages.get(item.id)),
+                )
+                for item in sessions
+            ]
 
     async def get_session_messages(self, session_id: UUID) -> list[ChatMessageDetailResponse]:
         async with get_db_session() as session:
@@ -541,12 +562,12 @@ class ChatService:
             if state.get("intent") == "recommendation"
             else "Tra loi mot cach tro chuyen, ngan gon, dung trong pham vi TechHub."
         )
-        return (
+        return append_request_instructions((
             f"{intent_hint}\n"
             f"Recent context:\n{recent_context or '(empty)'}\n"
             f"User memory: {user_memory or '(empty)'}\n"
             f"Current user message: {state['user_input']}"
-        )
+        ), state.get("request_context"))
 
     @staticmethod
     def _fallback_reason(state: OrchestratorState) -> str | None:
@@ -564,12 +585,42 @@ class ChatService:
         return [text[i : i + actual_chunk_size] for i in range(0, len(text), actual_chunk_size)] or [text]
 
     @staticmethod
-    def _to_session_response(session_model: ChatSessionModel) -> ChatSessionResponse:
+    def _build_session_title(first_user_message: ChatMessageModel | None) -> str | None:
+        if first_user_message is None:
+            return None
+
+        content = (first_user_message.content or "").strip()
+        if content:
+            normalized = re.sub(r"\s+", " ", content)
+            words = normalized.split()
+            title = " ".join(words[:8])
+            if len(words) > 8:
+                title += "..."
+            return title[:80]
+
+        metadata = first_user_message.message_metadata if isinstance(first_user_message.message_metadata, dict) else {}
+        attachments = metadata.get("attachments")
+        if isinstance(attachments, list) and attachments:
+            names = [
+                str(item.get("name") or item.get("filename") or "").strip()
+                for item in attachments
+                if isinstance(item, dict)
+            ]
+            names = [name for name in names if name]
+            if names:
+                if len(names) == 1:
+                    return names[0][:80]
+                return f"{names[0]} + {len(names) - 1} file"
+        return None
+
+    @staticmethod
+    def _to_session_response(session_model: ChatSessionModel, *, title: str | None = None) -> ChatSessionResponse:
         return ChatSessionResponse(
             id=session_model.id,
             userId=session_model.user_id,
             startedAt=session_model.started_at,
             endedAt=session_model.ended_at,
+            title=title,
             context=session_model.context,
         )
 
