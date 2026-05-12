@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -23,6 +24,21 @@ public class UserPermissionProxyController {
     public ResponseEntity<String> getEffective(@PathVariable String userId,
                                                @RequestHeader("Authorization") String authHeader) {
         return userServiceClient.getEffectivePermissions(userId, authHeader);
+    }
+
+    @GetMapping("/catalog")
+    public ResponseEntity<String> getCatalog(@PathVariable String userId,
+                                             @RequestParam(defaultValue = "0") int page,
+                                             @RequestParam(defaultValue = "20") int size,
+                                             @RequestParam(required = false) String search,
+                                             @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getUserPermissionCatalog(userId, page, size, search, authHeader);
+    }
+
+    @GetMapping("/overrides")
+    public ResponseEntity<String> getOverrides(@PathVariable String userId,
+                                               @RequestHeader("Authorization") String authHeader) {
+        return userServiceClient.getUserPermissionOverrides(userId, authHeader);
     }
 
     @PostMapping

@@ -44,9 +44,8 @@ public class KafkaConfig {
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> props = new HashMap<>(kafkaProperties.buildProducerProperties());
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, determineBootstrapServers());
-        props.putIfAbsent(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.putIfAbsent(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        props.putIfAbsent(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+        configureKeySerializer(props);
+        configureValueSerializer(props);
         props.putIfAbsent(ProducerConfig.ACKS_CONFIG, "all");
         return new DefaultKafkaProducerFactory<>(props);
     }
@@ -112,6 +111,23 @@ public class KafkaConfig {
         throw new IllegalStateException(
                 "Kafka bootstrap servers are not configured. " +
                 "Provide 'spring.kafka.bootstrap-servers', 'kafka.bootstrap-servers', or 'kafka.hostname'/'kafka.port'.");
+    }
+
+    private void configureKeySerializer(Map<String, Object> props) {
+        String configuredKeySerializer = environment.getProperty("spring.kafka.producer.key-serializer");
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                StringUtils.hasText(configuredKeySerializer) ? configuredKeySerializer : StringSerializer.class);
+    }
+
+    private void configureValueSerializer(Map<String, Object> props) {
+        String configuredValueSerializer = environment.getProperty("spring.kafka.producer.value-serializer");
+        if (StringUtils.hasText(configuredValueSerializer)) {
+            props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, configuredValueSerializer);
+            return;
+        }
+
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        props.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
     }
 
     private String[] resolveTrustedPackages() {

@@ -19,6 +19,8 @@ import com.techhub.app.userservice.repository.UserRoleRepository;
 import com.techhub.app.userservice.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.AntPathMatcher;
@@ -63,6 +65,38 @@ public class PermissionServiceImpl implements PermissionService {
                         state.overrideSources.getOrDefault(permission.getId(), "ROLE"),
                         true))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PermissionResponse> getUserPermissionOverrides(UUID userId) {
+        findActiveUser(userId);
+
+        return userPermissionRepository.findActiveByUserId(userId).stream()
+                .filter(override -> override.getPermission() != null)
+                .filter(override -> Boolean.TRUE.equals(override.getPermission().getIsActive()))
+                .map(override -> toPermissionResponse(
+                        override.getPermission(),
+                        "USER_OVERRIDE",
+                        Boolean.TRUE.equals(override.getAllowed())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PermissionResponse> getUserPermissionCatalog(UUID userId, String search, Pageable pageable) {
+        EffectivePermissionState state = buildEffectivePermissionState(userId);
+
+        return permissionRepository.searchActivePermissions(search, pageable)
+                .map(permission -> {
+                    Boolean overrideAllowed = state.userOverrideAllowedByPermissionId.get(permission.getId());
+                    boolean allowed = overrideAllowed != null
+                            ? Boolean.TRUE.equals(overrideAllowed)
+                            : state.allowedPermissionIds.contains(permission.getId());
+                    String source = overrideAllowed != null ? "USER_OVERRIDE" : "ROLE";
+
+                    return toPermissionResponse(permission, source, allowed);
+                });
     }
 
     @Override
@@ -479,9 +513,11 @@ public class PermissionServiceImpl implements PermissionService {
 
         // Apply user-level overrides (deny removes, allow adds)
         List<UserPermission> overrides = userPermissionRepository.findActiveByUserId(userId);
+        Map<UUID, Boolean> overrideAllowedByPermissionId = new HashMap<>();
         for (UserPermission override : overrides) {
             UUID permissionId = override.getPermissionId();
             sources.put(permissionId, "USER_OVERRIDE");
+            overrideAllowedByPermissionId.put(permissionId, Boolean.TRUE.equals(override.getAllowed()));
 
             if (Boolean.TRUE.equals(override.getAllowed())) {
                 allowedPermissions.add(permissionId);
@@ -490,7 +526,7 @@ public class PermissionServiceImpl implements PermissionService {
             }
         }
 
-        return new EffectivePermissionState(allowedPermissions, sources);
+        return new EffectivePermissionState(allowedPermissions, sources, overrideAllowedByPermissionId);
     }
 
     private PermissionResponse toPermissionResponse(Permission permission, String source, boolean allowed) {
@@ -525,10 +561,13 @@ public class PermissionServiceImpl implements PermissionService {
     private static class EffectivePermissionState {
         private final Set<UUID> allowedPermissionIds;
         private final Map<UUID, String> overrideSources;
+        private final Map<UUID, Boolean> userOverrideAllowedByPermissionId;
 
-        EffectivePermissionState(Set<UUID> allowedPermissionIds, Map<UUID, String> overrideSources) {
+        EffectivePermissionState(Set<UUID> allowedPermissionIds, Map<UUID, String> overrideSources,
+                Map<UUID, Boolean> userOverrideAllowedByPermissionId) {
             this.allowedPermissionIds = allowedPermissionIds;
             this.overrideSources = overrideSources;
+            this.userOverrideAllowedByPermissionId = userOverrideAllowedByPermissionId;
         }
     }
 }

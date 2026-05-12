@@ -1,7 +1,6 @@
 package com.techhub.app.proxyclient.security;
 
 import com.techhub.app.commonservice.enums.SecurityLevel;
-import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.jwt.JwtUtil;
 import com.techhub.app.proxyclient.cache.EndpointSecurityCacheService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +37,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
 
     private final JwtUtil jwtUtil;
     private final PermissionGatewayService permissionGatewayService;
@@ -108,7 +109,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // AUTHORIZED → JWT valid + RBAC permission check (ADMIN bypasses)
+            // AUTHORIZED -> JWT valid + RBAC permission check. ADMIN must still
+            // pass DB permissions so per-user deny overrides can narrow access.
             if (hasBypassRole(roles)) {
                 filterChain.doFilter(request, response);
                 return;
@@ -146,6 +148,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean hasBypassRole(List<String> roles) {
-        return roles != null && roles.stream().anyMatch(r -> UserRole.ADMIN.name().equalsIgnoreCase(r));
+        return roles != null && roles.stream().anyMatch(r -> SUPER_ADMIN_ROLE.equalsIgnoreCase(r));
     }
 }

@@ -26,7 +26,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * 1. Iterate all active policies
  * 2. Match incoming (url, method) against each policy's ant-style urlPattern +
  * method
- * 3. First match wins (most-specific patterns should be inserted first in DB)
+ * 3. First match wins (user-service returns most-specific patterns first)
  * 4. If no match → default is AUTHORIZED (JWT + permission check)
  */
 @Service
@@ -63,13 +63,8 @@ public class EndpointSecurityCacheService {
             "/oauth2/**");
 
     private static final List<String> BOOTSTRAP_AUTHENTICATED_PATTERNS = Arrays.asList(
-            "/api/analytics/instructor/**",
-            "/api/payments/**",
-            "/api/files/**",
-            "/api/users/instructor-applications",
-            "/api/users/instructor-applications/**",
-            "/api/v1/instructor-applications",
-            "/api/v1/instructor-applications/**");
+            "/api/users/profile",
+            "/api/users/change-password");
 
     @EventListener(ApplicationReadyEvent.class)
     public void loadOnStartup() {
@@ -158,7 +153,6 @@ public class EndpointSecurityCacheService {
             return true;
         }
 
-        // Payment initiation uses POST (e.g. /api/payments/paypal/create).
-        return "POST".equalsIgnoreCase(method) && pathMatcher.match("/api/payments/**", url);
+        return false;
     }
 }

@@ -20,6 +20,12 @@ public class UpdateUserRequest {
     @Size(max = 500, message = "Avatar URL cannot exceed 500 characters")
     private String avatar;
 
+    private Boolean changePassword;
+
+    private String password;
+
+    private String confirmPassword;
+
     private String firstName;
     private String lastName;
     private List<String> roles; // Role names to assign to the user

@@ -185,6 +185,17 @@ public interface UserServiceClient {
     ResponseEntity<String> getEffectivePermissions(@PathVariable String userId,
             @RequestHeader("Authorization") String authHeader);
 
+    @GetMapping("/api/users/{userId}/permissions/catalog")
+    ResponseEntity<String> getUserPermissionCatalog(@PathVariable String userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestHeader("Authorization") String authHeader);
+
+    @GetMapping("/api/users/{userId}/permissions/overrides")
+    ResponseEntity<String> getUserPermissionOverrides(@PathVariable String userId,
+            @RequestHeader("Authorization") String authHeader);
+
     @PostMapping("/api/users/{userId}/permissions")
     ResponseEntity<String> upsertUserPermission(@PathVariable String userId,
             @RequestBody Object body,

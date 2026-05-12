@@ -30,6 +30,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -183,12 +184,23 @@ public class UserServiceImpl implements UserService {
                 .map(String::trim)
                 .ifPresent(user::setAvatar);
 
+        boolean passwordChangeRequested = Boolean.TRUE.equals(request.getChangePassword())
+                || StringUtils.hasText(request.getPassword())
+                || StringUtils.hasText(request.getConfirmPassword());
+        if (passwordChangeRequested) {
+            updatePasswordFromAdminRequest(user, request);
+        }
+
         user.setUpdated(LocalDateTime.now());
         User saved = userRepository.save(user);
 
         // Update roles if provided
         if (request.getRoles() != null && !request.getRoles().isEmpty()) {
             assignRoles(saved, request.getRoles());
+        }
+
+        if (passwordChangeRequested) {
+            sendPasswordChangedNotificationSafely(saved);
         }
 
         log.info("User {} updated", saved.getId());
@@ -230,8 +242,7 @@ public class UserServiceImpl implements UserService {
         user.setUpdated(LocalDateTime.now());
         userRepository.save(user);
 
-        // Send password changed notification
-        emailService.sendPasswordChangedNotification(user.getId(), user.getEmail(), user.getUsername());
+        sendPasswordChangedNotificationSafely(user);
         log.info("Password changed for user {}", userId);
     }
 
@@ -417,6 +428,28 @@ public class UserServiceImpl implements UserService {
                 .ifPresent(existing -> {
                     throw new ConflictException("Username already in use");
                 });
+    }
+
+    private void updatePasswordFromAdminRequest(User user, UpdateUserRequest request) {
+        if (!StringUtils.hasText(request.getPassword())) {
+            throw new BadRequestException("Password is required");
+        }
+        if (request.getPassword().length() < 6) {
+            throw new BadRequestException("Password must be at least 6 characters");
+        }
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Password confirmation does not match");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+    }
+
+    private void sendPasswordChangedNotificationSafely(User user) {
+        try {
+            emailService.sendPasswordChangedNotification(user.getId(), user.getEmail(), user.getUsername());
+        } catch (RuntimeException ex) {
+            log.warn("Could not publish password changed notification for userId={}, email={}",
+                    user.getId(), user.getEmail(), ex);
+        }
     }
 
     private String normalizeEmail(String email) {

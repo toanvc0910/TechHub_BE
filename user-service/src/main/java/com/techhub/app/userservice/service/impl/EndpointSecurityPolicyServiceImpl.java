@@ -27,7 +27,7 @@ public class EndpointSecurityPolicyServiceImpl implements EndpointSecurityPolicy
         @Override
         @Transactional(readOnly = true)
         public List<EndpointSecurityPolicyDTO> listActivePolicies() {
-                return repository.findByIsActiveTrue().stream()
+                return repository.findActiveOrdered().stream()
                                 .map(this::toDTO)
                                 .collect(Collectors.toList());
         }

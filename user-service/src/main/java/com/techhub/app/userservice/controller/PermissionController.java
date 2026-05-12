@@ -2,12 +2,16 @@ package com.techhub.app.userservice.controller;
 
 import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.payload.GlobalResponse;
+import com.techhub.app.commonservice.payload.PageGlobalResponse;
 import com.techhub.app.userservice.dto.request.PermissionCheckRequest;
 import com.techhub.app.userservice.dto.request.UserPermissionRequest;
 import com.techhub.app.userservice.dto.response.PermissionResponse;
 import com.techhub.app.userservice.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
@@ -38,6 +43,51 @@ public class PermissionController {
                 List<PermissionResponse> permissions = permissionService.getEffectivePermissions(userId);
                 return ResponseEntity.ok(
                                 GlobalResponse.success("Effective permissions retrieved", permissions)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @GetMapping("/catalog")
+        public ResponseEntity<PageGlobalResponse<PermissionResponse>> getUserPermissionCatalog(
+                        @PathVariable UUID userId,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "20") int size,
+                        @RequestParam(required = false) String search,
+                        HttpServletRequest request) {
+                int safePage = Math.max(page, 0);
+                int safeSize = Math.min(Math.max(size, 1), 50);
+                Pageable pageable = PageRequest.of(safePage, safeSize);
+                String normalizedSearch = search == null ? null : search.trim();
+
+                Page<PermissionResponse> permissions = permissionService.getUserPermissionCatalog(
+                                userId,
+                                normalizedSearch,
+                                pageable);
+
+                PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                                .page(permissions.getNumber())
+                                .size(permissions.getSize())
+                                .totalElements(permissions.getTotalElements())
+                                .totalPages(permissions.getTotalPages())
+                                .first(permissions.isFirst())
+                                .last(permissions.isLast())
+                                .hasNext(permissions.hasNext())
+                                .hasPrevious(permissions.hasPrevious())
+                                .build();
+
+                return ResponseEntity.ok(
+                                PageGlobalResponse
+                                                .success("User permission catalog retrieved",
+                                                                permissions.getContent(), paginationInfo)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @GetMapping("/overrides")
+        public ResponseEntity<GlobalResponse<List<PermissionResponse>>> getUserPermissionOverrides(
+                        @PathVariable UUID userId,
+                        HttpServletRequest request) {
+                List<PermissionResponse> permissions = permissionService.getUserPermissionOverrides(userId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("User permission overrides retrieved", permissions)
                                                 .withPath(request.getRequestURI()));
         }
 
