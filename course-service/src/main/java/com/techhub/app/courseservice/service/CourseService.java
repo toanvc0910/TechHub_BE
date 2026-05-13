@@ -9,15 +9,19 @@ import com.techhub.app.courseservice.dto.response.CourseDetailResponse;
 import com.techhub.app.courseservice.dto.response.CourseSummaryResponse;
 import com.techhub.app.courseservice.dto.response.LessonAssetResponse;
 import com.techhub.app.courseservice.dto.response.LessonResponse;
+import com.techhub.app.commonservice.enums.Language;
+import com.techhub.app.courseservice.enums.CourseLevel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
 public interface CourseService {
 
-    Page<CourseSummaryResponse> getCourses(String search, Pageable pageable);
+    Page<CourseSummaryResponse> getCourses(String search, CourseLevel level, Language language, BigDecimal minPrice,
+            BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds, Pageable pageable);
 
     Page<CourseSummaryResponse> getMyCourses(String search, Pageable pageable);
 

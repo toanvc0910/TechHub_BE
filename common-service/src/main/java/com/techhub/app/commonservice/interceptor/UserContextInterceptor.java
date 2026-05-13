@@ -93,6 +93,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 // Public user endpoints
                 uri.startsWith("/api/users/public/") ||
                 // Internal service-to-service endpoints (no auth required)
+                uri.startsWith("/api/internal/") ||
                 uri.equals("/api/users/internal/all-user-ids") ||
                 // OAuth2 endpoints
                 uri.startsWith("/oauth2/") ||

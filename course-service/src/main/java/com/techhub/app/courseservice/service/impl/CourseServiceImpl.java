@@ -1,6 +1,7 @@
 package com.techhub.app.courseservice.service.impl;
 
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.Language;
 import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.exception.ForbiddenException;
@@ -31,6 +32,7 @@ import com.techhub.app.courseservice.event.LessonEvent;
 import com.techhub.app.courseservice.event.EventPublisher;
 import com.techhub.app.courseservice.entity.Skill;
 import com.techhub.app.courseservice.entity.Tag;
+import com.techhub.app.courseservice.enums.CourseLevel;
 import com.techhub.app.courseservice.enums.CourseStatus;
 import com.techhub.app.courseservice.enums.EnrollmentStatus;
 import com.techhub.app.courseservice.enums.LessonAssetType;
@@ -51,9 +53,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.criteria.JoinType;
+import javax.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -88,18 +93,17 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CourseSummaryResponse> getCourses(String search, Pageable pageable) {
+    public Page<CourseSummaryResponse> getCourses(String search, CourseLevel level, Language language,
+            BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds, Pageable pageable) {
         String normalized = normalizeSearch(search);
         boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN);
+        CourseStatus visibleStatus = isAdmin ? null : CourseStatus.PUBLISHED;
+        CourseLevel normalizedLevel = level == CourseLevel.ALL_LEVELS ? null : level;
 
-        Page<Course> courses;
-        if (isAdmin) {
-            // ADMIN: Xem tất cả courses (mọi status)
-            courses = courseRepository.searchCourses(null, normalized, pageable);
-        } else {
-            // INSTRUCTOR, LEARNER, Guest: Xem tất cả courses PUBLISHED
-            courses = courseRepository.searchCourses(CourseStatus.PUBLISHED.name(), normalized, pageable);
-        }
+        Page<Course> courses = courseRepository.findAll(
+                buildCourseSearchSpecification(visibleStatus, normalized, normalizedLevel, language, minPrice, maxPrice,
+                        normalizeIdList(skillIds), normalizeIdList(tagIds)),
+                pageable);
         return courses.map(this::buildCourseSummary);
     }
 
@@ -1221,6 +1225,62 @@ public class CourseServiceImpl implements CourseService {
 
         log.info("mapTagsToCourse: Final course tags count: {}", course.getCourseTags().size());
         log.info("========== mapTagsToCourse END ==========");
+    }
+
+    private Specification<Course> buildCourseSearchSpecification(CourseStatus status, String search, CourseLevel level,
+            Language language, BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds) {
+        return (root, query, criteriaBuilder) -> {
+            if (query != null) {
+                query.distinct(true);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(criteriaBuilder.isTrue(root.get("isActive")));
+
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            }
+            if (search != null) {
+                String pattern = "%" + search.toLowerCase() + "%";
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("title")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("description"), "")),
+                                pattern)));
+            }
+            if (level != null) {
+                predicates.add(criteriaBuilder.equal(root.get("level"), level));
+            }
+            if (language != null) {
+                predicates.add(criteriaBuilder.equal(root.get("language"), language));
+            }
+
+            javax.persistence.criteria.Expression<BigDecimal> effectivePrice = criteriaBuilder
+                    .coalesce(root.get("discountPrice"), root.get("price"));
+            if (minPrice != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(effectivePrice, minPrice));
+            }
+            if (maxPrice != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(effectivePrice, maxPrice));
+            }
+            if (!skillIds.isEmpty()) {
+                predicates.add(root.join("courseSkills", JoinType.INNER).get("skill").get("id").in(skillIds));
+            }
+            if (!tagIds.isEmpty()) {
+                predicates.add(root.join("courseTags", JoinType.INNER).get("tag").get("id").in(tagIds));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private List<UUID> normalizeIdList(List<UUID> ids) {
+        if (ids == null) {
+            return Collections.emptyList();
+        }
+        return ids.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     private String normalizeSearch(String search) {

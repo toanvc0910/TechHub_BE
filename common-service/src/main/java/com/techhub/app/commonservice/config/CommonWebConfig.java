@@ -25,6 +25,7 @@ public class CommonWebConfig implements WebMvcConfigurer {
                         "/**/actuator/**",
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
+                        "/api/internal/**",
                         "/health",
                         "/api/health");
     }

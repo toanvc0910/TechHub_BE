@@ -2,6 +2,8 @@ package com.techhub.app.proxyclient.controller;
 
 import com.techhub.app.proxyclient.client.CourseServiceClient;
 import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
@@ -36,8 +38,15 @@ public class CourseProxyController {
     @GetMapping
     public ResponseEntity<String> getAllCourses(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search) {
-        return courseServiceClient.getAllCourses(page, size, search);
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String language,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) List<UUID> skillIds,
+            @RequestParam(required = false) List<UUID> tagIds) {
+        return courseServiceClient.getAllCourses(page, size, search, level, language, minPrice, maxPrice, skillIds,
+                tagIds);
     }
 
     @PostMapping
