@@ -114,6 +114,18 @@ public class AiProxyController {
         return aiServiceClient.getRuntimeStats(authHeader);
     }
 
+    @GetMapping("/admin/data-contract")
+    public ResponseEntity<String> getDataContract(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.getDataContract(authHeader);
+    }
+
+    @GetMapping("/admin/data-contract/validate")
+    public ResponseEntity<String> validateDataContract(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.validateDataContract(authHeader);
+    }
+
     @PostMapping("/admin/ingest-file-uploaded")
     public ResponseEntity<String> ingestFileUploaded(
             @RequestBody Object request,

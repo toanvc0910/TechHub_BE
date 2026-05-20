@@ -97,8 +97,6 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 uri.equals("/api/users/internal/all-user-ids") ||
                 // OAuth2 endpoints
                 uri.startsWith("/oauth2/") ||
-                // AI Chat streaming endpoints (SSE - bypass proxy for real-time streaming)
-                uri.startsWith("/api/ai/chat/stream") ||
                 // Payment callbacks from external providers (MoMo, ZaloPay, VNPay)
                 uri.startsWith("/api/v1/payment/callback/") ||
                 uri.startsWith("/api/v1/payment/vn-pay-callback") ||

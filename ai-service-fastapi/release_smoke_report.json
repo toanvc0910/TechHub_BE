@@ -1,0 +1,1453 @@
+{
+  "generatedAt": "2026-05-16T09:42:02.361978+00:00",
+  "totalSteps": 5,
+  "failedSteps": 0,
+  "steps": [
+    {
+      "label": "step03_analytics_semantic_layer",
+      "module": "tests.test_step03_analytics_semantic_layer",
+      "exitCode": 0,
+      "startedAt": "2026-05-16T09:38:43.804951+00:00",
+      "finishedAt": "2026-05-16T09:39:02.621063+00:00",
+      "summary": "PASSED: 9 / 9",
+      "stdoutTail": "\n--- Q3 - diem danh gia trung binh tung khoa\nPASS metric=average_course_rating scope=platform chart=bar rows=13 columns=['label', 'value', 'rating_count']\n  sample[0]={'label': 'Khoa Hoc 6', 'value': Decimal('5.00'), 'rating_count': 1}\n  sql=SELECT c.title AS label, ROUND(COALESCE(AVG(r.score), 0)::numeric, 2) AS value, COUNT(r.id)::int AS rating_count FROM courses c LEFT JOIN ratings r ON r.target_\n\n--- Q4 - toi lam bai tap duoc bao nhieu diem\nPASS metric=learner_submissions scope=personal chart=bar rows=0 columns=[]\n  sql=SELECT c.title AS label, ROUND(COALESCE(AVG(s.grade), 0)::numeric, 2) AS value, COUNT(s.id)::int AS submission_count, COUNT(CASE WHEN s.status = 'PASSED' THEN 1\n\n--- Q5 - ti le hoan thanh cac learning path\nPASS metric=learning_path_completion scope=platform chart=bar rows=0 columns=[]\n  sql=SELECT lp.title AS label, ROUND( COALESCE(AVG(CASE WHEN pp.completion <= 1 THEN pp.completion * 100 ELSE pp.completion END), 0)::numeric, 2 ) AS value, COUNT(pp\n\n--- Q6 - doanh thu theo khoa trong thang nay (admin)\nPASS metric=revenue_by_course scope=platform chart=bar rows=5 columns=['label', 'value', 'order_count', 'sold_count']\n  sample[0]={'label': 'Khoa Hoc Nang Cao 3', 'value': Decimal('999.00'), 'order_count': 1, 'sold_count': 1}\n  sql=SELECT c.title AS label, ROUND(COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0)::numeric, 2) AS value, COUNT(DISTINCT t.id)::int AS order_count\n\n--- Q6b - doanh thu theo khoa toan thoi gian (admin)\nPASS metric=revenue_by_course scope=platform chart=bar rows=11 columns=['label', 'value', 'order_count', 'sold_count']\n  sample[0]={'label': '213123 123ae 12', 'value': Decimal('2400.00'), 'order_count': 3, 'sold_count': 3}\n  sql=SELECT c.title AS label, ROUND(COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0)::numeric, 2) AS value, COUNT(DISTINCT t.id)::int AS order_count\n\n--- Q6c - doanh thu theo khoa (instructor, owner-filtered)\nPASS metric=revenue_by_course scope=platform chart=bar rows=10 columns=['label', 'value', 'order_count', 'sold_count']\n  sample[0]={'label': '213123 123ae 12', 'value': Decimal('2400.00'), 'order_count': 3, 'sold_count': 3}\n  sql=SELECT c.title AS label, ROUND(COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0)::numeric, 2) AS value, COUNT(DISTINCT t.id)::int AS order_count\n\n--- Q7 - ve bieu do tien do cua toi (chart reuse)\nPASS metric=learner_course_progress scope=personal chart=bar rows=4 columns=['label', 'value', 'completed_lessons', 'total_lessons']\n  sample[0]={'label': 'Khoa Hc Nang Cao', 'value': Decimal('0.00'), 'completed_lessons': 0, 'total_lessons': 0}\n  sql=SELECT c.title AS label, ROUND(COALESCE(AVG(COALESCE(p.completion, 0.0)) * 100, 0.0)::numeric, 2) AS value, COUNT(DISTINCT CASE WHEN COALESCE(p.completion, 0.0)\n\n=================================================\nPASSED: 9 / 9\nEMPTY-DATA cases (planner/validator/SQL ok, table empty in live DB):\n  - Q4 - toi lam bai tap duoc bao nhieu diem (metric=learner_submissions)\n  - Q5 - ti le hoan thanh cac learning path (metric=learning_path_completion)\n  -> seed chapters/lessons/progress/submissions/learning_paths/path_progress/analytics to flip these to non-empty in a future run.",
+      "stderrTail": ""
+    },
+    {
+      "label": "step04_recommendation_signal_layer",
+      "module": "tests.test_step04_recommendation_signal_layer",
+      "exitCode": 0,
+      "startedAt": "2026-05-16T09:39:02.621063+00:00",
+      "finishedAt": "2026-05-16T09:39:19.453263+00:00",
+      "summary": "PASSED: 10 / 10",
+      "stdoutTail": "\n--- case_rating_schema_real\nPASS R1 - rating query reads real schema (target_id/score) :: score=5 course=Khoa Hoc 6\n\n--- case_history_bucket_and_progress_source\nPASS R2 - course history has historyBucket + progressSource :: 12 rows, all buckets/sources valid (sample bucket=enrolled, source=enrollment_status_fallback)\n\n--- case_cold_start_signals\nPASS R3 - cold-start user -> empty signals + fallback_catalog pipeline :: pipeline=fallback_catalog as expected\n\n--- case_distinct_users_distinct_candidates\nPASS R4 - different users -> different candidate course IDs :: rich_active=12 light_active=4 overlap=4\n\n--- case_missing_signals_for_rated_user\nPASS R5 - USER_RICH ratings present, learning_paths missing -> missingSignals reflects gap :: missingSignals=['learning_paths']\n\n--- case_completed_excluded_in_progress_kept\nPASS L1 - completed excluded; in_progress kept with continue_learning :: reranked=['1525541d-c56f-4da0-a089-023ba9ab7105', '1da774d6-4fce-48ba-ae15-7bc3f78769af'] filtered=['00dd73fe-b889-4c83-8dde-8e6dc0da3419'] continueSignals=['continue_learning', 'course_vector', 'language_match', 'skill_match']\n\n--- case_path_alignment_signal\nPASS L2 - candidate that sits on active learning path -> path_alignment :: path_alignment present: ['course_vector', 'language_match', 'path_alignment']\n\n--- case_liked_and_avoid_topic_signals\nPASS L3 - rating score>=4 -> liked_topic; score<=2 -> avoid_topic :: liked_score=0.99 avoided_score=0.9 (gap=0.090)\n\n--- case_ai_payload_rejects_fake_course_id\nPASS L4 - AI payload courseId not in candidate set is dropped :: output ids=['fcea52fd-b284-4594-9c25-9e6158ad8770']\n\n--- case_pipeline_resolution_real_data_vs_partial\nPASS L5 - pipeline resolution distinguishes real_data / partial_data / fallback_catalog :: real_data / partial_data / fallback_catalog all resolved correctly\n\n=================================================\nPASSED: 10 / 10",
+      "stderrTail": ""
+    },
+    {
+      "label": "step05_vector_index_and_events",
+      "module": "tests.test_step05_vector_index_and_events",
+      "exitCode": 0,
+      "startedAt": "2026-05-16T09:39:19.453263+00:00",
+      "finishedAt": "2026-05-16T09:39:42.733783+00:00",
+      "summary": "PASSED: 7 / 7",
+      "stdoutTail": "\n--- case_collection_stats\nPASS S1 - Qdrant collection stats reachable + schema matches :: healthy=True courses_points=13 all 5 logical keys present\n\n--- case_feature_readiness\nPASS S2 - feature_readiness classifies AI features correctly :: ready=['recommendation', 'similar_learner', 'course_rag'] degraded=['exercise_grounding', 'lesson_qa', 'session_file_chat', 'user_file_chat']\n\n--- case_search_retrieval_mode\nPASS S3 - search_courses tags each result with retrievalMode :: modes={'vector'} count=5\n\n--- case_reindex_single_course\nPASS S4 - reindex_single_course writes one canonical point in Qdrant :: course 15a3c990-37c4-49e8-8022-6f47e63c4b5e reindexed; count stable at 13\n\n--- case_reindex_single_profile\nPASS S5 - reindex_single_profile writes profile point + observability timestamp advances :: profile reindexed; timestamp advanced to 2026-05-16T09:39:42.106686+00:00\n\n--- case_kafka_routing_contract\nPASS S6 - Kafka payload routes to targeted reindex (not reindex_all) :: routing OK: reindex_single_course=4, reindex_single_lesson=1, reindex_single_profile=2\n\n--- case_missing_user_id_does_not_reindex_all\nPASS S7 - Missing userId on enrollment/rating event -> no global reindex :: both events logged; counter advanced by 2 (-> 2)\n\n=================================================\nPASSED: 7 / 7",
+      "stderrTail": "Enrollment event missing userId \u2014 cannot do targeted profile reindex; ignoring.\nRating event missing userId \u2014 cannot do targeted profile reindex; ignoring."
+    },
+    {
+      "label": "step06_learning_path_publish_flow",
+      "module": "tests.test_step06_learning_path_publish_flow",
+      "exitCode": 0,
+      "startedAt": "2026-05-16T09:39:42.733783+00:00",
+      "finishedAt": "2026-05-16T09:40:30.541069+00:00",
+      "summary": "PASSED: 17 / 17",
+      "stdoutTail": "PASS V5 - isOptional bad value rejected :: Course 96fbbfcf-fb6f-4c92-bfb9-6a11c69c1033 isOptional must be 'Y' or 'N' (got 'MAYBE').\n\n--- case_validator_dangling_edge\nPASS V6 - edge to non-existent node rejected :: Edge #3 target a722f77f-0415-41dc-a844-2028c2eed204 not in courses.\n\n--- case_validator_self_loop\nPASS V7 - self-loop edge rejected :: Edge #3 forms a self-loop (ad0ac9c6-a60d-4895-8310-49b7b38e5009).\n\n--- case_validator_cycle\nPASS V8 - cycle in graph rejected :: Cycle detected in learning path graph (back-edge eb0b2e00-67d2-48a0-a249-9863ecf709fb -> ad0ac9c6-a60d-4895-8310-49b7b38\n\n--- case_publisher_happy_path\nPASS P1 - publisher happy path: POST create + POST addCourses -> PUBLISHED :: learningPathId=4f2eaba8-97e0-4013-b279-a861268bfa1e\n\n--- case_publisher_create_failed\nPASS P2 - create returns 500 -> PUBLISH_FAILED, no addCourses call :: create failed: HTTP 500 boom\n\n--- case_publisher_add_courses_failed\nPASS P3 - addCourses fails after create succeeds -> PUBLISH_FAILED with partial pathId :: partial pathId=5e540d37-41da-4286-a4f5-c4b2b6f7613f, error includes 'addCourses': True\n\n--- case_publisher_missing_identity\nPASS P4 - missing trusted_user_id -> PUBLISH_FAILED, no HTTP call :: missing trusted user identity; refusing to attribute path to unknown actor\n\n--- case_publisher_no_base_url\nPASS P5 - no base URL configured -> SKIPPED_NO_BASE_URL :: skipped cleanly\n\n--- case_publisher_validation_failure\nPASS P6 - validation failure inside publish -> PUBLISH_FAILED (validation_failed prefix) :: validation_failed: Unknown courseIds: ['dfa61fa8-253a-408f-b272-bf578cb16159']\n\n--- case_approve_flow_publish_success\nPASS A1 - approve flow happy path: DRAFT -> PUBLISHED in DB :: DB status=PUBLISHED, publish.learningPathId=c1639ea5-a1eb-43d7-8aef-3237d745dd32\n\n--- case_approve_flow_publish_failed\nPASS A2 - approve flow with HTTP 500 from LP service: DB status = PUBLISH_FAILED :: DB status=PUBLISH_FAILED, error captured\n\n--- case_approve_flow_no_base_url\nPASS A3 - approve flow without LEARNING_PATH_SERVICE_BASE_URL: DB status = APPROVED, no error :: DB status=APPROVED, publish skipped without error\n\n=================================================\nPASSED: 17 / 17",
+      "stderrTail": "LEARNING_PATH_SERVICE_BASE_URL not configured; skipping publish.\nLEARNING_PATH_SERVICE_BASE_URL not configured; skipping publish."
+    },
+    {
+      "label": "step07_exercise_publish_flow",
+      "module": "tests.test_step07_exercise_publish_flow",
+      "exitCode": 0,
+      "startedAt": "2026-05-16T09:40:30.541069+00:00",
+      "finishedAt": "2026-05-16T09:41:38.401131+00:00",
+      "summary": "PASSED: 20 / 20",
+      "stdoutTail": "PASS V8 - Coding test case with placeholder strings rejected :: Coding #1 testCase #1 contains placeholder text: 'sample input for X' -> 'expected behavior demonstrating X'\n\n--- case_validator_duplicate_questions\nPASS V9 - duplicate question text in batch rejected :: Duplicate exercise question detected: \"What does Python's list comprehension primarily do?\"\n\n--- case_validator_empty_batch\nPASS V10 - empty payload rejected :: Exercise batch is empty after filtering.\n\n--- case_publisher_happy_path\nPASS P1 - publisher happy path: POST creates 3 exercises -> PUBLISHED :: createdIds=['6174b938-9963-44c4-9ad8-9a76bef70fb2', '71ff7758-1289-4df1-af1c-409bab2936ff', '7fabade2-61bb-46e9-a80a-5f463bce64e7']\n\n--- case_publisher_create_failed\nPASS P2 - POST returns 500 -> PUBLISH_FAILED :: HTTP 500: boom\n\n--- case_publisher_missing_identity\nPASS P3 - missing trusted_user_id with base URL -> PUBLISH_FAILED, no HTTP call :: missing trusted user identity; refusing to attribute exercises to unknown actor\n\n--- case_publisher_no_base_url\nPASS P4 - COURSE_SERVICE_BASE_URL not set -> SKIPPED_NO_BASE_URL :: skipped cleanly\n\n--- case_publisher_request_shape\nPASS P5 - publisher converts AI draft to Course Service ExerciseRequest shape :: types=['MULTIPLE_CHOICE', 'OPEN_ENDED', 'CODING'] headers.X-User-Id ok\n\n--- case_publisher_validation_failure\nPASS P6 - validation failure inside publish -> PUBLISH_FAILED with prefix :: validation_failed: MCQ #1 must have exactly 1 correct option (got 0).\n\n--- case_approve_flow_publish_success\nPASS A1 - approve flow happy path: DRAFT -> PUBLISHED in DB :: DB status=PUBLISHED, created 3 exercises\n\n--- case_approve_flow_publish_failed\nPASS A2 - approve flow with Course Service 500: DB status = PUBLISH_FAILED :: DB status=PUBLISH_FAILED, error captured\n\n--- case_approve_flow_no_base_url\nPASS A3 - approve flow without COURSE_SERVICE_BASE_URL: DB status = APPROVED :: DB status=APPROVED, skipped without error\n\n--- case_approve_flow_missing_course_id\nPASS A4 - draft missing courseId in request_payload -> PUBLISH_FAILED at draft_service :: failed correctly: Draft missing courseId/lessonId; cannot publish.\n\n=================================================\nPASSED: 20 / 20",
+      "stderrTail": "COURSE_SERVICE_BASE_URL not configured; skipping publish.\nCOURSE_SERVICE_BASE_URL not configured; skipping publish."
+    }
+  ],
+  "releaseReadiness": {
+    "generatedAt": "2026-05-16T09:42:02.361978+00:00",
+    "capabilities": {
+      "recommendation": {
+        "status": "REAL_DATA_READY",
+        "reason": "Vector path serving traffic (1 calls).",
+        "metrics": {
+          "vectorCalls": 1,
+          "lexicalFallbackCalls": 0,
+          "qdrantReady": true
+        }
+      },
+      "analytics_personal": {
+        "status": "REAL_DATA_READY",
+        "reason": "Semantic analytics layer verified for personal scope (Step 03).",
+        "metrics": {}
+      },
+      "analytics_platform": {
+        "status": "REAL_DATA_READY",
+        "reason": "Semantic analytics layer verified for platform scope (Step 03).",
+        "metrics": {}
+      },
+      "learning_path_publish": {
+        "status": "CODE_WIRED",
+        "reason": "No learning_path drafts have flowed through the publish pipeline yet.",
+        "metrics": {
+          "DRAFT": 0,
+          "APPROVED": 0,
+          "PUBLISHED": 0,
+          "PUBLISH_FAILED": 0,
+          "lastPublishedAt": null,
+          "lastFailedAt": null,
+          "publishCounterTotal": 7,
+          "publishCounterSuccess": 2,
+          "publishCounterFailed": 5
+        }
+      },
+      "exercise_publish": {
+        "status": "CODE_WIRED",
+        "reason": "No exercise drafts have flowed through the publish pipeline yet.",
+        "metrics": {
+          "DRAFT": 0,
+          "APPROVED": 0,
+          "PUBLISHED": 0,
+          "PUBLISH_FAILED": 0,
+          "lastPublishedAt": null,
+          "lastFailedAt": null,
+          "publishCounterTotal": 7,
+          "publishCounterSuccess": 3,
+          "publishCounterFailed": 4
+        }
+      },
+      "vector_index": {
+        "status": "REAL_DATA_READY",
+        "reason": "3 feature(s) ready; 4 degraded due to empty/unavailable collections.",
+        "metrics": {
+          "readyFeatures": [
+            "recommendation",
+            "similar_learner",
+            "course_rag"
+          ],
+          "degradedFeatures": [
+            "exercise_grounding",
+            "lesson_qa",
+            "session_file_chat",
+            "user_file_chat"
+          ]
+        }
+      }
+    },
+    "featureReadiness": {
+      "healthy": true,
+      "features": {
+        "recommendation": {
+          "ready": true,
+          "required": [
+            "courses"
+          ],
+          "missing": [],
+          "empty": [],
+          "unavailable": []
+        },
+        "similar_learner": {
+          "ready": true,
+          "required": [
+            "profiles"
+          ],
+          "missing": [],
+          "empty": [],
+          "unavailable": []
+        },
+        "lesson_qa": {
+          "ready": false,
+          "required": [
+            "lessons"
+          ],
+          "missing": [],
+          "empty": [
+            "lessons"
+          ],
+          "unavailable": []
+        },
+        "exercise_grounding": {
+          "ready": false,
+          "required": [
+            "lessons"
+          ],
+          "missing": [],
+          "empty": [
+            "lessons"
+          ],
+          "unavailable": []
+        },
+        "session_file_chat": {
+          "ready": false,
+          "required": [
+            "sessionFiles"
+          ],
+          "missing": [],
+          "empty": [
+            "sessionFiles"
+          ],
+          "unavailable": []
+        },
+        "user_file_chat": {
+          "ready": false,
+          "required": [
+            "userFiles"
+          ],
+          "missing": [],
+          "empty": [
+            "userFiles"
+          ],
+          "unavailable": []
+        },
+        "course_rag": {
+          "ready": true,
+          "required": [
+            "courses"
+          ],
+          "missing": [],
+          "empty": [],
+          "unavailable": []
+        }
+      },
+      "degradedFeatures": [
+        "exercise_grounding",
+        "lesson_qa",
+        "session_file_chat",
+        "user_file_chat"
+      ],
+      "collections": {
+        "courses": {
+          "vectorCount": 13,
+          "pointsCount": 13,
+          "status": "green"
+        },
+        "lessons": {
+          "vectorCount": 0,
+          "pointsCount": 0,
+          "status": "green"
+        },
+        "profiles": {
+          "vectorCount": 9,
+          "pointsCount": 9,
+          "status": "green"
+        },
+        "sessionFiles": {
+          "vectorCount": 0,
+          "pointsCount": 0,
+          "status": "green"
+        },
+        "userFiles": {
+          "vectorCount": 0,
+          "pointsCount": 0,
+          "status": "green"
+        }
+      }
+    },
+    "publishAudit": {
+      "learning_path": {
+        "DRAFT": 0,
+        "APPROVED": 0,
+        "PUBLISHING": 0,
+        "PUBLISHED": 0,
+        "PUBLISH_FAILED": 0,
+        "REJECTED": 2
+      },
+      "exercise": {
+        "DRAFT": 0,
+        "APPROVED": 0,
+        "PUBLISHING": 0,
+        "PUBLISHED": 0,
+        "PUBLISH_FAILED": 0,
+        "REJECTED": 0
+      }
+    },
+    "dataContract": {
+      "success": true,
+      "status": "DATA_CONTRACT_OK",
+      "missingTables": [],
+      "missingColumns": {},
+      "rowCounts": {
+        "ai_generation_tasks": 14,
+        "analytics": 0,
+        "chapters": 0,
+        "chat_messages": 34,
+        "chat_sessions": 6,
+        "course_skills": 1,
+        "course_tags": 0,
+        "courses": 13,
+        "enrollments": 17,
+        "exercise_test_cases": 0,
+        "exercises": 0,
+        "file_usage": 0,
+        "files": 74,
+        "learning_path_courses": 0,
+        "learning_path_skills": 0,
+        "learning_paths": 0,
+        "lesson_assets": 0,
+        "lessons": 0,
+        "path_progress": 0,
+        "payments": 16,
+        "profiles": 0,
+        "progress": 0,
+        "ratings": 2,
+        "recommendations": 0,
+        "skills": 1,
+        "submissions": 0,
+        "tags": 0,
+        "transaction_items": 44,
+        "transactions": 44,
+        "user_codes": 0,
+        "users": 9
+      },
+      "featureReadiness": {
+        "recommendation": {
+          "ready": true,
+          "tables": [
+            "users",
+            "profiles",
+            "courses",
+            "chapters",
+            "lessons",
+            "enrollments",
+            "progress",
+            "ratings",
+            "course_skills",
+            "skills",
+            "learning_paths",
+            "learning_path_courses",
+            "path_progress",
+            "course_tags",
+            "tags"
+          ],
+          "missingTables": [],
+          "tablesWithMissingColumns": {},
+          "rowCounts": {
+            "users": 9,
+            "profiles": 0,
+            "courses": 13,
+            "chapters": 0,
+            "lessons": 0,
+            "enrollments": 17,
+            "progress": 0,
+            "ratings": 2,
+            "course_skills": 1,
+            "skills": 1,
+            "learning_paths": 0,
+            "learning_path_courses": 0,
+            "path_progress": 0,
+            "course_tags": 0,
+            "tags": 0
+          }
+        },
+        "learning_path_generation": {
+          "ready": true,
+          "tables": [
+            "users",
+            "profiles",
+            "courses",
+            "learning_paths",
+            "learning_path_courses",
+            "path_progress",
+            "course_skills",
+            "skills"
+          ],
+          "missingTables": [],
+          "tablesWithMissingColumns": {},
+          "rowCounts": {
+            "users": 9,
+            "profiles": 0,
+            "courses": 13,
+            "learning_paths": 0,
+            "learning_path_courses": 0,
+            "path_progress": 0,
+            "course_skills": 1,
+            "skills": 1
+          }
+        },
+        "exercise_generation": {
+          "ready": true,
+          "tables": [
+            "courses",
+            "chapters",
+            "lessons",
+            "exercises",
+            "exercise_test_cases"
+          ],
+          "missingTables": [],
+          "tablesWithMissingColumns": {},
+          "rowCounts": {
+            "courses": 13,
+            "chapters": 0,
+            "lessons": 0,
+            "exercises": 0,
+            "exercise_test_cases": 0
+          }
+        },
+        "file_analysis": {
+          "ready": true,
+          "tables": [
+            "files",
+            "file_usage"
+          ],
+          "missingTables": [],
+          "tablesWithMissingColumns": {},
+          "rowCounts": {
+            "files": 74,
+            "file_usage": 0
+          }
+        },
+        "analytics": {
+          "ready": true,
+          "tables": [
+            "courses",
+            "chapters",
+            "lessons",
+            "enrollments",
+            "progress",
+            "ratings",
+            "analytics",
+            "transactions",
+            "transaction_items",
+            "payments"
+          ],
+          "missingTables": [],
+          "tablesWithMissingColumns": {},
+          "rowCounts": {
+            "courses": 13,
+            "chapters": 0,
+            "lessons": 0,
+            "enrollments": 17,
+            "progress": 0,
+            "ratings": 2,
+            "analytics": 0,
+            "transactions": 44,
+            "transaction_items": 44,
+            "payments": 16
+          }
+        },
+        "chat_history": {
+          "ready": true,
+          "tables": [
+            "chat_sessions",
+            "chat_messages"
+          ],
+          "missingTables": [],
+          "tablesWithMissingColumns": {},
+          "rowCounts": {
+            "chat_sessions": 6,
+            "chat_messages": 34
+          }
+        },
+        "draft_approval": {
+          "ready": true,
+          "tables": [
+            "ai_generation_tasks"
+          ],
+          "missingTables": [],
+          "tablesWithMissingColumns": {},
+          "rowCounts": {
+            "ai_generation_tasks": 14
+          }
+        }
+      },
+      "tables": {
+        "users": {
+          "owner": "user-service",
+          "columns": [
+            "id",
+            "email",
+            "username",
+            "password_hash",
+            "avatar",
+            "status",
+            "login_type",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "email",
+            "username",
+            "password_hash",
+            "avatar"
+          ],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "profiles": {
+          "owner": "user-service",
+          "columns": [
+            "id",
+            "user_id",
+            "full_name",
+            "avatar_url",
+            "bio",
+            "location",
+            "preferred_language",
+            "learning_history",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "full_name",
+            "avatar_url",
+            "bio",
+            "location"
+          ],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "courses": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "title",
+            "description",
+            "price",
+            "currency",
+            "instructor_id",
+            "status",
+            "level",
+            "language",
+            "discount_price",
+            "promo_end_date",
+            "thumbnail",
+            "intro_video_file",
+            "objectives",
+            "requirements",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "chapters": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "title",
+            "order",
+            "course_id",
+            "min_completion_threshold",
+            "auto_unlock",
+            "locked",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "lessons": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "title",
+            "description",
+            "order",
+            "chapter_id",
+            "content_type",
+            "content",
+            "mandatory",
+            "completion_weight",
+            "estimated_duration",
+            "is_free",
+            "workspace_enabled",
+            "workspace_languages",
+            "workspace_template",
+            "video_url",
+            "document_urls",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "lesson_assets": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "lesson_id",
+            "asset_type",
+            "order",
+            "title",
+            "description",
+            "file_id",
+            "external_url",
+            "metadata",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "external_url"
+          ],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "exercises": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "type",
+            "question",
+            "test_cases",
+            "lesson_id",
+            "order_index",
+            "options",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "exercise_test_cases": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "exercise_id",
+            "order",
+            "visibility",
+            "input",
+            "expected_output",
+            "weight",
+            "timeout_seconds",
+            "sample",
+            "metadata",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "enrollments": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "user_id",
+            "course_id",
+            "status",
+            "enrolled_at",
+            "completed_at",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "progress": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "user_id",
+            "lesson_id",
+            "completion",
+            "completed_at",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "ratings": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "user_id",
+            "target_id",
+            "target_type",
+            "score",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "submissions": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "user_id",
+            "exercise_id",
+            "answer",
+            "submission_data",
+            "grade",
+            "graded_at",
+            "graded_by",
+            "status",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "answer",
+            "submission_data"
+          ],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "user_codes": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "user_id",
+            "lesson_id",
+            "code",
+            "language",
+            "saved_at",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "code"
+          ],
+          "analyticsSafe": false,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "learning_paths": {
+          "owner": "learning-path-service",
+          "columns": [
+            "id",
+            "title",
+            "description",
+            "layout_edges",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "learning_path_courses": {
+          "owner": "learning-path-service",
+          "columns": [
+            "path_id",
+            "course_id",
+            "order",
+            "position_x",
+            "position_y",
+            "is_optional"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "skills": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "name",
+            "thumbnail",
+            "category",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "tags": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "name",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "course_skills": {
+          "owner": "course-service",
+          "columns": [
+            "id",
+            "course_id",
+            "skill_id",
+            "assigned_at"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "course_tags": {
+          "owner": "course-service",
+          "columns": [
+            "course_id",
+            "tag_id",
+            "assigned_at"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "learning_path_skills": {
+          "owner": "learning-path-service",
+          "columns": [
+            "path_id",
+            "skill_id",
+            "assigned_at"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "path_progress": {
+          "owner": "learning-path-service",
+          "columns": [
+            "id",
+            "user_id",
+            "path_id",
+            "completion",
+            "milestones",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "analytics": {
+          "owner": "analytics-service",
+          "columns": [
+            "id",
+            "user_id",
+            "course_id",
+            "study_time",
+            "score",
+            "event_type",
+            "timestamp",
+            "device",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "recommendations": {
+          "owner": "ai-service",
+          "columns": [
+            "id",
+            "user_id",
+            "recommended_courses",
+            "recommended_paths",
+            "generated_at",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": true
+        },
+        "transactions": {
+          "owner": "payment-service",
+          "columns": [
+            "id",
+            "user_id",
+            "amount",
+            "status",
+            "refund_reason",
+            "refund_amount",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "refund_reason"
+          ],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "transaction_items": {
+          "owner": "payment-service",
+          "columns": [
+            "id",
+            "transaction_id",
+            "course_id",
+            "price_at_purchase",
+            "quantity",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "payments": {
+          "owner": "payment-service",
+          "columns": [
+            "id",
+            "transaction_id",
+            "method",
+            "status",
+            "gateway_response",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "gateway_response"
+          ],
+          "analyticsSafe": true,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "files": {
+          "owner": "file-service",
+          "columns": [
+            "id",
+            "name",
+            "original_name",
+            "folder_id",
+            "user_id",
+            "cloudinary_public_id",
+            "cloudinary_url",
+            "cloudinary_secure_url",
+            "storage_provider",
+            "bucket_name",
+            "object_key",
+            "public_url",
+            "secure_url",
+            "thumbnail_object_key",
+            "thumbnail_url",
+            "processing_status",
+            "processing_error",
+            "processed_at",
+            "file_type",
+            "mime_type",
+            "file_size",
+            "width",
+            "height",
+            "duration",
+            "alt_text",
+            "caption",
+            "description",
+            "tags",
+            "upload_source",
+            "reference_id",
+            "reference_type",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "original_name",
+            "cloudinary_public_id",
+            "cloudinary_url",
+            "cloudinary_secure_url",
+            "object_key",
+            "public_url",
+            "secure_url",
+            "thumbnail_object_key",
+            "thumbnail_url",
+            "alt_text",
+            "caption",
+            "description"
+          ],
+          "analyticsSafe": false,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "file_usage": {
+          "owner": "file-service",
+          "columns": [
+            "id",
+            "file_id",
+            "used_in_type",
+            "used_in_id",
+            "created"
+          ],
+          "piiColumns": [],
+          "analyticsSafe": false,
+          "aiReadable": true,
+          "aiWritable": false
+        },
+        "chat_sessions": {
+          "owner": "ai-service",
+          "columns": [
+            "id",
+            "user_id",
+            "started_at",
+            "ended_at",
+            "context",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "context"
+          ],
+          "analyticsSafe": false,
+          "aiReadable": true,
+          "aiWritable": true
+        },
+        "chat_messages": {
+          "owner": "ai-service",
+          "columns": [
+            "id",
+            "session_id",
+            "sender",
+            "content",
+            "metadata",
+            "timestamp",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "content",
+            "metadata"
+          ],
+          "analyticsSafe": false,
+          "aiReadable": true,
+          "aiWritable": true
+        },
+        "ai_generation_tasks": {
+          "owner": "ai-service",
+          "columns": [
+            "id",
+            "task_type",
+            "status",
+            "target_reference",
+            "model_used",
+            "prompt",
+            "request_payload",
+            "result_payload",
+            "error_message",
+            "created",
+            "updated",
+            "created_by",
+            "updated_by",
+            "is_active"
+          ],
+          "piiColumns": [
+            "prompt",
+            "request_payload",
+            "result_payload",
+            "error_message"
+          ],
+          "analyticsSafe": false,
+          "aiReadable": true,
+          "aiWritable": true
+        }
+      },
+      "dataOwners": {
+        "user-service": [
+          "users",
+          "profiles"
+        ],
+        "course-service": [
+          "courses",
+          "chapters",
+          "lessons",
+          "lesson_assets",
+          "exercises",
+          "exercise_test_cases",
+          "enrollments",
+          "progress",
+          "ratings",
+          "submissions",
+          "user_codes",
+          "skills",
+          "tags",
+          "course_skills",
+          "course_tags"
+        ],
+        "learning-path-service": [
+          "learning_paths",
+          "learning_path_courses",
+          "learning_path_skills",
+          "path_progress"
+        ],
+        "analytics-service": [
+          "analytics"
+        ],
+        "payment-service": [
+          "transactions",
+          "transaction_items",
+          "payments"
+        ],
+        "file-service": [
+          "files",
+          "file_usage"
+        ],
+        "ai-service": [
+          "recommendations",
+          "chat_sessions",
+          "chat_messages",
+          "ai_generation_tasks"
+        ]
+      },
+      "analyticsAllowedTables": [
+        "users",
+        "profiles",
+        "courses",
+        "chapters",
+        "lessons",
+        "lesson_assets",
+        "exercises",
+        "exercise_test_cases",
+        "enrollments",
+        "progress",
+        "ratings",
+        "submissions",
+        "learning_paths",
+        "learning_path_courses",
+        "skills",
+        "tags",
+        "course_skills",
+        "course_tags",
+        "learning_path_skills",
+        "path_progress",
+        "analytics",
+        "recommendations",
+        "transactions",
+        "transaction_items",
+        "payments"
+      ],
+      "analyticsSensitiveColumns": [
+        "answer",
+        "avatar",
+        "avatar_url",
+        "bio",
+        "email",
+        "external_url",
+        "full_name",
+        "gateway_response",
+        "location",
+        "password_hash",
+        "refund_reason",
+        "submission_data",
+        "username"
+      ],
+      "sensitiveColumns": [
+        "alt_text",
+        "answer",
+        "avatar",
+        "avatar_url",
+        "bio",
+        "caption",
+        "cloudinary_public_id",
+        "cloudinary_secure_url",
+        "cloudinary_url",
+        "code",
+        "content",
+        "context",
+        "description",
+        "email",
+        "error_message",
+        "external_url",
+        "full_name",
+        "gateway_response",
+        "location",
+        "metadata",
+        "object_key",
+        "original_name",
+        "password_hash",
+        "prompt",
+        "public_url",
+        "refund_reason",
+        "request_payload",
+        "result_payload",
+        "secure_url",
+        "submission_data",
+        "thumbnail_object_key",
+        "thumbnail_url",
+        "username"
+      ],
+      "aiDirectWriteTables": [
+        "recommendations",
+        "chat_sessions",
+        "chat_messages",
+        "ai_generation_tasks"
+      ],
+      "metrics": {
+        "learner_course_progress": {
+          "tables": [
+            "enrollments",
+            "courses",
+            "chapters",
+            "lessons",
+            "progress"
+          ],
+          "grain": "user_course",
+          "description": "Personal progress by course. Must filter by trusted user_id."
+        },
+        "course_completion_rate": {
+          "tables": [
+            "courses",
+            "enrollments"
+          ],
+          "grain": "course",
+          "description": "Course completion rate from completed enrollments over active enrollments."
+        },
+        "active_enrollments_by_level": {
+          "tables": [
+            "enrollments",
+            "courses"
+          ],
+          "grain": "course_level",
+          "description": "Active enrollment count grouped by course level."
+        },
+        "active_enrollments_by_course": {
+          "tables": [
+            "enrollments",
+            "courses"
+          ],
+          "grain": "course",
+          "description": "Active enrollment count grouped by course."
+        },
+        "average_course_rating": {
+          "tables": [
+            "ratings",
+            "courses"
+          ],
+          "grain": "course",
+          "description": "Average course rating using ratings.target_id and ratings.target_type = COURSE."
+        },
+        "learner_submissions": {
+          "tables": [
+            "submissions",
+            "exercises",
+            "lessons",
+            "chapters",
+            "courses"
+          ],
+          "grain": "user_course",
+          "description": "Personal exercise score summary. Must not select answer or submission_data."
+        },
+        "exercise_grade_distribution": {
+          "tables": [
+            "submissions",
+            "exercises",
+            "lessons",
+            "chapters",
+            "courses"
+          ],
+          "grain": "grade_bucket",
+          "description": "Distribution of exercise grades for instructor/admin review."
+        },
+        "learning_path_completion": {
+          "tables": [
+            "learning_paths",
+            "path_progress"
+          ],
+          "grain": "path",
+          "description": "Learning path completion by path, personal or platform scope."
+        },
+        "study_time_by_course": {
+          "tables": [
+            "analytics",
+            "courses"
+          ],
+          "grain": "course",
+          "description": "Study time from analytics events grouped by course."
+        },
+        "revenue_by_course": {
+          "tables": [
+            "transactions",
+            "transaction_items",
+            "courses",
+            "payments"
+          ],
+          "grain": "course",
+          "description": "Revenue by course from completed transactions and successful payments."
+        },
+        "course_catalog": {
+          "tables": [
+            "courses",
+            "chapters",
+            "lessons",
+            "course_skills",
+            "skills",
+            "ratings"
+          ],
+          "grain": "course",
+          "description": "Course availability, level, language, skill coverage, lesson count, and course rating."
+        },
+        "learner_progress": {
+          "tables": [
+            "enrollments",
+            "progress",
+            "lessons",
+            "chapters",
+            "courses"
+          ],
+          "grain": "user_course",
+          "description": "Learner enrollment status and lesson completion inside each course."
+        },
+        "learning_path_progress": {
+          "tables": [
+            "learning_paths",
+            "learning_path_courses",
+            "path_progress",
+            "courses"
+          ],
+          "grain": "user_path",
+          "description": "Learner progress through learning paths and their course nodes."
+        },
+        "exercise_quality": {
+          "tables": [
+            "exercises",
+            "exercise_test_cases",
+            "submissions",
+            "lessons",
+            "courses"
+          ],
+          "grain": "exercise",
+          "description": "Exercise coverage, submission status, grade, and test-case completeness."
+        },
+        "revenue": {
+          "tables": [
+            "transactions",
+            "transaction_items",
+            "payments",
+            "courses"
+          ],
+          "grain": "transaction_course",
+          "description": "Payment and transaction performance by course."
+        },
+        "platform_activity": {
+          "tables": [
+            "analytics",
+            "users",
+            "courses"
+          ],
+          "grain": "event",
+          "description": "Raw analytics events such as lesson view, exercise submit, enrollment, or payment."
+        }
+      },
+      "knownMissingRelations": {
+        "course_prerequisites": "No table exists in techhub.sql. Course dependency logic must use course requirements/objectives until a real prerequisite relation is added.",
+        "embedding_tables": "Vector collections are external Qdrant collections, not PostgreSQL tables. Their payload contract is handled in the vector contract workstream."
+      }
+    },
+    "runtime": {
+      "counters": {
+        "vector:search_courses:total": 1,
+        "vector:search_courses:success": 1,
+        "vector:search_courses:count": 5,
+        "vector:search_courses:mode:vector": 1,
+        "errors:kafka_event_missing_user_id": 2,
+        "vector:publish_learning_path:total": 2,
+        "vector:publish_learning_path:success": 2,
+        "vector:publish_learning_path:count": 6,
+        "publish:learning_path:total": 7,
+        "publish:learning_path:PUBLISHED": 2,
+        "publish:learning_path:PUBLISH_FAILED": 5,
+        "errors:learning_path_publish_no_identity": 1,
+        "errors:learning_path_publish_validation": 1,
+        "vector:publish_exercises:total": 3,
+        "vector:publish_exercises:success": 3,
+        "vector:publish_exercises:count": 7,
+        "publish:exercise:total": 7,
+        "publish:exercise:PUBLISHED": 3,
+        "publish:exercise:PUBLISH_FAILED": 4,
+        "errors:exercise_publish_no_identity": 1,
+        "errors:exercise_publish_validation": 1
+      },
+      "vectorOpsTimestamps": {
+        "last_incremental:course_embeddings": "2026-05-16T09:39:27.745253+00:00",
+        "last_incremental:user_embeddings": "2026-05-16T09:39:42.106686+00:00",
+        "publish:last:learning_path:PUBLISHED": "2026-05-16T09:40:06.503756+00:00",
+        "publish:last_success:learning_path": "2026-05-16T09:40:06.503756+00:00",
+        "publish:last:learning_path:PUBLISH_FAILED": "2026-05-16T09:40:16.574899+00:00",
+        "publish:last_failure:learning_path": "2026-05-16T09:40:16.574899+00:00",
+        "publish:last:exercise:PUBLISHED": "2026-05-16T09:41:03.656970+00:00",
+        "publish:last_success:exercise": "2026-05-16T09:41:03.656970+00:00",
+        "publish:last:exercise:PUBLISH_FAILED": "2026-05-16T09:41:13.965040+00:00",
+        "publish:last_failure:exercise": "2026-05-16T09:41:13.965040+00:00"
+      }
+    }
+  }
+}

@@ -2,12 +2,17 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
+from app.api.dependencies.trusted_context import (
+    TrustedContext,
+    get_trusted_context,
+    require_ai_content_operator,
+)
 from app.core.responses import success_response
 from app.services.draft_service import draft_service
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_ai_content_operator)])
 
 
 @router.get("/exercises")
@@ -54,24 +59,42 @@ async def get_draft_by_id(task_id: UUID, request: Request) -> dict:
 
 
 @router.post("/{task_id}/approve-exercise")
-async def approve_exercise(task_id: UUID, request: Request) -> dict:
-    response = await draft_service.approve_exercise(task_id)
+async def approve_exercise(
+    task_id: UUID,
+    request: Request,
+    trusted: TrustedContext = Depends(get_trusted_context),
+) -> dict:
+    response = await draft_service.approve_exercise(
+        task_id,
+        trusted_user_id=str(trusted.user_id) if trusted.user_id else None,
+        trusted_user_email=trusted.email,
+        trusted_roles=list(trusted.roles),
+    )
     return success_response(
-        message="Exercise draft approved successfully",
+        message=response.message,
         data=response.model_dump(mode="json"),
         path=request.url.path,
-        status="DRAFT_APPROVED",
+        status="DRAFT_PUBLISHED" if response.success else "DRAFT_PUBLISH_FAILED",
     )
 
 
 @router.post("/{task_id}/approve-learning-path")
-async def approve_learning_path(task_id: UUID, request: Request) -> dict:
-    response = await draft_service.approve_learning_path(task_id)
+async def approve_learning_path(
+    task_id: UUID,
+    request: Request,
+    trusted: TrustedContext = Depends(get_trusted_context),
+) -> dict:
+    response = await draft_service.approve_learning_path(
+        task_id,
+        trusted_user_id=str(trusted.user_id) if trusted.user_id else None,
+        trusted_user_email=trusted.email,
+        trusted_roles=list(trusted.roles),
+    )
     return success_response(
-        message="Learning path draft approved successfully",
+        message=response.message,
         data=response.model_dump(mode="json"),
         path=request.url.path,
-        status="DRAFT_APPROVED",
+        status="DRAFT_PUBLISHED" if response.success else "DRAFT_PUBLISH_FAILED",
     )
 
 

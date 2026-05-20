@@ -45,6 +45,14 @@ class OrchestratorState(TypedDict, total=False):
     # via the request-scoped emitter; chat_service uses this to skip the
     # post-hoc fake-chunk loop.
     response_streamed: bool
+    # Step 09 quality flags - populated by response_compose_node from agent
+    # outputs so callers can see whether the final answer is grounded in real
+    # data, which sources contributed, and whether any fallback was used.
+    grounded: bool
+    data_sources: list[str]
+    fallback_used: bool
+    missing_data: list[str]
+    grounding_confidence: float
 
 
 def make_initial_state(
@@ -92,6 +100,11 @@ def make_initial_state(
         hitl_question="",
         hitl_options=[],
         hitl_round=0,
+        grounded=False,
+        data_sources=[],
+        fallback_used=False,
+        missing_data=[],
+        grounding_confidence=0.0,
     )
 
 

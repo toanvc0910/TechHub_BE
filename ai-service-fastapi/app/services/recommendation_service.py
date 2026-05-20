@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
 
+from app.core.config import get_settings
 from app.core.enums import AiTaskStatus, AiTaskType, RecommendationMode
 from app.db.models import AiGenerationTaskModel
 from app.db.session import get_db_session
@@ -17,10 +20,12 @@ from app.schemas.recommendation import (
 )
 from app.services.catalog_service import catalog_service
 from app.services.llm_gateway import switchable_ai_gateway
+from app.services.observability_service import runtime_observability_service
 from app.services.provider_config import provider_config_service
-from app.core.config import get_settings
 from app.services.runtime_request_context import runtime_request_context_service
 from app.services.vector_service import vector_service
+
+logger = logging.getLogger(__name__)
 
 
 class RecommendationService:
@@ -33,25 +38,37 @@ class RecommendationService:
             user_profile = await catalog_service.fetch_user_profile(user_id)
             course_history = await catalog_service.fetch_user_course_history(user_id)
             learning_paths = await catalog_service.fetch_user_learning_paths(user_id)
+            skill_profile = (user_profile or {}).get("skill_profile") or {}
 
-            history_course_ids = {
-                str(item["course_id"])
-                for item in course_history
-                if item.get("course_id")
-            }
-            completed_ids = {
-                str(item["course_id"])
-                for item in course_history
-                if item.get("course_id")
-                and (item.get("status") == "COMPLETED" or item.get("progress", 0.0) >= 0.95)
-            }
-            excluded_ids = {str(course_id) for course_id in request.excludeCourseIds or []}.union(history_course_ids)
+            missing_signals: list[str] = []
+            ratings: list[dict[str, Any]] = []
+            ratings_failed = False
+            try:
+                ratings = await catalog_service.fetch_user_ratings(user_id, raise_on_error=True)
+            except Exception:
+                ratings_failed = True
+                self._append_signal(missing_signals, "ratings")
+                await runtime_observability_service.record_error(scope="recommendation_ratings")
 
-            query = self._build_query(request, user_profile, course_history, learning_paths)
-            reranked: list[dict[str, Any]] = []
+            if not course_history:
+                self._append_signal(missing_signals, "course_history")
+            if not skill_profile:
+                self._append_signal(missing_signals, "skill_profile")
+            if not ratings and not ratings_failed:
+                self._append_signal(missing_signals, "ratings")
+            if not learning_paths:
+                self._append_signal(missing_signals, "learning_paths")
+
+            request_excluded_ids = {str(course_id) for course_id in request.excludeCourseIds or []}
+            completed_ids = self._history_ids(course_history, buckets={"completed"})
+            active_ids = self._history_ids(course_history, buckets={"in_progress", "enrolled"})
+            excluded_ids = request_excluded_ids.union(completed_ids)
+
+            query = self._build_query(request, user_profile, course_history, learning_paths, ratings)
             similar_profiles: list[dict[str, Any]] = []
-            prompt: str
-            pipeline = "live"
+            vector_candidates: list[dict[str, Any]] = []
+            vector_failed = False
+
             if not self._settings.business_safe_mode_enabled:
                 try:
                     similar_profiles = await vector_service.search_similar_profiles(
@@ -59,39 +76,103 @@ class RecommendationService:
                         limit=6,
                         exclude_user_ids=[user_id],
                     )
+                    if not similar_profiles:
+                        self._append_signal(missing_signals, "similar_learners")
+                    elif any(
+                        str(item.get("retrievalMode") or "") == "lexical_fallback"
+                        for item in similar_profiles
+                    ):
+                        # Vector path down or empty -> service silently fell back to
+                        # lexical search. Surface this so callers know the signal is
+                        # weaker than usual.
+                        vector_failed = True
+                        self._append_signal(missing_signals, "similar_learners_lexical_fallback")
+                except Exception:
+                    logger.warning("Failed to search similar learner profiles", exc_info=True)
+                    vector_failed = True
+                    self._append_signal(missing_signals, "similar_learners")
+                    await runtime_observability_service.record_error(scope="recommendation_similar_profiles")
+
+                try:
                     vector_candidates = await vector_service.search_courses(
                         query=query,
                         limit=15,
                         language=request.language,
                         exclude_course_ids=excluded_ids,
                     )
-                    reranked = self._rerank_candidates(
-                        vector_candidates=vector_candidates,
-                        request=request,
-                        course_history=course_history,
-                        learning_paths=learning_paths,
-                        similar_profiles=similar_profiles,
-                    )
+                    if not vector_candidates:
+                        self._append_signal(missing_signals, "course_vector")
+                    elif any(
+                        str(item.get("retrievalMode") or "") == "lexical_fallback"
+                        for item in vector_candidates
+                    ):
+                        vector_failed = True
+                        self._append_signal(missing_signals, "course_vector_lexical_fallback")
                 except Exception:
-                    pipeline = "fallback"
+                    logger.warning("Failed to search course vectors", exc_info=True)
+                    vector_failed = True
+                    self._append_signal(missing_signals, "course_vector")
+                    await runtime_observability_service.record_error(scope="recommendation_course_vector")
             else:
-                pipeline = "fallback"
+                vector_failed = True
+                self._append_signal(missing_signals, "course_vector")
+                self._append_signal(missing_signals, "similar_learners")
+
+            continue_candidates = await self._course_candidates_from_ids(
+                active_ids.difference(request_excluded_ids),
+                score=0.82,
+                signals=["continue_learning"],
+            )
+            path_candidate_ids = self._active_path_course_ids(learning_paths).difference(excluded_ids)
+            path_candidates = await self._course_candidates_from_ids(
+                path_candidate_ids,
+                score=0.72,
+                signals=["path_alignment"],
+            )
+
+            candidates = self._merge_candidates([*continue_candidates, *path_candidates, *vector_candidates])
+            candidate_course_ids = self._candidate_ids(candidates)
+            fallback_catalog_used = False
+
+            reranked, filtered_course_ids = self._rerank_candidates(
+                candidates=candidates,
+                request=request,
+                course_history=course_history,
+                ratings=ratings,
+                learning_paths=learning_paths,
+                similar_profiles=similar_profiles,
+                skill_profile=skill_profile,
+                excluded_ids=excluded_ids,
+            )
 
             if not reranked:
-                latest_courses = await catalog_service.fetch_published_courses(limit=8)
-                reranked = [
+                latest_courses = await catalog_service.fetch_published_courses(limit=12)
+                fallback_candidates = [
                     {
                         "score": 0.35,
                         "payload": course,
-                        "signals": ["new_catalog_course"],
+                        "signals": ["catalog_quality"],
+                        "source": "catalog",
                     }
                     for course in latest_courses
                     if course["id"] not in excluded_ids
                 ]
-                pipeline = "fallback"
+                fallback_catalog_used = True
+                candidates = self._merge_candidates(fallback_candidates)
+                candidate_course_ids = self._candidate_ids(candidates)
+                reranked, filtered_course_ids = self._rerank_candidates(
+                    candidates=candidates,
+                    request=request,
+                    course_history=course_history,
+                    ratings=ratings,
+                    learning_paths=learning_paths,
+                    similar_profiles=similar_profiles,
+                    skill_profile=skill_profile,
+                    excluded_ids=excluded_ids,
+                )
 
             fallback_items = [self._build_item(candidate, request, course_history) for candidate in reranked[:5]]
-            prompt = self._build_prompt(request, user_profile, course_history, learning_paths, reranked[:10])
+            prompt = self._build_prompt(request, user_profile, course_history, learning_paths, ratings, reranked[:10])
             ai_payload = await switchable_ai_gateway.generate_structured_json(
                 prompt=prompt,
                 fallback_payload={"recommendations": [item.model_dump(mode="json") for item in fallback_items]},
@@ -99,7 +180,42 @@ class RecommendationService:
             recommendations = self._normalize_ai_payload(ai_payload, reranked, request, course_history)
             if not recommendations:
                 recommendations = fallback_items
-                pipeline = "fallback"
+                self._append_signal(missing_signals, "llm_structured_output")
+
+            used_signals = self._used_candidate_signals(reranked[:5])
+            pipeline = self._resolve_pipeline(
+                course_history=course_history,
+                ratings=ratings,
+                learning_paths=learning_paths,
+                skill_profile=skill_profile,
+                fallback_catalog_used=fallback_catalog_used,
+                vector_failed=vector_failed,
+                missing_signals=missing_signals,
+            )
+            metadata = {
+                "userId": user_id,
+                "generatedAt": datetime.now(timezone.utc).isoformat(),
+                "totalRecommendations": len(recommendations),
+                "status": AiTaskStatus.COMPLETED.value,
+                "mode": request.mode.value,
+                "query": query,
+                "pipeline": pipeline,
+                "usedSignals": used_signals,
+                "missingSignals": sorted(missing_signals),
+                "candidateCourseIds": candidate_course_ids,
+                "filteredCourseIds": sorted(filtered_course_ids),
+                "excludedCourseIds": sorted(excluded_ids),
+                "requestId": runtime_state.request_id,
+                "tokenUsage": runtime_request_context_service.snapshot(),
+                "citations": self._build_citations(reranked[:5]),
+                "similarProfiles": [
+                    {
+                        "userId": item.get("payload", {}).get("user_id"),
+                        "score": item.get("score"),
+                    }
+                    for item in similar_profiles[:3]
+                ],
+            }
 
             task_type = (
                 AiTaskType.RECOMMENDATION_SCHEDULED
@@ -111,42 +227,16 @@ class RecommendationService:
                 target_reference=user_id,
                 request_payload=request.model_dump(mode="json"),
                 prompt=prompt,
-                result_payload={"recommendations": [item.model_dump(mode="json") for item in recommendations]},
+                result_payload={
+                    "recommendations": [item.model_dump(mode="json") for item in recommendations],
+                    "metadata": metadata,
+                },
             )
 
-            citations = [
-                {
-                    "kind": "course",
-                    "courseId": candidate["payload"].get("id") or candidate["payload"].get("course_id"),
-                    "title": candidate["payload"].get("title"),
-                    "score": candidate.get("score"),
-                    "signals": candidate.get("signals", []),
-                }
-                for candidate in reranked[:5]
-            ]
             return RecommendationResponse(
                 taskId=task_id,
                 recommendations=recommendations,
-                metadata={
-                    "userId": user_id,
-                    "generatedAt": datetime.now(timezone.utc).isoformat(),
-                    "totalRecommendations": len(recommendations),
-                    "status": AiTaskStatus.COMPLETED.value,
-                    "mode": request.mode.value,
-                    "query": query,
-                    "pipeline": pipeline,
-                    "requestId": runtime_state.request_id,
-                    "tokenUsage": runtime_request_context_service.snapshot(),
-                    "citations": citations,
-                    "excludedCourseIds": sorted(excluded_ids),
-                    "similarProfiles": [
-                        {
-                            "userId": item.get("payload", {}).get("user_id"),
-                            "score": item.get("score"),
-                        }
-                        for item in similar_profiles[:3]
-                    ],
-                },
+                metadata=metadata,
             )
 
     async def get_history(
@@ -181,6 +271,7 @@ class RecommendationService:
 
             payload = task.result_payload if isinstance(task.result_payload, dict) else {}
             items = payload.get("recommendations") if isinstance(payload, dict) else []
+            stored_metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
             recommendations = self._coerce_history_items(items)
             history.append(
                 RecommendationHistoryItem(
@@ -192,6 +283,7 @@ class RecommendationService:
                     metadata={
                         "model": task.model_used,
                         "request": task.request_payload,
+                        **stored_metadata,
                     },
                 )
             )
@@ -203,10 +295,16 @@ class RecommendationService:
         user_profile: dict[str, Any] | None,
         course_history: list[dict[str, Any]],
         learning_paths: list[dict[str, Any]],
+        ratings: list[dict[str, Any]],
     ) -> str:
         active_skills = sorted({skill for item in course_history for skill in item.get("skills", [])})
-        in_progress_titles = [item["title"] for item in course_history if item.get("status") == "IN_PROGRESS"]
+        in_progress_titles = [
+            item["title"]
+            for item in course_history
+            if item.get("historyBucket") in {"in_progress", "enrolled"} or item.get("status") == "IN_PROGRESS"
+        ]
         active_path_titles = [path["title"] for path in learning_paths[:2]]
+        liked_topics = [item["title"] for item in ratings if int(item.get("score") or 0) >= 4]
         profile_history = user_profile.get("learning_history") if user_profile else {}
 
         segments = []
@@ -216,7 +314,9 @@ class RecommendationService:
         if active_skills:
             segments.append("known_skills=" + ", ".join(active_skills[:8]))
         if in_progress_titles:
-            segments.append("in_progress=" + ", ".join(in_progress_titles[:3]))
+            segments.append("continue_courses=" + ", ".join(in_progress_titles[:3]))
+        if liked_topics:
+            segments.append("liked_courses=" + ", ".join(liked_topics[:4]))
         if active_path_titles:
             segments.append("active_paths=" + ", ".join(active_path_titles))
         if isinstance(profile_history, dict) and profile_history:
@@ -228,103 +328,129 @@ class RecommendationService:
                     segments.append(f"profile_interests={interests}")
         return "\n".join(segments)
 
+    async def _course_candidates_from_ids(
+        self,
+        course_ids: Iterable[str],
+        *,
+        score: float,
+        signals: list[str],
+    ) -> list[dict[str, Any]]:
+        ordered_ids = [str(course_id) for course_id in course_ids if course_id]
+        courses = await catalog_service.fetch_courses_by_ids(ordered_ids)
+        return [
+            {
+                "score": score,
+                "payload": course,
+                "signals": list(signals),
+                "source": "postgres",
+            }
+            for course in courses
+        ]
+
     def _rerank_candidates(
         self,
         *,
-        vector_candidates: list[dict[str, Any]],
+        candidates: list[dict[str, Any]],
         request: RecommendationRequest,
         course_history: list[dict[str, Any]],
+        ratings: list[dict[str, Any]],
         learning_paths: list[dict[str, Any]],
         similar_profiles: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        history_by_course = {item["course_id"]: item for item in course_history if item.get("course_id")}
-        user_skills = {skill.lower() for item in course_history for skill in item.get("skills", [])}
-        active_path_courses = {
-            course["course_id"]
-            for path in learning_paths
-            if path.get("completion", 0.0) < 1.0
-            for course in path.get("courses", [])
+        skill_profile: dict[str, float],
+        excluded_ids: set[str],
+    ) -> tuple[list[dict[str, Any]], set[str]]:
+        history_by_course = {str(item["course_id"]): item for item in course_history if item.get("course_id")}
+        user_skills = {
+            str(skill).lower()
+            for item in course_history
+            for skill in item.get("skills", [])
+            if skill
+        }.union(str(skill).lower() for skill in skill_profile)
+        active_path_courses = self._active_path_course_ids(learning_paths)
+        liked_skills = {
+            str(skill).lower()
+            for rating in ratings
+            if int(rating.get("score") or 0) >= 4
+            for skill in rating.get("skills", [])
+            if skill
         }
-        similar_profile_completed_counts: dict[str, int] = {}
-        similar_profile_in_progress_counts: dict[str, int] = {}
-        for profile in similar_profiles:
-            payload = profile.get("payload", {})
-            for history_item in payload.get("course_history", []) or []:
-                course_id = str(history_item.get("course_id") or "")
-                if not course_id:
-                    continue
-                status = str(history_item.get("status") or "").upper()
-                if status == "COMPLETED":
-                    similar_profile_completed_counts[course_id] = (
-                        similar_profile_completed_counts.get(course_id, 0) + 1
-                    )
-                elif status in {"IN_PROGRESS", "ENROLLED"}:
-                    similar_profile_in_progress_counts[course_id] = (
-                        similar_profile_in_progress_counts.get(course_id, 0) + 1
-                    )
+        avoid_skills = {
+            str(skill).lower()
+            for rating in ratings
+            if int(rating.get("score") or 0) <= 2
+            for skill in rating.get("skills", [])
+            if skill
+        }
+        similar_counts = self._similar_profile_course_counts(similar_profiles)
+        max_score = max((float(item.get("score") or 0.0) for item in candidates), default=1.0) or 1.0
 
         reranked: list[dict[str, Any]] = []
-        max_score = max((float(item.get("score") or 0.0) for item in vector_candidates), default=1.0)
-
-        for candidate in vector_candidates:
+        filtered_ids: set[str] = set()
+        for candidate in candidates:
             payload = candidate.get("payload", {})
             course_id = str(payload.get("id") or payload.get("course_id") or "")
             if not course_id:
                 continue
-            if course_id in history_by_course and history_by_course[course_id].get("status") == "COMPLETED":
+            history_item = history_by_course.get(course_id)
+            if course_id in excluded_ids or (history_item and history_item.get("historyBucket") == "completed"):
+                filtered_ids.add(course_id)
                 continue
 
             score = (float(candidate.get("score") or 0.0) / max_score) if max_score else 0.0
-            signals: list[str] = []
+            signals = list(candidate.get("signals") or [])
+
+            if history_item and history_item.get("historyBucket") in {"in_progress", "enrolled"}:
+                score += 0.18
+                self._append_signal(signals, "continue_learning")
 
             if str(payload.get("language") or "").lower() == request.language.lower():
-                score += 0.08
-                signals.append("language_match")
-
-            course_level = str(payload.get("level") or "").lower()
-            if course_level == "beginner" and not course_history:
-                score += 0.1
-                signals.append("beginner_friendly")
-            elif course_level == "intermediate" and any(
-                item.get("status") == "COMPLETED" and str(item.get("level") or "").lower() == "beginner"
-                for item in course_history
-            ):
                 score += 0.06
-                signals.append("next_level_progression")
+                self._append_signal(signals, "language_match")
 
-            course_skills = {str(skill).lower() for skill in payload.get("skills", [])}
+            course_skills = {str(skill).lower() for skill in payload.get("skills", []) if skill}
             overlap = sorted(user_skills.intersection(course_skills))
+            new_skills = sorted(course_skills.difference(user_skills))
             if overlap:
                 score += min(0.12, 0.03 * len(overlap))
-                signals.append("skill_overlap:" + ", ".join(overlap[:3]))
-            elif course_skills:
-                score += 0.04
-                signals.append("new_skill_surface")
+                self._append_signal(signals, "skill_match")
+            if new_skills and user_skills:
+                score += min(0.08, 0.02 * len(new_skills))
+                self._append_signal(signals, "skill_gap")
+
+            if course_skills.intersection(liked_skills):
+                score += 0.1
+                self._append_signal(signals, "liked_topic")
+            if course_skills.intersection(avoid_skills):
+                score -= 0.16
+                self._append_signal(signals, "avoid_topic")
 
             if course_id in active_path_courses:
-                score += 0.05
-                signals.append("active_learning_path")
+                score += 0.07
+                self._append_signal(signals, "path_alignment")
 
-            similar_completed = similar_profile_completed_counts.get(course_id, 0)
-            if similar_completed:
-                score += min(0.15, 0.03 * similar_completed)
-                signals.append(f"similar_learners_completed:{similar_completed}")
+            similar_count = similar_counts.get(course_id, 0)
+            if similar_count:
+                score += min(0.14, 0.035 * similar_count)
+                self._append_signal(signals, "similar_learners")
 
-            similar_active = similar_profile_in_progress_counts.get(course_id, 0)
-            if similar_active:
-                score += min(0.09, 0.02 * similar_active)
-                signals.append(f"similar_learners_active:{similar_active}")
+            average_rating = float(payload.get("average_rating") or 0.0)
+            rating_count = int(payload.get("rating_count") or 0)
+            enrollment_count = int(payload.get("enrollment_count") or 0)
+            if average_rating >= 4.0 or rating_count >= 5 or enrollment_count >= 20:
+                score += min(0.08, 0.01 * rating_count + 0.0005 * enrollment_count)
+                self._append_signal(signals, "catalog_quality")
 
             reranked.append(
                 {
-                    "score": round(min(score, 0.99), 4),
+                    "score": round(max(0.0, min(score, 0.99)), 4),
                     "payload": payload,
-                    "signals": signals,
+                    "signals": sorted(signals),
+                    "source": candidate.get("source") or "vector",
                 }
             )
 
         reranked.sort(key=lambda item: item["score"], reverse=True)
-        return reranked
+        return reranked, filtered_ids
 
     def _build_prompt(
         self,
@@ -332,6 +458,7 @@ class RecommendationService:
         user_profile: dict[str, Any] | None,
         course_history: list[dict[str, Any]],
         learning_paths: list[dict[str, Any]],
+        ratings: list[dict[str, Any]],
         candidates: list[dict[str, Any]],
     ) -> str:
         candidate_lines = []
@@ -342,17 +469,23 @@ class RecommendationService:
                     f"{index}. id={payload.get('id') or payload.get('course_id')} | "
                     f"title={payload.get('title')} | level={payload.get('level')} | "
                     f"language={payload.get('language')} | skills={payload.get('skills', [])} | "
-                    f"tags={payload.get('tags', [])} | base_score={candidate['score']} | "
+                    f"average_rating={payload.get('average_rating')} | rating_count={payload.get('rating_count')} | "
+                    f"enrollment_count={payload.get('enrollment_count')} | score={candidate['score']} | "
                     f"signals={candidate.get('signals', [])} | description={payload.get('description', '')}"
                 )
             )
 
         history_lines = [
             (
-                f"- {item.get('title')} | status={item.get('status')} | "
-                f"progress={item.get('progress')} | skills={item.get('skills', [])}"
+                f"- {item.get('title')} | status={item.get('status')} | bucket={item.get('historyBucket')} | "
+                f"progress={item.get('progress')} | progress_source={item.get('progressSource')} | "
+                f"skills={item.get('skills', [])}"
             )
             for item in course_history[:8]
+        ]
+        rating_lines = [
+            f"- {item.get('title')} | score={item.get('score')} | skills={item.get('skills', [])}"
+            for item in ratings[:6]
         ]
         path_lines = [
             f"- {path.get('title')} | completion={path.get('completion')} | courses={len(path.get('courses', []))}"
@@ -364,13 +497,15 @@ class RecommendationService:
             "Chi duoc su dung cac khoa hoc co trong danh sach ung vien. Khong duoc tao courseId moi.\n"
             "Tra ve JSON only voi key 'recommendations' la array. Moi phan tu gom:\n"
             "courseId, title, description, score, reason, tags, estimatedDuration.\n"
-            "Score phai nam trong [0,1]. Ly do phai ngan gon va dua tren match thuc te.\n\n"
+            "Score phai nam trong [0,1]. Ly do phai ngan gon va dua tren signals thuc te.\n\n"
             f"Recommendation mode: {request.mode.value}\n"
             f"User language: {request.language}\n"
             f"Preferred topics: {request.preferredLanguages or []}\n"
             f"User profile: {user_profile or {}}\n"
             "Course history:\n"
             + ("\n".join(history_lines) if history_lines else "- no course history")
+            + "\nRatings:\n"
+            + ("\n".join(rating_lines) if rating_lines else "- no ratings")
             + "\nLearning path progress:\n"
             + ("\n".join(path_lines) if path_lines else "- no active learning path")
             + "\nCandidate courses:\n"
@@ -409,7 +544,10 @@ class RecommendationService:
                     title=str(item.get("title") or payload_row.get("title") or ""),
                     description=str(item.get("description") or payload_row.get("description") or ""),
                     score=float(item.get("score") or candidate["score"]),
-                    reason=str(item.get("reason") or self._reason_from_signals(candidate["signals"], payload_row, course_history)),
+                    reason=str(
+                        item.get("reason")
+                        or self._reason_from_signals(candidate["signals"], payload_row, course_history)
+                    ),
                     tags=self._coerce_tags(item.get("tags"), payload_row),
                     estimatedDuration=str(
                         item.get("estimatedDuration")
@@ -438,41 +576,36 @@ class RecommendationService:
 
     @staticmethod
     def _reason_from_signals(signals: list[str], payload: dict[str, Any], course_history: list[dict[str, Any]]) -> str:
-        if signals:
-            primary = signals[0]
-            if primary.startswith("skill_overlap:"):
-                return f"Khoa hoc nay noi tiep tot voi cac ky nang ban da co: {primary.split(':', 1)[1]}."
-            if primary == "beginner_friendly":
-                return "Muc do nhap mon phu hop khi ban dang o giai doan bat dau."
-            if primary == "next_level_progression":
-                return "No la buoc tiep theo hop ly sau cac khoa co ban ban da hoan thanh."
-            if primary == "language_match":
-                return "Ngon ngu va cach trinh bay cua khoa hoc phu hop voi preference hien tai."
-            if primary == "active_learning_path":
-                return "Khoa hoc nay nam trong lo trinh hoc ban dang theo doi."
-            if primary == "new_skill_surface":
-                return "Khoa hoc nay mo rong them mot nhom ky nang moi tu catalog hien co."
-            if primary.startswith("similar_learners_completed:"):
-                return "Nhung nguoi co ho so hoc tap gan voi ban da hoan thanh khoa hoc nay voi ket qua tot."
-            if primary.startswith("similar_learners_active:"):
-                return "Khoa hoc nay dang duoc nhieu nguoi co muc tieu hoc tap tuong tu ban theo hoc."
-
-        if course_history:
-            return "Khoa hoc duoc xep hang dua tren do lien quan semantic va lich su hoc tap hien co."
-        return f"Khoa hoc {payload.get('title', '')} la ung vien phu hop nhat tu catalog hien tai."
+        del course_history
+        if "continue_learning" in signals:
+            return "Khóa học này đang nằm trong tiến trình học của bạn, phù hợp để học tiếp ngay."
+        if "liked_topic" in signals:
+            return "Chủ đề của khóa học gần với những nội dung bạn từng đánh giá cao."
+        if "skill_match" in signals and "skill_gap" in signals:
+            return "Khóa học vừa nối tiếp kỹ năng bạn đã có, vừa mở thêm kỹ năng còn thiếu."
+        if "skill_match" in signals:
+            return "Khóa học khớp với nhóm kỹ năng bạn đã thể hiện trong lịch sử học."
+        if "skill_gap" in signals:
+            return "Khóa học giúp mở rộng kỹ năng tiếp theo từ nền tảng hiện tại."
+        if "path_alignment" in signals:
+            return "Khóa học nằm trong lộ trình học bạn đang theo dõi."
+        if "similar_learners" in signals:
+            return "Những người học có hồ sơ gần bạn cũng quan tâm hoặc hoàn thành khóa này."
+        if "catalog_quality" in signals:
+            return "Khóa học có tín hiệu chất lượng tốt từ catalog như lượt học hoặc đánh giá."
+        if "language_match" in signals:
+            return "Ngôn ngữ của khóa học phù hợp với lựa chọn hiện tại của bạn."
+        return f"Khóa học {payload.get('title', '')} là ứng viên phù hợp nhất từ dữ liệu hiện có."
 
     @staticmethod
     def _estimate_duration(payload: dict[str, Any], mode: RecommendationMode) -> str:
+        del mode
         enrollment_count = int(payload.get("enrollment_count") or 0)
         if enrollment_count >= 200:
-            base = "6-8 weeks"
-        elif enrollment_count >= 50:
-            base = "4-6 weeks"
-        else:
-            base = "2-4 weeks"
-        if mode == RecommendationMode.SCHEDULED:
-            return base
-        return base
+            return "6-8 weeks"
+        if enrollment_count >= 50:
+            return "4-6 weeks"
+        return "2-4 weeks"
 
     @staticmethod
     def _coerce_tags(ai_tags: Any, payload: dict[str, Any]) -> list[str]:
@@ -525,6 +658,127 @@ class RecommendationService:
             session.add(task)
             await session.flush()
             return str(task.id)
+
+    @staticmethod
+    def _history_ids(course_history: list[dict[str, Any]], *, buckets: set[str]) -> set[str]:
+        course_ids: set[str] = set()
+        for item in course_history:
+            course_id = item.get("course_id")
+            if not course_id:
+                continue
+            bucket = str(item.get("historyBucket") or "").lower()
+            status = str(item.get("status") or "").upper()
+            if not bucket:
+                if status == "COMPLETED" or float(item.get("progress") or 0.0) >= 0.95:
+                    bucket = "completed"
+                elif status == "DROPPED":
+                    bucket = "abandoned"
+                elif status == "IN_PROGRESS":
+                    bucket = "in_progress"
+                elif status == "ENROLLED":
+                    bucket = "enrolled"
+            if bucket in buckets:
+                course_ids.add(str(course_id))
+        return course_ids
+
+    @staticmethod
+    def _active_path_course_ids(learning_paths: list[dict[str, Any]]) -> set[str]:
+        return {
+            str(course["course_id"])
+            for path in learning_paths
+            if float(path.get("completion") or 0.0) < 1.0
+            for course in path.get("courses", [])
+            if course.get("course_id")
+        }
+
+    @classmethod
+    def _merge_candidates(cls, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        merged: dict[str, dict[str, Any]] = {}
+        for candidate in candidates:
+            payload = candidate.get("payload", {})
+            course_id = str(payload.get("id") or payload.get("course_id") or "")
+            if not course_id:
+                continue
+            existing = merged.get(course_id)
+            if existing is None:
+                merged[course_id] = {
+                    **candidate,
+                    "payload": payload,
+                    "signals": list(candidate.get("signals") or []),
+                }
+                continue
+            existing["score"] = max(float(existing.get("score") or 0.0), float(candidate.get("score") or 0.0))
+            for signal in candidate.get("signals") or []:
+                cls._append_signal(existing["signals"], str(signal))
+            if len(str(payload.get("description") or "")) > len(str(existing["payload"].get("description") or "")):
+                existing["payload"] = payload
+        return list(merged.values())
+
+    @staticmethod
+    def _candidate_ids(candidates: list[dict[str, Any]]) -> list[str]:
+        return sorted(
+            {
+                str(candidate.get("payload", {}).get("id") or candidate.get("payload", {}).get("course_id"))
+                for candidate in candidates
+                if candidate.get("payload", {}).get("id") or candidate.get("payload", {}).get("course_id")
+            }
+        )
+
+    @staticmethod
+    def _similar_profile_course_counts(similar_profiles: list[dict[str, Any]]) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for profile in similar_profiles:
+            payload = profile.get("payload", {})
+            for history_item in payload.get("course_history", []) or []:
+                course_id = str(history_item.get("course_id") or "")
+                if not course_id:
+                    continue
+                status = str(history_item.get("historyBucket") or history_item.get("status") or "").lower()
+                if status in {"completed", "in_progress", "enrolled"}:
+                    counts[course_id] = counts.get(course_id, 0) + 1
+        return counts
+
+    @staticmethod
+    def _append_signal(signals: list[str], signal: str) -> None:
+        if signal and signal not in signals:
+            signals.append(signal)
+
+    @staticmethod
+    def _used_candidate_signals(candidates: list[dict[str, Any]]) -> list[str]:
+        return sorted({str(signal) for candidate in candidates for signal in candidate.get("signals", []) if signal})
+
+    @staticmethod
+    def _build_citations(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "kind": "course",
+                "courseId": candidate["payload"].get("id") or candidate["payload"].get("course_id"),
+                "title": candidate["payload"].get("title"),
+                "score": candidate.get("score"),
+                "signals": candidate.get("signals", []),
+            }
+            for candidate in candidates
+        ]
+
+    @staticmethod
+    def _resolve_pipeline(
+        *,
+        course_history: list[dict[str, Any]],
+        ratings: list[dict[str, Any]],
+        learning_paths: list[dict[str, Any]],
+        skill_profile: dict[str, float],
+        fallback_catalog_used: bool,
+        vector_failed: bool,
+        missing_signals: list[str],
+    ) -> str:
+        has_personal_context = bool(course_history or ratings or learning_paths or skill_profile)
+        if fallback_catalog_used and not has_personal_context:
+            return "fallback_catalog"
+        if not has_personal_context:
+            return "fallback_catalog"
+        if fallback_catalog_used or vector_failed or "llm_structured_output" in missing_signals:
+            return "partial_data"
+        return "real_data"
 
 
 recommendation_service = RecommendationService()

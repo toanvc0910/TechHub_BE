@@ -16,6 +16,18 @@ from app.schemas.analytics_contract import (
     build_column_meta,
     detect_empty_state,
 )
+from app.services.analytics import analytics_semantic_planner, validate_metric_plan
+from app.services.analytics.sql_ast_guard import (
+    SqlAstGuardError,
+    assert_no_pii,
+    assert_tables_allowed,
+    parse_and_inspect,
+)
+from app.services.data_contract import (
+    ANALYTICS_ALLOWED_TABLES,
+    ANALYTICS_SENSITIVE_COLUMNS,
+    render_analytics_schema_context,
+)
 from app.services.llm_gateway import switchable_ai_gateway
 from app.services.request_instructions import append_request_instructions
 from app.services.runtime_policy_service import runtime_policy_service
@@ -25,40 +37,9 @@ class AnalyticsService:
     def __init__(self) -> None:
         self._settings = get_settings()
 
-    _allowed_tables = {
-        "courses",
-        "chapters",
-        "lessons",
-        "enrollments",
-        "progress",
-        "learning_paths",
-        "learning_path_courses",
-        "path_progress",
-        "profiles",
-        "users",
-        "course_skills",
-        "skills",
-    }
-    _sensitive_columns = {"email", "bio", "full_name", "username", "location"}
-
-    _schema_context = """
-Tables and safe columns:
-- courses(id, title, description, level, language, status, created, is_active)
-- chapters(id, course_id, "order")
-- lessons(id, chapter_id, title, content_type, estimated_duration, created, is_active)
-- enrollments(id, user_id, course_id, status, created, updated, is_active)
-- progress(id, user_id, lesson_id, completion, created, updated, is_active)
-- learning_paths(id, title, description, created, updated, is_active)
-- learning_path_courses(path_id, course_id, "order", position_x, position_y, is_optional)
-- path_progress(id, user_id, path_id, completion, updated, is_active)
-- profiles(id, user_id, preferred_language, full_name, bio, created, updated, is_active)
-- users(id, username, email, status, created, is_active)
-- course_skills(id, course_id, skill_id)
-- skills(id, name, category)
-Only generate read-only PostgreSQL SQL. Use SELECT or WITH only.
-Prefer aggregations useful for analytics dashboards.
-When grouping, alias the category column as label and the numeric aggregation as value.
-"""
+    _allowed_tables = set(ANALYTICS_ALLOWED_TABLES)
+    _sensitive_columns = set(ANALYTICS_SENSITIVE_COLUMNS)
+    _schema_context = render_analytics_schema_context()
 
     async def execute(
         self,
@@ -70,15 +51,15 @@ When grouping, alias the category column as label and the numeric aggregation as
         prior_analysis: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         policy = await runtime_policy_service.resolve(request_context)
-        if not policy.get("allowDataQuery", True):
-            raise ValueError("Current runtime policy does not allow data-query access for this request.")
-
         # Enrich the incoming entities/scope with prior-analysis context so a
         # short follow-up like "đổi sang biểu đồ đường" inherits scope/metric
         # from the earlier analytics turn instead of being treated as a brand
         # new query.
         resolved_entities = self._merge_prior_entities(entities or {}, prior_analysis)
         scope = self._infer_scope_with_prior(question, resolved_entities, prior_analysis)
+        trusted_user_id = str(policy.get("trustedUserId") or user_id or "").strip() or None
+        if policy.get("trustedUserId") and user_id and str(policy["trustedUserId"]) != str(user_id):
+            raise ValueError("Analytics user context does not match trusted identity.")
 
         # Shortcut: if this is clearly just a chart-type swap and we have the
         # previous SQL to rerun, skip the LLM planner entirely.
@@ -88,7 +69,7 @@ When grouping, alias the category column as label and the numeric aggregation as
                 prior_analysis,
                 chart_type=chart_swap_type,
                 question=question,
-                user_id=user_id,
+                user_id=trusted_user_id,
                 scope=scope,
             )
         else:
@@ -96,28 +77,58 @@ When grouping, alias the category column as label and the numeric aggregation as
                 question,
                 resolved_entities,
                 policy=policy,
-                user_id=user_id,
+                user_id=trusted_user_id,
                 scope=scope,
                 prior_analysis=prior_analysis,
             )
-        sql = self._validate_sql(str(plan.get("sql") or ""), policy=policy)
+        scope = str(plan.get("scope") or scope)
+        self._enforce_analytics_access(policy, scope=scope, trusted_user_id=trusted_user_id)
+        sql = self._validate_sql(
+            str(plan.get("sql") or ""),
+            policy=policy,
+            metric=str(plan.get("metric") or ""),
+            scope=scope,
+        )
         params = dict(plan.get("params") or {})
         active_plan = plan
         try:
             rows, columns = await self._execute_sql(sql, params=params)
         except Exception:
-            fallback_plan = self._fallback_plan(question, resolved_entities, user_id=user_id, scope=scope)
-            fallback_sql = self._validate_sql(str(fallback_plan.get("sql") or ""), policy=policy)
+            fallback_plan = self._fallback_plan(
+                question,
+                resolved_entities,
+                user_id=trusted_user_id,
+                scope=scope,
+                prefer_semantic=False,
+            )
+            fallback_sql = self._validate_sql(
+                str(fallback_plan.get("sql") or ""),
+                policy=policy,
+                metric=str(fallback_plan.get("metric") or ""),
+                scope=str(fallback_plan.get("scope") or scope),
+            )
             if fallback_sql.strip() == sql.strip():
                 raise
             active_plan = fallback_plan
+            scope = str(active_plan.get("scope") or scope)
             sql = fallback_sql
             params = dict(active_plan.get("params") or {})
             rows, columns = await self._execute_sql(sql, params=params)
         else:
             if self._should_retry_with_fallback(question, resolved_entities, scope=scope, rows=rows):
-                fallback_plan = self._fallback_plan(question, resolved_entities, user_id=user_id, scope=scope)
-                fallback_sql = self._validate_sql(str(fallback_plan.get("sql") or ""), policy=policy)
+                fallback_plan = self._fallback_plan(
+                    question,
+                    resolved_entities,
+                    user_id=trusted_user_id,
+                    scope=scope,
+                    prefer_semantic=False,
+                )
+                fallback_sql = self._validate_sql(
+                    str(fallback_plan.get("sql") or ""),
+                    policy=policy,
+                    metric=str(fallback_plan.get("metric") or ""),
+                    scope=str(fallback_plan.get("scope") or scope),
+                )
                 if fallback_sql.strip() != sql.strip():
                     fallback_rows, fallback_columns = await self._execute_sql(
                         fallback_sql,
@@ -125,6 +136,7 @@ When grouping, alias the category column as label and the numeric aggregation as
                     )
                     if fallback_rows:
                         active_plan = fallback_plan
+                        scope = str(active_plan.get("scope") or scope)
                         sql = fallback_sql
                         params = dict(active_plan.get("params") or {})
                         rows, columns = fallback_rows, fallback_columns
@@ -169,6 +181,7 @@ When grouping, alias the category column as label and the numeric aggregation as
             "executionMode": active_plan.get("executionMode") or "llm_planner",
             "explanation": active_plan.get("explanation") or self._build_plan_explanation(active_plan, scope=scope),
             "logicSummary": self._build_logic_summary(active_plan, rows=rows, scope=scope),
+            "metricDefinition": active_plan.get("metricDefinition"),
             "scope": scope,
             "scopeLabel": self._scope_label(scope),
             "policy": {
@@ -202,7 +215,18 @@ When grouping, alias the category column as label and the numeric aggregation as
         scope: str,
         prior_analysis: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        fallback = self._fallback_plan(question, entities, user_id=user_id, scope=scope)
+        semantic_plan = analytics_semantic_planner.plan(
+            question,
+            entities,
+            policy=policy,
+            user_id=user_id,
+            scope=scope,
+            prior_analysis=prior_analysis,
+        )
+        if semantic_plan:
+            return semantic_plan
+
+        fallback = self._fallback_plan(question, entities, user_id=user_id, scope=scope, prefer_semantic=False)
         if self._should_force_deterministic_plan(question, entities, scope=scope, user_id=user_id):
             return fallback
         prior_block = self._render_prior_analysis_for_prompt(prior_analysis)
@@ -400,7 +424,24 @@ When grouping, alias the category column as label and the numeric aggregation as
         *,
         user_id: str | None,
         scope: str,
+        prefer_semantic: bool = True,
     ) -> dict[str, Any]:
+        if prefer_semantic:
+            semantic_plan = analytics_semantic_planner.plan(
+                question,
+                entities,
+                policy={
+                    "userRole": "SUPER_ADMIN",
+                    "trustedUserId": user_id,
+                    "sqlMaxRows": self._settings.sql_default_limit,
+                    "piiAccess": False,
+                },
+                user_id=user_id,
+                scope=scope,
+            )
+            if semantic_plan:
+                return semantic_plan
+
         lowered = self._normalize_query_text(question)
         time_filter = self._time_filter_sql(entities.get("time_range"))
         params = {"user_id": user_id} if scope == "personal" and user_id else {}
@@ -909,7 +950,14 @@ When grouping, alias the category column as label and the numeric aggregation as
 
         return None
 
-    def _validate_sql(self, sql: str, *, policy: dict[str, Any]) -> str:
+    def _validate_sql(
+        self,
+        sql: str,
+        *,
+        policy: dict[str, Any],
+        metric: str | None = None,
+        scope: str = "platform",
+    ) -> str:
         normalized = self._normalize_platform_flags(re.sub(r"\s+", " ", sql).strip())
         if not normalized:
             raise ValueError("Analytics planner did not produce SQL.")
@@ -922,19 +970,47 @@ When grouping, alias the category column as label and the numeric aggregation as
         if any(token in f" {lowered} " for token in forbidden):
             raise ValueError("Unsafe SQL generated for analytics query.")
 
-        tables = self._collect_tables(lowered)
-        unknown = tables.difference(self._allowed_tables)
-        if unknown:
-            raise ValueError(f"Query references unsupported tables: {sorted(unknown)}")
+        # AST-based safety guard: parses the SQL with sqlglot so we can detect
+        # tables/columns regardless of expression nesting. Falls back to the
+        # legacy regex checks only if parsing fails, so behaviour for the
+        # deterministic templates remains identical.
+        try:
+            parsed = parse_and_inspect(normalized)
+            assert_tables_allowed(parsed, self._allowed_tables)
+            tables = set(parsed.tables)
+            if not policy.get("piiAccess", False):
+                try:
+                    assert_no_pii(parsed, self._sensitive_columns)
+                except SqlAstGuardError as exc:
+                    raise ValueError(str(exc)) from exc
+        except SqlAstGuardError as exc:
+            raise ValueError(str(exc)) from exc
 
-        if not policy.get("piiAccess", False):
-            selected_columns = {column.lower() for column in self._extract_selected_columns(normalized)}
-            blocked = sorted(selected_columns.intersection(self._sensitive_columns))
-            if blocked:
-                raise ValueError(f"Query selects restricted columns without PII access: {blocked}")
+        validate_metric_plan(metric, sql=normalized, tables=tables, policy=policy, scope=scope)
 
         limited = self._apply_limit(normalized.rstrip(";"), max_rows=int(policy.get("sqlMaxRows") or self._settings.sql_default_limit))
         return limited
+
+    @staticmethod
+    def _enforce_analytics_access(
+        policy: dict[str, Any],
+        *,
+        scope: str,
+        trusted_user_id: str | None,
+    ) -> None:
+        user_role = str(policy.get("userRole") or "USER").upper()
+        if not policy.get("allowDataQuery", False):
+            raise ValueError("Current runtime policy does not allow data-query access for this request.")
+
+        if scope == "personal":
+            if not trusted_user_id:
+                raise ValueError("Personal analytics requires trusted user identity.")
+            if user_role not in {"LEARNER", "INSTRUCTOR", "STAFF", "ADMIN", "SUPER_ADMIN"}:
+                raise ValueError("Current role cannot access personal analytics.")
+            return
+
+        if scope == "platform" and user_role not in {"INSTRUCTOR", "STAFF", "ADMIN", "SUPER_ADMIN"}:
+            raise ValueError("Platform analytics requires instructor, staff, or admin role.")
 
     @staticmethod
     def _normalize_platform_flags(sql: str) -> str:
@@ -966,6 +1042,18 @@ When grouping, alias the category column as label and the numeric aggregation as
             else:
                 columns.append(raw.strip().split(".")[-1])
         return [column.strip('"') for column in columns]
+
+    def _collect_sensitive_selected_columns(self, sql: str) -> set[str]:
+        match = re.search(r"select\s+(.*?)\s+from\s", sql, flags=re.I | re.S)
+        if not match:
+            return set()
+        select_clause = match.group(1)
+        blocked = set()
+        for column in self._sensitive_columns:
+            pattern = rf'(?<![a-z0-9_])(?:[a-z_][a-z0-9_]*\.)?"?{re.escape(column)}"?(?![a-z0-9_])'
+            if re.search(pattern, select_clause, flags=re.I):
+                blocked.add(column)
+        return blocked
 
     @staticmethod
     def _collect_tables(sql: str) -> set[str]:

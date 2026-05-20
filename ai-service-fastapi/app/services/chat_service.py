@@ -322,8 +322,19 @@ class ChatService:
                 for item in sessions
             ]
 
-    async def get_session_messages(self, session_id: UUID) -> list[ChatMessageDetailResponse]:
+    async def get_session_messages(
+        self,
+        session_id: UUID,
+        user_id: UUID | None = None,
+    ) -> list[ChatMessageDetailResponse]:
         async with get_db_session() as session:
+            session_query = select(ChatSessionModel.id).where(ChatSessionModel.id == session_id)
+            if user_id is not None:
+                session_query = session_query.where(ChatSessionModel.user_id == user_id)
+            session_result = await session.execute(session_query)
+            if session_result.scalar_one_or_none() is None:
+                raise ValueError("Session not found for user.")
+
             result = await session.execute(
                 select(ChatMessageModel)
                 .where(ChatMessageModel.session_id == session_id)

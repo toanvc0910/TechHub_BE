@@ -55,7 +55,24 @@ async def entity_extraction_node(state: OrchestratorState) -> dict:
     elif any(token in normalized for token in ["thang nay", "this month"]):
         entities["time_range"] = "this_month"
 
-    analytics_tokens = ["thong ke", "bao nhieu", "tong hop", "report", "analytics", "dashboard", "bieu do", "chart"]
+    analytics_tokens = [
+        "thong ke",
+        "bao nhieu",
+        "tong hop",
+        "report",
+        "analytics",
+        "dashboard",
+        "bieu do",
+        "chart",
+        # Step 09 widened: progress/completion/lesson questions should also
+        # trigger scope inference so "tiến độ học của tôi" picks personal.
+        "tien do",
+        "hoan thanh",
+        "completion",
+        "progress",
+        "lesson",
+        "bai hoc",
+    ]
     personal_tokens = [
         "cua toi",
         "cho toi",
@@ -70,9 +87,12 @@ async def entity_extraction_node(state: OrchestratorState) -> dict:
         "toi dang hoc",
         "toi dang theo hoc",
     ]
-    if any(token in normalized for token in analytics_tokens) and any(token in normalized for token in personal_tokens):
+    has_metric = bool(entities.get("metric"))
+    has_analytics_token = any(token in normalized for token in analytics_tokens)
+    has_personal_token = any(token in normalized for token in personal_tokens)
+    if (has_metric or has_analytics_token) and has_personal_token:
         entities["scope"] = "personal"
-    elif "scope" not in entities and any(token in normalized for token in analytics_tokens):
+    elif "scope" not in entities and (has_metric or has_analytics_token):
         entities["scope"] = "platform"
 
     uuid_match = re.search(
@@ -81,6 +101,24 @@ async def entity_extraction_node(state: OrchestratorState) -> dict:
     )
     if uuid_match:
         entities["reference_id"] = uuid_match.group(1)
+
+    # Chart type extraction for visualization/data_query flow. Word-boundary
+    # matching with padded normalized text so "tron"/"cot" don't accidentally
+    # match "trong"/"cong".
+    padded = f" {normalized} "
+    if "bieu do duong" in normalized or "line chart" in normalized or " line " in padded:
+        entities["chart_type"] = "line"
+    elif "bieu do tron" in normalized or "pie chart" in normalized or " tron " in padded or " pie " in padded:
+        entities["chart_type"] = "pie"
+    elif "bieu do cot" in normalized or "bar chart" in normalized or " cot " in padded or " bar " in padded:
+        entities["chart_type"] = "bar"
+
+    # File reference hint: explicit "file nay" / "tai lieu nay" / "tep nay"
+    # signals the user wants the currently-active file, not just any file.
+    if re.search(r"\b(file nay|tai lieu nay|tep nay|noi dung nay|document nay)\b", normalized):
+        entities["file_scope"] = "active"
+    elif re.search(r"\b(file|tai lieu|pdf|docx|document|tep)\b", normalized):
+        entities["file_scope"] = "any"
 
     trace_step(state, "entity_extract", "Extracted entities from user input.", entities=entities)
     return {

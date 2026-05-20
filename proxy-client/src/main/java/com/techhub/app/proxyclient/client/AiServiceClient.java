@@ -61,6 +61,14 @@ public interface AiServiceClient {
         ResponseEntity<String> getRuntimeStats(
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 
+        @GetMapping("/api/ai/admin/data-contract")
+        ResponseEntity<String> getDataContract(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/data-contract/validate")
+        ResponseEntity<String> validateDataContract(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
         @GetMapping("/api/ai/admin/langfuse-traces")
         ResponseEntity<String> getLangfuseTraces(
                         @RequestParam(required = false, defaultValue = "1") Integer page,

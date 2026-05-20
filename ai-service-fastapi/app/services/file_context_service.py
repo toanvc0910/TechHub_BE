@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import json
@@ -271,8 +272,18 @@ class FileContextService:
         return None
 
     async def _download_and_extract_content(self, url: str, *, mime_type: str, name: str) -> str | None:
+        # User-supplied URL (from chat payload `url`/`secureUrl`/...) — SSRF
+        # guard: reject non-public hosts unless explicitly trusted via env.
+        # Also disable redirects so a 302 to an internal host can't bypass us.
+        from app.services.safe_http import UnsafeOutboundUrlError, validate_outbound_url
+
         try:
-            response = await self._client.get(url)
+            validated = await validate_outbound_url(url)
+        except UnsafeOutboundUrlError as exc:
+            logger.warning("Refused unsafe outbound URL for %s: %s", name, exc)
+            return None
+        try:
+            response = await self._client.get(validated.url, follow_redirects=False)
             response.raise_for_status()
             raw = response.content[: self._settings.file_max_download_bytes]
             response_content_type = response.headers.get("content-type", "")
@@ -407,8 +418,11 @@ class FileContextService:
         ):
             return await self._ocr_via_gemini(raw, mime_type, name)
 
+        # PDF/docx/pptx/xlsx parsers below are CPU-bound and read the entire
+        # file in memory. Running them on the event loop blocks all other
+        # requests for the duration. Push to a worker thread instead.
         if lower_mime == "application/pdf" or lower_name.endswith(".pdf"):
-            text = self._parse_pdf(raw)
+            text = await asyncio.to_thread(self._parse_pdf, raw)
             # Scanned PDF: pypdf returns empty/very short text → try OCR
             if (not text or len(text.strip()) < 50) and self._settings.ocr_enabled:
                 ocr_text = await self._ocr_via_gemini(raw, "application/pdf", name)
@@ -420,21 +434,24 @@ class FileContextService:
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "application/msword",
         } or lower_name.endswith((".docx", ".doc")):
-            return self._parse_docx(raw)
+            return await asyncio.to_thread(self._parse_docx, raw)
         if lower_mime in {
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             "application/vnd.ms-powerpoint",
         } or lower_name.endswith((".pptx", ".ppt")):
-            return self._parse_pptx(raw)
+            return await asyncio.to_thread(self._parse_pptx, raw)
         if lower_mime in {
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "application/vnd.ms-excel",
         } or lower_name.endswith((".xlsx", ".xls")):
-            return self._parse_xlsx(raw)
+            return await asyncio.to_thread(self._parse_xlsx, raw)
         return None
 
     def _extract_bytes(self, raw: bytes, *, mime_type: str, name: str) -> str | None:
-        """Sync wrapper — used by _download_and_extract_content. Cannot call OCR."""
+        """Sync wrapper — used by tests and any non-async caller. Cannot call
+        OCR. Production callers should use `_extract_bytes_async` which pushes
+        CPU work off the event loop.
+        """
         if self._is_text_like(mime_type=mime_type, name=name):
             return self._decode_bytes(raw)
         lower_name = name.lower()

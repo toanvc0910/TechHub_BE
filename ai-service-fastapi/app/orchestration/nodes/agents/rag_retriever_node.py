@@ -25,7 +25,7 @@ class RagRetrieverNode:
         completed_ids = {
             item["course_id"]
             for item in course_history
-            if item.get("status") == "COMPLETED" or item.get("progress", 0) >= 0.95
+            if item.get("status") == "COMPLETED" or item.get("historyBucket") == "completed" or item.get("progress", 0) >= 0.95
         }
 
         # Enrich query with skill profile for recommendation intent
@@ -72,7 +72,7 @@ class RagRetrieverNode:
         in_progress_ids = {
             item["course_id"]
             for item in state.get("user_course_history", [])
-            if item.get("status") == "IN_PROGRESS"
+            if item.get("status") == "IN_PROGRESS" or item.get("historyBucket") in {"in_progress", "enrolled"}
         }
 
         reranked = []

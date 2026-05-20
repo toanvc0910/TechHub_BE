@@ -156,8 +156,16 @@ class RagResponseNode:
             skills_str = ", ".join(f"{name} ({level:.0%})" for name, level in top_skills)
             lines.append(f"Ky nang hien tai cua nguoi dung: {skills_str}")
 
-        completed = [item["title"] for item in course_history if item.get("status") == "COMPLETED"]
-        in_progress = [item["title"] for item in course_history if item.get("status") == "IN_PROGRESS"]
+        completed = [
+            item["title"]
+            for item in course_history
+            if item.get("status") == "COMPLETED" or item.get("historyBucket") == "completed"
+        ]
+        in_progress = [
+            item["title"]
+            for item in course_history
+            if item.get("status") == "IN_PROGRESS" or item.get("historyBucket") in {"in_progress", "enrolled"}
+        ]
 
         if completed:
             lines.append(f"Khoa hoc da hoan thanh: {', '.join(completed[:5])}")

@@ -29,10 +29,23 @@ def _build_url() -> str:
     return url
 
 
+_statement_timeout_ms = max(0, int(settings.database_statement_timeout_ms))
+_connect_args: dict = {}
+if _statement_timeout_ms > 0:
+    # asyncpg `server_settings` sets PostgreSQL session parameters when the
+    # connection is established. statement_timeout protects the pool from a
+    # single slow query starving every other request.
+    _connect_args["server_settings"] = {"statement_timeout": str(_statement_timeout_ms)}
+
 engine = create_async_engine(
     _build_url(),
     echo=settings.database_echo,
     pool_pre_ping=True,
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+    pool_recycle=settings.database_pool_recycle_seconds,
+    pool_timeout=settings.database_pool_timeout_seconds,
+    connect_args=_connect_args,
 )
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
+import uuid as _uuid
 from collections.abc import Iterable
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from time import perf_counter
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
+
+# Stable namespace for deriving file-chunk point IDs. Don't change unless
+# you also re-ingest every chunk: existing rows would become orphaned.
+_FILE_CHUNK_NAMESPACE = _uuid.UUID("9e2b3c6f-1d6a-4b9a-9d4b-4e5a7c8f0a01")
 
 from app.core.config import get_settings
 from app.schemas.admin import QdrantCollectionStats
@@ -80,12 +88,15 @@ class VectorService:
                     results = response.json().get("result", [])
                     normalized = [self._normalize_scored_point(item) for item in results]
                     if normalized:
+                        for item in normalized:
+                            item["retrievalMode"] = "vector"
                         await runtime_observability_service.record_vector_operation(
                             operation="search_courses",
                             duration_ms=(perf_counter() - started) * 1000,
                             success=True,
                             collection=self._settings.qdrant_course_collection,
                             count=len(normalized),
+                            mode="vector",
                         )
                         return normalized
             except Exception:
@@ -98,12 +109,15 @@ class VectorService:
             language=language,
             exclude_course_ids=exclude_course_ids,
         )
+        for item in results:
+            item["retrievalMode"] = "lexical_fallback"
         await runtime_observability_service.record_vector_operation(
-            operation="search_courses_lexical",
+            operation="search_courses",
             duration_ms=(perf_counter() - started) * 1000,
             success=True,
             collection=self._settings.qdrant_course_collection,
             count=len(results),
+            mode="lexical_fallback",
         )
         return results
 
@@ -147,12 +161,15 @@ class VectorService:
                     results = response.json().get("result", [])
                     normalized = [self._normalize_scored_point(item) for item in results]
                     if normalized:
+                        for item in normalized:
+                            item["retrievalMode"] = "vector"
                         await runtime_observability_service.record_vector_operation(
                             operation="search_profiles",
                             duration_ms=(perf_counter() - started) * 1000,
                             success=True,
                             collection=self._settings.qdrant_profile_collection,
                             count=len(normalized),
+                            mode="vector",
                         )
                         return normalized
             except Exception:
@@ -163,12 +180,15 @@ class VectorService:
             limit=limit,
             exclude_user_ids=exclude_user_ids,
         )
+        for item in results:
+            item["retrievalMode"] = "lexical_fallback"
         await runtime_observability_service.record_vector_operation(
-            operation="search_profiles_lexical",
+            operation="search_profiles",
             duration_ms=(perf_counter() - started) * 1000,
             success=True,
             collection=self._settings.qdrant_profile_collection,
             count=len(results),
+            mode="lexical_fallback",
         )
         return results
 
@@ -186,6 +206,67 @@ class VectorService:
             except Exception:
                 pass
         return await catalog_service.fetch_lesson_by_id(lesson_id)
+
+    # Feature -> required Qdrant collections. Keep this map tight: each
+    # AI feature should declare exactly the collections it needs to be
+    # considered usable. `get_feature_readiness` reads collection stats
+    # and reports whether every required collection has at least one point.
+    FEATURE_COLLECTION_REQUIREMENTS: dict[str, tuple[str, ...]] = {
+        "recommendation": ("courses",),
+        "similar_learner": ("profiles",),
+        "lesson_qa": ("lessons",),
+        "exercise_grounding": ("lessons",),
+        "session_file_chat": ("sessionFiles",),
+        "user_file_chat": ("userFiles",),
+        "course_rag": ("courses",),
+    }
+
+    async def get_feature_readiness(self) -> dict[str, Any]:
+        """Report whether each AI feature has its required Qdrant collections ready.
+
+        A feature is `ready` only when every required collection exists,
+        has status != `not_initialized` / `unavailable`, and has at least one
+        point indexed. Degraded features are listed so admin observability
+        can show what is currently lexical-only or unusable.
+        """
+        stats = await self.get_collection_stats()
+        collections = stats.get("collections") or {}
+        features: dict[str, dict[str, Any]] = {}
+        degraded: list[str] = []
+
+        for feature, required in self.FEATURE_COLLECTION_REQUIREMENTS.items():
+            missing_collections: list[str] = []
+            empty_collections: list[str] = []
+            unavailable_collections: list[str] = []
+            for logical_name in required:
+                col = collections.get(logical_name)
+                if col is None:
+                    missing_collections.append(logical_name)
+                    continue
+                status = str(col.get("status") or "")
+                points = int(col.get("pointsCount") or col.get("vectorCount") or 0)
+                if status in {"unavailable"}:
+                    unavailable_collections.append(logical_name)
+                elif status == "not_initialized":
+                    missing_collections.append(logical_name)
+                elif points <= 0:
+                    empty_collections.append(logical_name)
+            ready = not (missing_collections or empty_collections or unavailable_collections)
+            features[feature] = {
+                "ready": ready,
+                "required": list(required),
+                "missing": missing_collections,
+                "empty": empty_collections,
+                "unavailable": unavailable_collections,
+            }
+            if not ready:
+                degraded.append(feature)
+        return {
+            "healthy": stats.get("healthy", False),
+            "features": features,
+            "degradedFeatures": sorted(degraded),
+            "collections": collections,
+        }
 
     async def get_collection_stats(self) -> dict[str, Any]:
         collections = {
@@ -403,6 +484,74 @@ class VectorService:
             },
         }
 
+    async def reindex_single_profile(self, user_id: str) -> dict[str, Any]:
+        """Incrementally reindex one user profile vector.
+
+        Used by Kafka event handlers (enrollment/rating/path) so a single
+        user's signal change does not trigger a global reindex_all().
+        """
+        started = perf_counter()
+        if not user_id:
+            return {"success": False, "message": "user_id required", "stats": {"indexed": 0, "failed": 1}}
+
+        profile = await catalog_service.fetch_user_profile(user_id)
+        if profile is None:
+            await runtime_observability_service.record_vector_operation(
+                operation="reindex_single_profile",
+                duration_ms=(perf_counter() - started) * 1000,
+                success=False,
+                collection=self._settings.qdrant_profile_collection,
+                count=0,
+            )
+            return {
+                "success": False,
+                "message": f"User {user_id} not found or inactive.",
+                "stats": {"indexed": 0, "failed": 1},
+            }
+
+        course_history = await catalog_service.fetch_user_course_history(user_id)
+        profile["course_history"] = course_history
+        summary_text = catalog_service.summarize_user_profile(profile, course_history)
+        embeddings = await switchable_ai_gateway.generate_embeddings(
+            [summary_text],
+            task_type="RETRIEVAL_DOCUMENT",
+        )
+        embedding = embeddings[0] if embeddings else []
+        if not embedding:
+            await runtime_observability_service.record_vector_operation(
+                operation="reindex_single_profile",
+                duration_ms=(perf_counter() - started) * 1000,
+                success=False,
+                collection=self._settings.qdrant_profile_collection,
+                count=0,
+            )
+            return {
+                "success": False,
+                "message": f"Failed to generate embedding for user {user_id}.",
+                "stats": {"indexed": 0, "failed": 1},
+            }
+
+        point = {
+            "id": str(profile.get("user_id") or user_id),
+            "vector": embedding,
+            "payload": self._json_ready(self._profile_payload(profile)),
+        }
+        await self._ensure_collection(self._settings.qdrant_profile_collection, len(embedding))
+        await self._upsert_points(self._settings.qdrant_profile_collection, [point])
+
+        await runtime_observability_service.record_vector_operation(
+            operation="reindex_single_profile",
+            duration_ms=(perf_counter() - started) * 1000,
+            success=True,
+            collection=self._settings.qdrant_profile_collection,
+            count=1,
+        )
+        return {
+            "success": True,
+            "message": f"Profile {user_id} reindexed.",
+            "stats": {"indexed": 1, "failed": 0},
+        }
+
     async def _reindex_behavior_profiles(self) -> dict[str, Any]:
         started = perf_counter()
         profiles = await catalog_service.fetch_user_profiles_for_indexing()
@@ -473,6 +622,23 @@ class VectorService:
         operation: str,
     ) -> dict[str, Any]:
         started = perf_counter()
+        # Idempotent re-ingest: drop existing chunks for each (user_id, file_id,
+        # session_id) tuple before upserting. Otherwise re-parsing the same
+        # file with shorter content would leave orphan chunks at higher index.
+        for file_item in files:
+            file_id = str(file_item.get("id") or file_item.get("fileId") or file_item.get("referenceId") or "")
+            if not file_id:
+                continue
+            try:
+                await self.delete_file_chunks(
+                    collection=collection,
+                    user_id=user_id,
+                    file_id=file_id,
+                    session_id=session_id,
+                )
+            except Exception:  # pragma: no cover - best effort cleanup
+                logger.exception("Failed to delete prior chunks for file %s", file_id)
+
         chunk_records: list[dict[str, Any]] = []
         for file_item in files:
             text = str(file_item.get("content") or file_item.get("text") or "").strip()
@@ -488,6 +654,14 @@ class VectorService:
                 or file_item.get("cloudinarySecureUrl")
                 or ""
             )
+            source_updated_at = str(
+                file_item.get("sourceUpdatedAt")
+                or file_item.get("updatedAt")
+                or file_item.get("updated")
+                or ""
+            ) or None
+            content_hash = hashlib.sha1(text.encode("utf-8")).hexdigest()
+            ingested_at = datetime.now(timezone.utc).isoformat()
             for index, chunk in enumerate(self._chunk_text(text), start=1):
                 chunk_records.append(
                     {
@@ -503,6 +677,9 @@ class VectorService:
                             "source_url": source_url or None,
                             "chunk_index": index,
                             "excerpt": chunk[:400],
+                            "content_hash": content_hash,
+                            "source_updated_at": source_updated_at,
+                            "ingested_at": ingested_at,
                         },
                     }
                 )
@@ -580,6 +757,95 @@ class VectorService:
             limit=limit,
             operation="search_user_files",
         )
+
+    async def delete_file_chunks(
+        self,
+        *,
+        collection: str,
+        user_id: str,
+        file_id: str,
+        session_id: str | None = None,
+    ) -> int:
+        """Delete all chunks for one file in one collection. Returns deleted count
+        when Qdrant reports it (0 when collection doesn't exist).
+
+        Used by re-ingest to keep chunks idempotent: when content changes the
+        old chunks for higher indexes would otherwise remain orphaned. Also
+        usable for "forget my file" flows.
+        """
+        if not self._settings.qdrant_host or not user_id or not file_id:
+            return 0
+        must = [
+            {"key": "user_id", "match": {"value": str(user_id)}},
+            {"key": "file_id", "match": {"value": str(file_id)}},
+        ]
+        if session_id:
+            must.append({"key": "session_id", "match": {"value": str(session_id)}})
+        try:
+            response = await self._client.post(
+                f"{self._settings.qdrant_host}/collections/{collection}/points/delete",
+                headers=self._headers(),
+                params={"wait": "true"},
+                json={"filter": {"must": must}},
+            )
+            if response.status_code == 404:
+                return 0
+            response.raise_for_status()
+            result = response.json().get("result") or {}
+            return int(result.get("operation_id") or 0)
+        except Exception:
+            logger.exception("delete_file_chunks failed for file %s", file_id)
+            return 0
+
+    async def get_file_index_status(
+        self,
+        *,
+        user_id: str,
+        file_id: str,
+        scope: str = "user",
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Report whether a user file has indexed chunks in Qdrant.
+
+        Returns shape: {status: 'INDEXED'|'NOT_INDEXED'|'COLLECTION_MISSING', chunkCount: int}.
+        scope='session' queries the session-file collection (requires session_id);
+        scope='user' (default) queries the user-file collection.
+        """
+        if scope == "session":
+            collection = self._settings.qdrant_session_file_collection
+            if not session_id:
+                return {"status": "NOT_INDEXED", "chunkCount": 0, "reason": "session_id required for scope=session"}
+        else:
+            collection = self._settings.qdrant_user_file_collection
+
+        if not self._settings.qdrant_host or not user_id or not file_id:
+            return {"status": "NOT_INDEXED", "chunkCount": 0, "reason": "missing user_id/file_id/qdrant_host"}
+
+        must = [
+            {"key": "user_id", "match": {"value": str(user_id)}},
+            {"key": "file_id", "match": {"value": str(file_id)}},
+        ]
+        if scope == "session" and session_id:
+            must.append({"key": "session_id", "match": {"value": str(session_id)}})
+
+        try:
+            response = await self._client.post(
+                f"{self._settings.qdrant_host}/collections/{collection}/points/count",
+                headers=self._headers(),
+                json={"filter": {"must": must}, "exact": True},
+            )
+            if response.status_code == 404:
+                return {"status": "COLLECTION_MISSING", "chunkCount": 0, "collection": collection}
+            response.raise_for_status()
+            count = int((response.json().get("result") or {}).get("count") or 0)
+        except Exception as exc:
+            logger.warning("get_file_index_status failed for %s: %s", file_id, exc)
+            return {"status": "NOT_INDEXED", "chunkCount": 0, "reason": str(exc)}
+        return {
+            "status": "INDEXED" if count > 0 else "NOT_INDEXED",
+            "chunkCount": count,
+            "collection": collection,
+        }
 
     async def _search_file_chunks(
         self,
@@ -843,6 +1109,8 @@ class VectorService:
             "status": course.get("status"),
             "instructor_id": course.get("instructor_id"),
             "enrollment_count": course.get("enrollment_count") or 0,
+            "average_rating": course.get("average_rating") or 0.0,
+            "rating_count": course.get("rating_count") or 0,
             "created": course.get("created"),
             "updated": course.get("updated"),
         }
@@ -884,8 +1152,16 @@ class VectorService:
             "preferred_language": profile.get("preferred_language"),
             "learning_history": profile.get("learning_history") or {},
             "course_history": history,
-            "completed_courses": [item.get("course_id") for item in history if item.get("status") == "COMPLETED"],
-            "in_progress_courses": [item.get("course_id") for item in history if item.get("status") == "IN_PROGRESS"],
+            "completed_courses": [
+                item.get("course_id")
+                for item in history
+                if item.get("status") == "COMPLETED" or item.get("historyBucket") == "completed"
+            ],
+            "in_progress_courses": [
+                item.get("course_id")
+                for item in history
+                if item.get("status") == "IN_PROGRESS" or item.get("historyBucket") == "in_progress"
+            ],
             "skills": sorted({skill for item in history for skill in item.get("skills", [])}),
         }
 
@@ -945,9 +1221,12 @@ class VectorService:
 
     @staticmethod
     def _stable_point_id(session_id: str | None, file_id: str, chunk_index: int) -> str:
+        # Qdrant accepts only UUID or unsigned int as point IDs. Earlier code
+        # used a raw sha1 hex digest, which Qdrant 1.13 rejects with HTTP 400.
+        # Use deterministic UUIDv5 so re-ingest still hits the same id (and
+        # therefore upserts in place rather than duplicating).
         scope = session_id or "global"
-        digest = hashlib.sha1(f"{scope}:{file_id}:{chunk_index}".encode("utf-8")).hexdigest()
-        return digest
+        return str(_uuid.uuid5(_FILE_CHUNK_NAMESPACE, f"{scope}:{file_id}:{chunk_index}"))
 
     @staticmethod
     def _file_search_must_filter(*, user_id: str, session_id: str | None) -> list[dict[str, Any]]:

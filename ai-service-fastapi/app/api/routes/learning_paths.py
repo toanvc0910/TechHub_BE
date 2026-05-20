@@ -1,7 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
+from app.api.dependencies.trusted_context import (
+    TrustedContext,
+    copy_model_with_updates,
+    get_trusted_context,
+    require_user_match,
+)
 from app.core.responses import success_response
 from app.schemas.learning_path import LearningPathGenerateRequest
 from app.services.learning_path_service import learning_path_service
@@ -10,8 +16,14 @@ router = APIRouter()
 
 
 @router.post("/generate")
-async def generate_learning_path(payload: LearningPathGenerateRequest, request: Request) -> dict:
-    response = await learning_path_service.generate(payload)
+async def generate_learning_path(
+    payload: LearningPathGenerateRequest,
+    request: Request,
+    trusted: TrustedContext = Depends(get_trusted_context),
+) -> dict:
+    trusted_user_id = require_user_match(payload.userId, trusted)
+    trusted_payload = copy_model_with_updates(payload, userId=trusted_user_id)
+    response = await learning_path_service.generate(trusted_payload)
     return success_response(
         message="Learning path draft generated",
         data=response.model_dump(mode="json"),

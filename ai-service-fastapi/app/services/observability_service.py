@@ -55,6 +55,7 @@ class RuntimeObservabilityService:
         self._provider_events: deque[ProviderMetric] = deque(maxlen=settings.runtime_metrics_window * 2)
         self._vector_events: deque[VectorMetric] = deque(maxlen=settings.runtime_metrics_window * 2)
         self._counters: Counter[str] = Counter()
+        self._timestamps: dict[str, str] = {}
 
     async def record_chat_run(
         self,
@@ -179,6 +180,7 @@ class RuntimeObservabilityService:
         success: bool,
         collection: str | None = None,
         count: int = 0,
+        mode: str | None = None,
     ) -> None:
         async with self._lock:
             self._vector_events.append(
@@ -197,6 +199,16 @@ class RuntimeObservabilityService:
                 self._counters[f"vector:{operation}:failed"] += 1
             if count:
                 self._counters[f"vector:{operation}:count"] += count
+            if mode:
+                self._counters[f"vector:{operation}:mode:{mode}"] += 1
+            now_iso = datetime.now(timezone.utc).isoformat()
+            if collection:
+                if operation.startswith("reindex_single_"):
+                    self._timestamps[f"last_incremental:{collection}"] = now_iso
+                elif operation in {"reindex_courses", "reindex_lessons", "reindex_profiles", "reindex_all"}:
+                    self._timestamps[f"last_full_reindex:{collection}"] = now_iso
+                if not success:
+                    self._timestamps[f"last_error:{collection}"] = now_iso
         metrics_logger.info(json.dumps({
             "type": "vector_operation",
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -205,6 +217,38 @@ class RuntimeObservabilityService:
             "success": success,
             "duration_ms": round(duration_ms, 2),
             "count": count,
+            "mode": mode,
+        }))
+
+    async def record_publish_event(
+        self,
+        *,
+        kind: str,
+        status: str,
+        target_id: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Track AI draft -> domain publish outcomes (Step 06/07).
+
+        kind   : 'learning_path' | 'exercise'
+        status : 'PUBLISHED' | 'PUBLISH_FAILED' | 'SKIPPED_NO_BASE_URL'
+        """
+        async with self._lock:
+            self._counters[f"publish:{kind}:total"] += 1
+            self._counters[f"publish:{kind}:{status}"] += 1
+            now_iso = datetime.now(timezone.utc).isoformat()
+            self._timestamps[f"publish:last:{kind}:{status}"] = now_iso
+            if status == "PUBLISHED":
+                self._timestamps[f"publish:last_success:{kind}"] = now_iso
+            elif status == "PUBLISH_FAILED":
+                self._timestamps[f"publish:last_failure:{kind}"] = now_iso
+        metrics_logger.info(json.dumps({
+            "type": "publish_event",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "kind": kind,
+            "status": status,
+            "targetId": target_id,
+            "error": (error or "")[:240],
         }))
 
     async def record_file_ingestion(
@@ -231,6 +275,7 @@ class RuntimeObservabilityService:
             provider_events = list(self._provider_events)
             vector_events = list(self._vector_events)
             counters = dict(self._counters)
+            timestamps = dict(self._timestamps)
 
         chat_latencies = [item.duration_ms for item in chat_runs]
         vector_latencies = [item.duration_ms for item in vector_events]
@@ -272,6 +317,7 @@ class RuntimeObservabilityService:
             },
             "vectorOps": {
                 "recent": [asdict(item) for item in vector_events[-10:]],
+                "timestamps": timestamps,
             },
             "chatRuns": {
                 "recent": [asdict(item) for item in chat_runs[-10:]],

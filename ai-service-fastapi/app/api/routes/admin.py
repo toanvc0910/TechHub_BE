@@ -4,18 +4,22 @@ from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 
+from app.api.dependencies.trusted_context import require_admin_context
 from app.core.config import get_settings
 from app.core.responses import success_response
 from app.schemas.admin import FileUploadedEventRequest, ProviderConfigRequest
+from app.services.data_contract import summarize_data_contract, validate_data_contract
+from app.services.draft_service import draft_service
 from app.services.file_context_service import file_context_service
 from app.services.langfuse_service import langfuse_service
 from app.services.observability_service import runtime_observability_service
 from app.services.provider_config import provider_config_service
+from app.services.release_readiness_service import release_readiness_service
 from app.services.vector_service import vector_service
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin_context)])
 
 
 @router.post("/reindex-courses")
@@ -51,6 +55,49 @@ async def get_qdrant_stats(request: Request) -> dict:
 async def get_runtime_stats(request: Request) -> dict:
     data = await runtime_observability_service.snapshot()
     return success_response(message="Runtime AI statistics retrieved", data=data, path=request.url.path)
+
+
+@router.post("/sweep-stuck-publishing")
+async def sweep_stuck_publishing(request: Request, olderThanMinutes: int = 10) -> dict:
+    """Reset draft rows stuck at PUBLISHING (orphan after AI service crash mid-publish)."""
+    bounded = max(1, min(int(olderThanMinutes), 1440))
+    count = await draft_service.sweep_stuck_publishing(older_than_minutes=bounded)
+    return success_response(
+        message=f"Sweeper reset {count} stuck PUBLISHING row(s).",
+        data={"reset": count, "olderThanMinutes": bounded},
+        path=request.url.path,
+        status="DRAFT_SWEEP_COMPLETED",
+    )
+
+
+@router.get("/release-readiness")
+async def get_release_readiness(request: Request) -> dict:
+    """Aggregated per-capability status for release decisions (Step 10).
+
+    Combines Qdrant feature readiness, publish counters/timestamps, data-contract
+    validation, and ai_generation_tasks audit. Returns a `capabilities` map keyed
+    by AI capability with status in:
+    CODE_WIRED | FALLBACK_DEMO | REAL_DATA_READY | E2E_VERIFIED | DEGRADED | FAILED.
+    """
+    data = await release_readiness_service.snapshot()
+    return success_response(message="Release readiness snapshot", data=data, path=request.url.path)
+
+
+@router.get("/data-contract")
+async def get_data_contract(request: Request) -> dict:
+    data = summarize_data_contract()
+    return success_response(message="AI data contract retrieved", data=data, path=request.url.path)
+
+
+@router.get("/data-contract/validate")
+async def validate_current_data_contract(request: Request) -> dict:
+    data = await validate_data_contract()
+    return success_response(
+        message="AI data contract validation completed",
+        data=data,
+        path=request.url.path,
+        status=data.get("status", "DATA_CONTRACT_VALIDATED"),
+    )
 
 
 @router.get("/provider-config")

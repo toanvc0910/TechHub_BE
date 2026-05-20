@@ -1,303 +1,192 @@
-# TechHub AI Service — Implementation Status
+# TechHub AI Service - Trạng Thái Thực Thi Và Kế Hoạch Hoàn Thành Nghiệp Vụ
 
-> **Last audited:** 2026-04-20  
-> **Plan reference:** `E:\University\HK1_FourYear\POSE\upgradeAIService\TechHub_AI_Architecture_Theory_3.md`  
-> **Audit rule:** code hiện có là nguồn sự thật. Chỉ đánh dấu `DONE` khi tính năng đã có trong source và đã được wire vào flow chính.
+> Rà soát lần cuối: 2026-05-16
+> Phạm vi: `TechHub_BE/ai-service-fastapi`, `TechHub_BE/techhub.sql`, và các điểm tích hợp trong `TechHub_BE`
+> Quy tắc đánh giá: một chức năng không được xem là hoàn thành chỉ vì endpoint trả về dữ liệu. Chỉ xem là hoàn thành khi chức năng dùng đúng bảng thật, quan hệ thật, người dùng thật, dữ liệu index thật, và qua được kịch bản nghiệp vụ đầu-cuối.
 
-## 1. Kết luận nhanh
+## 1. Kết Luận Hiện Tại
 
-- **Mức bám plan gốc ở cấp source:** cao, khoảng `~95%`.
-- **Mức hoàn tất theo workstream:** phần lớn đã `DONE`; hiện còn `1` hạng mục `PARTIAL` là **OCR production verification**.
-- **Build health hiện tại:**
-  - `python -m compileall TechHub_BE/ai-service-fastapi/app` → `PASS`
-  - `node TechHub_FE/node_modules/typescript/bin/tsc -p TechHub_FE/tsconfig.json --noEmit` → `PASS`
+AI Service hiện đã có khung kỹ thuật khá đầy đủ: FastAPI route, chat orchestration, Qdrant, đổi provider, lưu draft, parse file, Kafka consumer và admin endpoint.
 
-### Những gì đã khớp với plan gốc
+Nhưng nếu đo theo bài toán nghiệp vụ thật của TechHub thì chưa hoàn thành. Nhiều phần đang ở mức "đủ để demo" hoặc "có fallback để không lỗi", chưa đủ để chạy đúng với dữ liệu học tập thật.
 
-- FastAPI đã thay vai trò `AI-SERVICE`, giữ contract REST/SSE để Java gateway/proxy và FE tiếp tục dùng.
-- Orchestrator đã dùng `LangGraph StateGraph`, có Redis hot path, intent routing, HITL clarify, agent dispatch và context save.
-- Semantic layer đã dùng PostgreSQL + Qdrant + Redis + Kafka incremental indexing.
-- Chat, recommendation, learning path, exercise và draft flow đã được kéo sang source mới.
-- FE đã tận dụng được chat SSE, citations, chart, file attach, learning path/exercise AI flow và admin observability.
+Các điểm cần sửa cách hiểu:
 
-### Những gì chưa thể coi là hoàn tất 100%
+- Hỏi số liệu đã có semantic layer ở Step 03: metric registry, SQL template, validator theo metric. Đã chạy E2E ngày 2026-05-16 trên PostgreSQL live (`techhub` schema): 9/9 câu hỏi bắt buộc đi qua planner -> validator -> SQL execute thành công (xem `tests/test_step03_analytics_semantic_layer.py`). Một số metric vẫn trả empty vì DB chưa seed `progress/submissions/learning_paths/path_progress/analytics`.
+- Qdrant không tự biết join bảng. Các câu hỏi như tiến độ học, đánh giá, bài nộp, doanh thu, hoàn thành lộ trình phải dựa vào PostgreSQL và bản đồ quan hệ nghiệp vụ.
+- Recommendation đã có semantic signal layer ở Step 04: rating đúng schema, course history có progress source, không loại nhầm khóa đang học dở, và response ghi rõ pipeline/signal. E2E 2026-05-16 trên DB live cho 2 user thật + 1 cold-start: rating query đúng schema, history bucket/progressSource đúng, 2 user nhận candidate set khác nhau, pipeline resolution + AI payload sanitization PASS (`tests/test_step04_recommendation_signal_layer.py`).
+- Learning path và exercise đều có publish flow: Step 06 (LP) và Step 07 (exercise) cùng pattern validator + publisher + status `DRAFT -> PUBLISHING -> PUBLISHED/PUBLISH_FAILED` + audit `result_payload.publish`. Để publish thật cần set `LEARNING_PATH_SERVICE_BASE_URL` / `COURSE_SERVICE_BASE_URL` trong `.env`; nếu thiếu thì draft đứng ở APPROVED và FE có thể vẫn lấy data từ AI service.
+- File analysis có Step 08 với hydrate -> parse (DOCX/XLSX/PDF/text) -> chunk -> Qdrant indexing với ownership enforced (user_id + session_id filter), idempotent re-ingest, readiness API, content_hash audit. OCR-gated cho image qua Gemini Vision khi `OCR_ENABLED=true` + `GEMINI_API_KEY`. Bug nghiêm trọng đã fix: `_stable_point_id` từng trả sha1 hex (Qdrant 400) - đã đổi sang UUIDv5 deterministic.
+- Chat streaming đã được nối vào trusted identity ở Step 02: WebClient forward `X-User-Id`, `X-User-Email`, `X-User-Roles`; `techhub.sql` chuyển stream sang permission-based policy. Vẫn cần test E2E qua token thật để lên `E2E_VERIFIED`.
+- Trạng thái `DONE` cũ che mất fallback. Trả được fallback không có nghĩa là giải quyết đúng nghiệp vụ.
 
-- OCR có code thật và đã wire vào file pipeline, nhưng **chưa có bằng chứng test production** trong môi trường thật với file scan/image + Gemini key hoạt động ổn định.
+## 2. Cách Gọi Trạng Thái Từ Bây Giờ
 
-### Ghi chú quan trọng
+| Trạng thái | Ý nghĩa |
+|---|---|
+| `CODE_WIRED` | Đã có route/service/code path, nhưng chưa chứng minh chạy đúng dữ liệu thật. |
+| `FALLBACK_DEMO` | Chạy được chủ yếu nhờ fallback, mock, catalog mới nhất, hoặc empty-safe output. |
+| `REAL_DATA_READY` | Đã dùng đúng bảng PostgreSQL, quan hệ, Qdrant collection, và user context xác thực. |
+| `E2E_VERIFIED` | Đã test qua proxy và AI Service với dữ liệu gần production, đúng kết quả nghiệp vụ. |
+| `BLOCKED` | Bị chặn vì thiếu schema, thiếu data, thiếu infra, hoặc thiếu contract với service khác. |
 
-- `HITL` trong hệ thống hiện tại là **clarify với end-user**, đúng với plan gốc.
-- **Admin approval cho chat đã bị loại bỏ** để bám kiến trúc clarify-style HITL của plan.
-- Approval hiện chỉ còn cho **draft exercise / learning path publishing flow**, không còn là gate cho câu trả lời chat.
+Không đánh dấu `E2E_VERIFIED` nếu chưa test cả happy path và ít nhất một trường hợp rỗng/lỗi.
 
----
+## 3. Nguồn Sự Thật Dữ Liệu
 
-## 2. Concept Tổng Quan
+### 3.1 PostgreSQL Là Nguồn Nghiệp Vụ Chính
 
-### 2.1 Kiến trúc hiện tại
+`TechHub_BE/techhub.sql` là nguồn sự thật cho bảng và quan hệ. Prompt hoặc vector DB không được tự quyết định quan hệ bảng.
 
-```mermaid
-flowchart TD
-    FE["FE Next.js"] --> GW["Gateway + Proxy Client (Java)"]
-    GW --> AI["FastAPI AI Service"]
+Quan hệ học tập cốt lõi:
 
-    subgraph ORCH["T2 · Orchestration"]
-        CTX["Redis context load/save"]
-        IR["Intent router"]
-        HITL["HITL clarify gate"]
-        AG["Agent dispatch"]
-        RC["Response compose + SSE"]
-    end
+```text
+users
+  -> profiles
+  -> enrollments -> courses
+  -> ratings(target_id, target_type, score)
+  -> progress -> lessons -> chapters -> courses
+  -> submissions -> exercises -> lessons
+  -> path_progress -> learning_paths -> learning_path_courses -> courses
 
-    AI --> ORCH
-    ORCH --> PG["PostgreSQL"]
-    ORCH --> RD["Redis"]
-    ORCH --> QD["Qdrant"]
-    ORCH --> LLM["LLM Gateway (Gemini / OpenAI / fallback)"]
-    KFK["Kafka events"] --> AI
+courses
+  -> chapters -> lessons -> exercises -> exercise_test_cases
+  -> course_skills -> skills
+  -> course_tags -> tags
+
+files
+  -> file_usage
+  -> AI indexed chunks trong Qdrant
+
+ai_generation_tasks
+  -> chỉ lưu draft/kết quả AI, không phải bảng production của exercise/path
 ```
 
-### 2.2 Luồng runtime chat hiện tại
+Các sự thật schema quan trọng:
 
-```mermaid
-flowchart LR
-    START["Request vào /api/ai/chat/..."] --> LOAD["context_load"]
-    LOAD --> INTENT["intent_router"]
-    INTENT --> HITL["hitl_gate"]
-    HITL --> EXTRACT["entity_extract"]
-    EXTRACT --> DISPATCH["agent_dispatch"]
-    DISPATCH --> COMPOSE["response_compose"]
-    COMPOSE --> SAVE["context_save"]
-    SAVE --> END["SSE / response hoàn tất"]
+- `ratings` không có `course_id` hoặc `rating`; bảng thật dùng `target_id`, `target_type`, `score`.
+- `course_prerequisites` không tồn tại trong `techhub.sql`.
+- Bảng `analytics` có tồn tại nhưng AI analytics hiện chưa đưa vào allowlist.
+- `techhub.sql` seed role, permission, endpoint policy; không seed dữ liệu học tập đủ thật như chapters, lessons, progress, submissions, learning paths.
+- Vì vậy DB fresh từ `techhub.sql` chưa đủ để chứng minh cá nhân hóa học tập, sinh exercise theo lesson thật, hoặc analytics theo path/progress.
 
-    HITL -. "nếu cần hỏi lại" .-> CLARIFY["override intent='clarify'"]
-    CLARIFY -.-> DISPATCH
-    DISPATCH -. "conversation_agent" .-> QUESTION["LLM sinh clarify question + quick replies"]
-```
+### 3.2 Vai Trò Đúng Của Qdrant
 
-### 2.3 Cách đọc status trong file này
+Qdrant dùng để tìm kiếm theo ngữ nghĩa, không phải nguồn sự thật quan hệ.
 
-- `DONE`: đã có trong source, đã nối vào flow chính, và không còn là scaffold rời.
-- `PARTIAL`: đã có code và wiring chính, nhưng còn thiếu xác nhận production hoặc còn phụ thuộc môi trường chưa kiểm chứng.
-- `NOT DONE`: chưa có hoặc chưa thực sự nối vào flow chính.
+Nên dùng Qdrant để:
 
----
+- tìm course candidate theo ý nghĩa,
+- tìm lesson/file chunk liên quan câu hỏi,
+- tìm người học tương đồng sau khi profile vector đã được build,
+- lấy citation/context cho câu trả lời.
 
-## 3. Capability Matrix Theo Plan Gốc
+Không dùng Qdrant để:
 
-| Workstream | Status | Ghi chú ngắn |
+- quyết định SQL join,
+- tính số lượng học viên, tiến độ, rating, payment, submission, completion rate,
+- thay thế foreign key và business rule trong PostgreSQL.
+
+### 3.3 Vai Trò Đúng Của AI Draft
+
+`ai_generation_tasks` là bảng draft/audit của AI.
+
+Đích publish thật:
+
+- Exercise phải được Course Service tạo vào `exercises` và `exercise_test_cases`.
+- Learning path phải được Learning Path Service tạo vào `learning_paths`, `learning_path_courses`, và các bảng liên quan.
+
+Approve draft mà chỉ đổi trạng thái trong `ai_generation_tasks` thì chưa phải publish nghiệp vụ.
+
+## 4. Đánh Giá Chức Năng Hiện Tại
+
+| Chức năng | Trạng thái hiện tại | Khoảng hở thật |
 |---|---|---|
-| Gateway + Eureka compatibility | DONE | Giữ service name, FastAPI đăng ký Eureka |
-| FastAPI service foundation | DONE | Lifespan, router, schema/bootstrap, health |
-| LangGraph orchestration | DONE | StateGraph + node flow chính |
-| Intent routing + runtime policy | DONE | Regex + semantic + LLM fallback + policy gate |
-| HITL clarify | DONE | Override intent `clarify` + LLM generate question + resume |
-| Agent layer | DONE | Conversation / RAG / SQL / File / Viz |
-| LLM gateway + provider switching | DONE | Gemini/OpenAI/fallback + config persist |
-| Data layer (Redis / Qdrant / PostgreSQL) | DONE | Đã wire và dùng trong flow chính |
-| Kafka incremental indexing | DONE | Consumer + per-entity reindex + fallback full reindex |
-| Recommendation & personalization | DONE | Skill profile, history, ratings, rerank |
-| Learning path generation | DONE | Structured generation + draft flow |
-| Exercise generation | DONE | Structured generation + draft flow |
-| FE adoption | DONE | Chat page, recommendation, learning path, exercise, admin |
-| File pipeline + OCR | PARTIAL | Parse/index đã có; OCR chưa có bằng chứng production run |
-| Observability + rollout flags | DONE | Langfuse, runtime stats, provider admin, fallback flags |
+| FastAPI foundation | `CODE_WIRED` | Cần checklist release theo infra thật, không chỉ compile. |
+| Chat orchestration | `REAL_DATA_READY` | E2E 2026-05-16: 54/54 case PASS (3 tier-0 routing + 30 intent prompts đa ngôn ngữ + 7 entity + 12 grounding + 2 HITL). Quality flags `grounded`/`dataSources`/`fallbackUsed`/`missingData` populated mỗi response. Test: `tests/test_step09_chat_grounding_and_intent_quality.py`. |
+| Chat streaming | `REAL_DATA_READY` | Đã forward trusted headers qua WebClient, đổi stream policy sang `AUTHORIZED`, và FastAPI reject `userId` sai. Cần E2E qua proxy/FE để lên `E2E_VERIFIED`. |
+| Recommendation | `REAL_DATA_READY` | E2E 2026-05-16: 10/10 case PASS (5 real-data trên DB live + 5 logic-fixture cho signal data-blocked). Rating schema đúng, history bucket/progressSource đúng, 2 user khác nhau -> candidate khác nhau, cold-start -> fallback_catalog, AI payload bịa courseId bị loại. Test: `tests/test_step04_recommendation_signal_layer.py`. |
+| Learning path generation | `REAL_DATA_READY` | E2E 2026-05-16: 17/17 case (8 validator + 6 publisher + 3 approve flow) PASS trên DB live + mock HTTP cho Java endpoint. Status flow `DRAFT -> PUBLISHING -> PUBLISHED/PUBLISH_FAILED`, audit `result_payload.publish`. Test: `tests/test_step06_learning_path_publish_flow.py`. Prerequisite vẫn dùng order/level (option B) vì DB chưa có bảng `course_prerequisites`. |
+| Exercise generation | `REAL_DATA_READY` | E2E 2026-05-16: 20/20 case (10 validator + 6 publisher + 4 approve flow) PASS. Validator chạy DB live với chapter+lesson seed dưới course thật. Status flow `DRAFT->PUBLISHING->PUBLISHED/PUBLISH_FAILED`, audit `result_payload.publish.createdExerciseIds`. Test: `tests/test_step07_exercise_publish_flow.py`. AI format `mcq/essay/coding` map đúng `MULTIPLE_CHOICE/OPEN_ENDED/CODING`; placeholder test cases bị reject. |
+| Analytics/chart | `REAL_DATA_READY` | E2E 2026-05-16: 9/9 câu hỏi bắt buộc PASS qua planner -> validator -> SQL trên PostgreSQL live. Bug `_resolve_chart_type` ("tron" match "trong") đã sửa bằng word-boundary. Test script: `tests/test_step03_analytics_semantic_layer.py`. Metric có table rỗng (progress/submissions/path_progress/analytics) vẫn cần seed để assert non-empty rows. |
+| File analysis | `REAL_DATA_READY` | E2E 2026-05-16: 13/13 case PASS qua hydrate/extract(DOCX,XLSX,inline)/index/search/ownership/idempotent re-ingest/readiness API trên Qdrant live. Test: `tests/test_step08_file_ingestion_and_search.py`. Fix bug Qdrant point-ID format (sha1->UUIDv5). |
+| Qdrant indexing | `REAL_DATA_READY` | E2E 2026-05-16 trên Qdrant live: 7/7 case PASS. Có `feature_readiness()` cho 7 AI feature, `retrievalMode` tag mỗi search result, observability timestamps cho full/incremental reindex và last_error theo collection. Test: `tests/test_step05_vector_index_and_events.py`. |
+| Kafka freshness | `REAL_DATA_READY` | Đã chuyển enrollment/rating/learning-path event sang targeted reindex (`reindex_single_profile` / `reindex_single_course`), không còn gọi `reindex_all()` từ event handler. Missing-userId được log + counter, không trigger global reindex. Contract routing verified bằng spies trên 5 topic. |
+| Runtime policy | `REAL_DATA_READY` | Đã bỏ quyền từ request body, chỉ nhận role/user từ trusted headers; learner chỉ được analytics cá nhân qua Step 03, không tự bật platform analytics/PII/model override. Cần thêm policy theo tenant ở step sau. |
+| Observability | `REAL_DATA_READY` | Step 10 hoàn thành: `release_readiness_service` + admin `GET /api/ai/admin/release-readiness` tag mỗi capability bằng status enum + reason. Publisher Step 06/07 ghi `record_publish_event` → counters `publish:<kind>:PUBLISHED/PUBLISH_FAILED` + timestamps. Release runner `scripts/e2e/run_release_smoke.py` 5/5 step PASS (63 case). Test: `tests/test_step10_release_observability.py` 8/8 PASS. |
 
----
+## 5. Roadmap Hoàn Thành Nghiệp Vụ
 
-## 4. Breakdown Chi Tiết Theo Công Việc
+Triển khai theo thứ tự dưới đây. Mỗi step có một file chi tiết trong `docs/implementation-plan`.
 
-## 4.1 Foundation & Compatibility
+| Step | File chi tiết | Mục tiêu | Trạng thái sau khi xong |
+|---|---|---|---|
+| 01 | `docs/implementation-plan/01-real-data-contract.md` | Tạo data contract từ `techhub.sql`: bảng, join, metric, owner service, yêu cầu seed data. | `REAL_DATA_READY` - đã triển khai và `validate_data_contract()` pass |
+| 02 | `docs/implementation-plan/02-trusted-identity-and-policy.md` | AI dùng user identity/policy đã xác thực từ proxy/JWT, không tin `userId` client gửi. | `REAL_DATA_READY` - đã triển khai, compile và smoke test pass |
+| 03 | `docs/implementation-plan/03-analytics-semantic-layer.md` | Thay SQL ad-hoc bằng metric/join map và SQL template cho analytics thật. | `REAL_DATA_READY` - E2E 2026-05-16 chạy planner+validator+SQL trên DB live, 9/9 câu hỏi bắt buộc PASS |
+| 04 | `docs/implementation-plan/04-catalog-profile-recommendation.md` | Sửa catalog/profile/rating/history để recommendation cá nhân hóa bằng dữ liệu thật. | `REAL_DATA_READY` - E2E 2026-05-16 trên DB live, 10/10 case (5 real-data + 5 logic-fixture) PASS |
+| 05 | `docs/implementation-plan/05-vector-index-and-events.md` | Làm Qdrant/Kafka phản ánh đúng course, lesson, profile, file mới nhất. | `REAL_DATA_READY` - E2E 2026-05-16 trên Qdrant + DB live, 7/7 case PASS; consumer reindex theo target |
+| 06 | `docs/implementation-plan/06-learning-path-publish-flow.md` | Generate, validate, approve, publish learning path vào domain thật. | `REAL_DATA_READY` - E2E 2026-05-16, 17/17 case PASS, status `DRAFT->PUBLISHING->PUBLISHED/PUBLISH_FAILED` |
+| 07 | `docs/implementation-plan/07-exercise-publish-flow.md` | Generate, validate, approve, publish exercise vào Course Service. | `REAL_DATA_READY` - E2E 2026-05-16, 20/20 case PASS, status `DRAFT->PUBLISHING->PUBLISHED/PUBLISH_FAILED` |
+| 08 | `docs/implementation-plan/08-file-ingestion-and-ocr.md` | Kiểm chứng upload-to-index-to-chat cho file người dùng, gồm OCR. | `REAL_DATA_READY` - E2E 2026-05-16 trên Qdrant live, 13/13 case PASS, bug Qdrant point-ID format đã fix |
+| 09 | `docs/implementation-plan/09-chat-grounding-and-intent-quality.md` | Chat route đúng intent, có citation, không trả lời bịa khi thiếu data. | `REAL_DATA_READY` - E2E 2026-05-16, 54/54 case PASS, quality flags grounded/dataSources/fallbackUsed/missingData wire qua response_compose |
+| 10 | `docs/implementation-plan/10-e2e-observability-and-release.md` | Thêm kịch bản end-to-end, quality gate, admin observability để release. | `REAL_DATA_READY` - 2026-05-16: release runner 5/5 step PASS (63 case), admin `/release-readiness` endpoint + publish counters + status enum. `E2E_VERIFIED` cần Java services running + Qdrant lesson collection có data. |
 
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| A1 | Giữ contract `AI-SERVICE` cũ | Java gateway/proxy không cần đổi kiến trúc | DONE | FastAPI giữ các prefix `/api/ai/...`, router admin/chat/drafts/exercises/learning-paths/recommendations vẫn tồn tại |
-| A2 | Đăng ký Eureka | FastAPI xuất hiện như microservice thật trong hệ thống | DONE | `main.py` khởi tạo `py_eureka_client` khi `AI_EUREKA_ENABLED=true` |
-| A3 | App bootstrap + lifespan | Có init Redis, Langfuse, Kafka consumer khi startup | DONE | `main.py` đã init Redis client, provider config persistence, Langfuse, Kafka consumer |
-| A4 | Feature flags / rollback cơ bản | Có thể tắt orchestration mới hoặc bật fallback an toàn | DONE | `AI_ORCHESTRATION_V2_ENABLED`, `AI_LEGACY_FALLBACK_ENABLED`, `AI_BUSINESS_SAFE_MODE_ENABLED` đã có trong config và chat flow |
+## 6. Kịch Bản Bắt Buộc Phải Qua
 
-### Giải thích
+| Kịch bản | Kết quả đúng |
+|---|---|
+| Learner hỏi "tôi nên học gì tiếp?" | Recommendation dùng profile, enrollment, progress, rating, skill, catalog; không chỉ trả course mới nhất trừ khi ghi rõ fallback. |
+| Learner hỏi tiến độ học | SQL dùng `enrollments -> courses -> chapters -> lessons -> progress` với trusted user ID. |
+| Admin hỏi analytics toàn hệ thống | SQL dùng metric template, bảng allowlist, policy đúng quyền. |
+| Learner hỏi file đã upload | AI hydrate metadata, kiểm tra quyền, retrieve indexed chunks, có citation từ file. |
+| Instructor sinh exercise cho lesson | Lesson tồn tại, thuộc course đúng, có content, payload map được sang Course Service DTO. |
+| Admin approve exercise draft | Tạo record thật trong `exercises` và `exercise_test_cases`. |
+| Admin sinh learning path | Course IDs thật, node/edge hợp lệ, thứ tự có rule giải thích được. |
+| Admin approve learning path draft | Tạo record thật trong `learning_paths` và `learning_path_courses`. |
+| Course/lesson/rating/progress đổi | Kafka event cập nhật đúng Qdrant collection/profile vector. |
+| Provider/Qdrant lỗi | User nhận degraded response rõ ràng, admin thấy counter fallback/error. |
 
-- Phần foundation hiện không còn ở mức demo. Nó đã đủ để thay vai trò Java `ai-service` trong compose/deploy của repo.
-- Phần rollback hiện là **feature flag + fallback trong source**, không phải multi-service blue/green deployment automation.
+## 7. Nguyên Tắc Bắt Buộc Khi Triển Khai
 
-## 4.2 Orchestration
+- Không tin `userId` trong body cho dữ liệu cá nhân nếu không khớp trusted identity.
+- Không để LLM tự bịa join SQL. LLM chỉ được chọn trong metric đã biết hoặc bị validate chặt.
+- Không xem Qdrant là nguồn sự thật cho số liệu.
+- Không gọi draft là published nếu service owner chưa tạo record thật.
+- Không nuốt lỗi schema âm thầm khi ảnh hưởng personalization hoặc analytics.
+- Không đánh dấu fallback là hoàn thành nếu không expose `executionMode=fallback` hoặc metadata tương đương.
+- Không dùng dữ liệu giả làm bằng chứng, trừ khi test ghi rõ đó là fixture.
 
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| B1 | StateGraph orchestration | Dùng LangGraph thay cho flow imperative rời rạc | DONE | `chat_orchestrator_graph.py` dùng `StateGraph` và compile graph |
-| B2 | Context load | Đọc Redis context + active files + user memory | DONE | `context_load_node.py` lấy `recentMessages`, `awaitingClarification`, `fileContexts`, personalization inputs |
-| B3 | Intent router | Có nhiều tầng thay vì 1 if/else đơn giản | DONE | `intent_router.py` có regex, semantic, LLM fallback, mode bias |
-| B4 | Runtime policy gate | Có thể downgrade/bẻ nhánh intent theo policy context | DONE | `runtime_policy_service.py` resolve policy và `intent_node.py` enforce access |
-| B5 | HITL clarify gate | Phát hiện mơ hồ/cold start/ambiguous ref | DONE | `hitl_gate_node.py` đọc config threshold, kiểm tra cold start, ambiguous refs, override `intent='clarify'` |
-| B6 | Agent dispatch | Điều hướng đến agent phù hợp | DONE | `registry.py` + `agent_dispatch` trong graph |
-| B7 | Response compose | Chuẩn hóa output cuối và emit SSE-friendly payload | DONE | `response_compose_node.py` + `chat_service.py` |
-| B8 | Context save | Lưu turn + clarify state vào Redis | DONE | `context_save_node.py` save `awaitingClarification`, `recentMessages`, `activeFiles` |
+## 8. Kiểm Chứng Tối Thiểu
 
-### Giải thích
-
-- Điểm quan trọng nhất so với các lượt implement cũ là nhánh `clarify` hiện **đi đúng abstraction hơn**: gate chỉ quyết định cần clarify, còn `conversation_agent` sinh câu hỏi động qua LLM.
-- `HITL` hiện bám đúng plan gốc hơn nhiều so với cách hard-code question/options trong gate trước đây.
-
-## 4.3 Agent Layer
-
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| C1 | Conversation Agent | Trả lời thường + clarify mode | DONE | `conversation_agent_node.py` hỗ trợ `conversation` và `clarify` |
-| C2 | RAG Retriever/Response | Recommendation + knowledge theo vector retrieval | DONE | Có `rag_retriever_node.py` và `rag_response_node.py` |
-| C3 | SQL Agent | Phân tích data query an toàn | DONE | `sql_agent_node.py` dùng analytics/planner và policy |
-| C4 | Viz Agent | Sinh `chartSpec`/artifact cho FE | DONE | `viz_agent_node.py` trả chart payload cho chat UI |
-| C5 | File Agent | File analysis trên context đã hydrate/index | DONE | `file_agent_node.py` kết nối file context retrieval |
-
-### Giải thích
-
-- Agent layer hiện đã không còn là placeholder thuần. Mỗi intent chính trong plan đã có node hoặc service tương ứng.
-- `Conversation Agent` đóng đúng vai trò clarify agent thay vì gate tự nhúng business copy.
-
-## 4.4 LLM Gateway, Provider Config, Runtime Policy
-
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| D1 | Switchable provider | Gemini/OpenAI có thể đổi ở runtime | DONE | `provider_config.py` + `llm_gateway.py` resolve provider/model động |
-| D2 | Persist provider config | Đổi model/provider không mất sau restart | DONE | Provider config persist qua Redis key riêng |
-| D3 | Fallback khi thiếu API key | Một provider die thì service vẫn sống | DONE | Gateway có provider resolve + mock fallback |
-| D4 | Structured generation | Recommendation / learning path / exercise / clarify dùng JSON structured output | DONE | `generate_structured_json()` được dùng ở nhiều service/node |
-| D5 | Runtime policy | Context/tenant policy ảnh hưởng routing và model override | DONE | `runtime_policy_service.py` + `model_selector_service.py` |
-
-### Giải thích
-
-- Đây là một trong các phần đã trưởng thành rõ nhất so với các lượt đầu: provider config, runtime switching, model selection và fallback hiện đã nối mạch với nhau.
-
-## 4.5 Data & Semantic Layer
-
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| E1 | PostgreSQL catalog access | Dùng dữ liệu thật thay vì mock | DONE | `catalog_service.py`, `analytics_service.py`, service domain layer đều đọc schema thật |
-| E2 | Redis hot path | Context hội thoại và rate limit không phụ thuộc in-memory local only | DONE | `redis_memory_service.py`, `rate_limit.py` |
-| E3 | Qdrant collections | Course / lesson / profile / file collections có thật | DONE | `vector_service.py` quản lý nhiều collection |
-| E4 | Embedding generation | Dùng embedding provider qua gateway | DONE | `llm_gateway.py` resolve embedding target và sinh embeddings |
-| E5 | Vector search + rerank | Semantic retrieval + personalization rerank | DONE | `vector_service.py` + `recommendation_service.py` |
-
-### Giải thích
-
-- Phần SEM layer theo plan gốc hiện đã có shape khá sát: embeddings, Qdrant, search, rerank, file chunks, profile embeddings.
-
-## 4.6 Kafka Incremental Indexing
-
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| F1 | AI consumer đọc Kafka | FastAPI đọc event thay vì chỉ manual reindex | DONE | `indexing_event_consumer.py` dùng `aiokafka` |
-| F2 | Incremental course/lesson reindex | Update theo entity ID thay vì full reindex luôn | DONE | `reindex_single_course`, `reindex_single_lesson` |
-| F3 | Enrollment/rating/path/file events | Tự động refresh vector liên quan | DONE | Handler cho `enrollment-events`, `rating-events`, `learning-path-events`, `file-uploaded` |
-| F4 | Topic naming khớp Java side | Producer/consumer khớp topic name thật trong repo | DONE | Proxy/common-service/course-service và FastAPI consumer đã cùng dùng topic hiện tại |
-
-### Giải thích
-
-- Incremental reindex bug về point id từng tồn tại ở lượt trước đã được sửa. Hiện code align lại point ID với full reindex.
-
-## 4.7 Product Flows
-
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| G1 | Chat sync + stream | `/messages` và `/stream` hoạt động với SSE | DONE | `chat_service.py` + FE chat stream parser |
-| G2 | Recommendation | Personalized recommendation + history | DONE | `recommendation_service.py`, `recommendations.py`, FE recommendations page |
-| G3 | Learning path generation | Sinh path từ dữ liệu người dùng thật + draft flow | DONE | `learning_path_service.py`, routes, FE generate/designer flow |
-| G4 | Exercise generation | Sinh exercise có context thật + draft flow | DONE | `exercise_service.py`, routes, FE draft/review flow |
-| G5 | Draft approval cho content | Approval ở mức learning path / exercise publishing | DONE | `drafts.py` + FE draft review pages |
-
-### Giải thích
-
-- Lưu ý: approval hiện còn là **content publishing approval**, không phải **chat response approval**. Điều này hiện đã nhất quán hơn với plan gốc.
-
-## 4.8 FE Adoption & Admin
-
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| H1 | Chat page tận dụng SSE mới | Message/citation/artifact/chart/hitl_question | DONE | `ai-chat/page.tsx`, `apiRequests/ai.ts` |
-| H2 | Recommendation page dùng BE mới | Realtime/scheduled/history | DONE | `(learning)/recommendations/page.tsx` |
-| H3 | Learning path FE flow | Generate AI path + draft designer | DONE | `generate-ai-learning-path.tsx` và draft designer flow |
-| H4 | Exercise FE flow | Generate/review/approve draft | DONE | `generate-ai-exercise.tsx`, `ai-exercise-panel.tsx`, draft pages |
-| H5 | Admin dashboard | Provider config, qdrant stats, runtime stats, Langfuse analytics, draft approvals | DONE | `manage/dashboard/page.tsx` đã cleanup approval dead path của chat |
-| H6 | FE compile health | Source FE phải build được | DONE | `tsc --noEmit` pass tại thời điểm audit |
-
-### Giải thích
-
-- Đây là điểm từng lệch ở các lượt audit trước. Hiện dashboard đã bỏ approval hooks cũ cho chat nên FE build đã sạch lại.
-
-## 4.9 File Pipeline + OCR
-
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| I1 | File hydration | Nhận file context từ request/admin event rồi hydrate metadata | DONE | `file_context_service.py` |
-| I2 | Parse text-like documents | PDF/DOCX/PPTX/XLSX/text parse và chunk/index | DONE | File pipeline parse + chunk + upsert vào Qdrant |
-| I3 | Session/user file retrieval | Dùng được trong file agent / chat follow-up | DONE | Session file collection + user file collection |
-| I4 | OCR path | Có fallback OCR khi file scan/image thiếu text | DONE ở mức code | OCR qua Gemini Vision đã wire |
-| I5 | OCR production verification | Xác nhận chạy ổn trong môi trường thật với file scan/image | PARTIAL | Chưa có bằng chứng test production trong audit này |
-
-### Còn lại để đóng `PARTIAL`
-
-- Bật `AI_OCR_ENABLED=true` trên môi trường thật.
-- Chạy test với:
-  - image upload (`png/jpg/webp`)
-  - scanned PDF có text extraction thấp
-- Ghi nhận:
-  - timeout thực tế
-  - chất lượng text OCR
-  - fallback behavior khi Gemini lỗi hoặc rate limit
-
-## 4.10 Observability & Ops
-
-| ID | Công việc | Target theo plan | Status | Đã làm |
-|---|---|---|---|---|
-| J1 | Runtime stats | Có thống kê chat/vector/runtime cho admin | DONE | `observability_service.py` + admin runtime-stats |
-| J2 | Langfuse integration | Trace/chat observability có thật | DONE | `langfuse_service.py`, admin trace endpoints, FE admin traces |
-| J3 | Provider admin panel | Xem/chuyển provider-model từ dashboard | DONE | BE admin provider config + FE dashboard |
-| J4 | Business safe mode | Có fallback deterministic khi cần | DONE | recommendation/learning path/exercise/chat đều có safe/fallback path |
-
----
-
-## 5. Validation Kết Quả Audit
-
-### 5.1 Đã kiểm tra trong source
-
-- FastAPI app bootstrap, router, service wiring
-- LangGraph orchestration flow
-- HITL clarify path và Redis resume
-- Provider config / model switching / fallback
-- Kafka incremental indexing
-- Recommendation / learning path / exercise services
-- FE chat, recommendation, learning path, exercise, admin dashboard
-- `IMPLEMENTATION_STATUS` so với source hiện tại
-
-### 5.2 Đã chạy local khi audit
+Sau mỗi step:
 
 ```bash
 python -m compileall TechHub_BE/ai-service-fastapi/app
-node TechHub_FE/node_modules/typescript/bin/tsc -p TechHub_FE/tsconfig.json --noEmit
+mvn -pl proxy-client,course-service,learning-path-service,file-service -am test
 ```
 
-### 5.3 Chưa xác nhận trong audit này
+Sau toàn roadmap cần có bằng chứng:
 
-- Không chạy end-to-end thật với Kafka broker, Qdrant server, Redis server, Gemini/OpenAI live key.
-- Không chạy OCR production test với scanned document/image thật.
-- Không đo SLA/latency production.
+- Qdrant stats cho courses, lessons, profiles, session files, user files.
+- DB counts cho courses, chapters, lessons, enrollments, progress, ratings, submissions, learning paths, path progress, files, AI tasks.
+- Analytics request mẫu có SQL, rows, chart spec, policy snapshot.
+- Recommendation mẫu có real signals và không fallback ngoài ý muốn.
+- Exercise approval tạo record Course Service.
+- Learning path approval tạo record Learning Path Service.
+- File upload event tạo searchable chunks.
+- Chat streaming có trusted user context.
 
----
+## 9. Cách Dùng Kế Hoạch Này
 
-## 6. Kết luận Chốt
+Khi giao việc cho AI agent khác, đưa file này kèm đúng file step cần làm. Mỗi file step có:
 
-### Trạng thái hiện tại nên hiểu như sau
+- mục tiêu nghiệp vụ,
+- file source cần đọc,
+- quan hệ bảng thật,
+- gap hiện tại,
+- task triển khai,
+- case kiểm chứng,
+- định nghĩa hoàn thành.
 
-- Nếu đo theo **source implementation so với plan gốc**, hệ thống hiện đã đi rất xa và phần lớn hạng mục lớn đã xong.
-- Nếu đo theo **production verification**, còn đúng `1` phần nên giữ `PARTIAL`: OCR.
-
-### Tóm tắt cuối
-
-- **DONE:** foundation, orchestration, HITL clarify, agent layer, provider switching, semantic/data layer, Kafka indexing, recommendation, learning path, exercise, FE adoption, observability.
-- **PARTIAL:** OCR production verification.
-
-### Hướng dùng file này
-
-- Phần **Concept Tổng Quan** giúp nhìn kiến trúc hiện tại.
-- Phần **Breakdown Chi Tiết** là danh sách công việc triển khai để theo dõi `đã làm gì`, `done hay chưa`, và `còn thiếu gì`.
-- Nếu source thay đổi tiếp, chỉ cần cập nhật lại các dòng trong breakdown thay vì viết lại narrative dài.
+Chỉ cập nhật trạng thái trong file này sau khi có bằng chứng kiểm chứng thật.

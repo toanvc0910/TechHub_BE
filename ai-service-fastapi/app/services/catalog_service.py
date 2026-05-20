@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
@@ -8,6 +9,9 @@ from typing import Any
 from sqlalchemy import text
 
 from app.db.session import get_db_session
+from app.services.observability_service import runtime_observability_service
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_uuidish(value: Any) -> str | None:
@@ -55,13 +59,24 @@ class CatalogService:
                     json_agg(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL),
                     '[]'::json
                 ) AS skills,
-                COUNT(DISTINCT e.id) FILTER (WHERE e.is_active = 'Y') AS enrollment_count
+                COUNT(DISTINCT e.id) FILTER (WHERE e.is_active = 'Y') AS enrollment_count,
+                COALESCE(AVG(r.score) FILTER (
+                    WHERE r.target_type = 'COURSE'
+                      AND r.is_active = 'Y'
+                ), 0.0) AS average_rating,
+                COUNT(DISTINCT r.id) FILTER (
+                    WHERE r.target_type = 'COURSE'
+                      AND r.is_active = 'Y'
+                ) AS rating_count
             FROM courses c
             LEFT JOIN course_tags ct ON c.id = ct.course_id
             LEFT JOIN tags t ON ct.tag_id = t.id AND t.is_active = 'Y'
             LEFT JOIN course_skills cs ON c.id = cs.course_id
             LEFT JOIN skills s ON cs.skill_id = s.id
             LEFT JOIN enrollments e ON e.course_id = c.id
+            LEFT JOIN ratings r
+                ON r.target_id = c.id
+               AND r.target_type = 'COURSE'
             WHERE c.is_active = 'Y'
               AND c.status = 'PUBLISHED'
             GROUP BY c.id
@@ -75,13 +90,67 @@ class CatalogService:
             return [self._normalize_course_row(dict(row)) for row in result.mappings().all()]
 
     async def fetch_courses_by_ids(self, course_ids: Iterable[str]) -> list[dict[str, Any]]:
+        # HOT PATH: recommendation_service calls this twice per request and
+        # the old implementation fetched the entire published catalog then
+        # filtered in Python — scaled with table size, not request size. Use
+        # `id = ANY(:ids)` so PostgreSQL only joins/aggregates the rows we
+        # actually need.
         ids = [str(course_id) for course_id in course_ids if course_id]
         if not ids:
             return []
 
-        courses = await self.fetch_published_courses(limit=None)
-        by_id = {course["id"]: course for course in courses}
-        return [by_id[course_id] for course_id in ids if course_id in by_id]
+        sql = """
+            SELECT
+                c.id,
+                c.title,
+                c.description,
+                c.objectives,
+                c.requirements,
+                c.level,
+                c.language,
+                c.thumbnail,
+                c.instructor_id,
+                c.status,
+                c.created,
+                c.updated,
+                COALESCE(
+                    json_agg(DISTINCT t.name) FILTER (WHERE t.name IS NOT NULL),
+                    '[]'::json
+                ) AS tags,
+                COALESCE(
+                    json_agg(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL),
+                    '[]'::json
+                ) AS skills,
+                COUNT(DISTINCT e.id) FILTER (WHERE e.is_active = 'Y') AS enrollment_count,
+                COALESCE(AVG(r.score) FILTER (
+                    WHERE r.target_type = 'COURSE'
+                      AND r.is_active = 'Y'
+                ), 0.0) AS average_rating,
+                COUNT(DISTINCT r.id) FILTER (
+                    WHERE r.target_type = 'COURSE'
+                      AND r.is_active = 'Y'
+                ) AS rating_count
+            FROM courses c
+            LEFT JOIN course_tags ct ON c.id = ct.course_id
+            LEFT JOIN tags t ON ct.tag_id = t.id AND t.is_active = 'Y'
+            LEFT JOIN course_skills cs ON c.id = cs.course_id
+            LEFT JOIN skills s ON cs.skill_id = s.id
+            LEFT JOIN enrollments e ON e.course_id = c.id
+            LEFT JOIN ratings r
+                ON r.target_id = c.id
+               AND r.target_type = 'COURSE'
+            WHERE c.is_active = 'Y'
+              AND c.status = 'PUBLISHED'
+              AND c.id = ANY(CAST(:ids AS uuid[]))
+            GROUP BY c.id
+        """
+        async with get_db_session() as session:
+            result = await session.execute(text(sql), {"ids": ids})
+            rows = [self._normalize_course_row(dict(row)) for row in result.mappings().all()]
+        # Preserve caller-supplied order so recommendation re-rank keeps its
+        # priority list.
+        by_id = {course["id"]: course for course in rows}
+        return [by_id[cid] for cid in ids if cid in by_id]
 
     async def fetch_lessons(self) -> list[dict[str, Any]]:
         sql = """
@@ -179,12 +248,12 @@ class CatalogService:
             payload["skill_profile"] = await self.compute_skill_profile(user_id)
             return payload
 
-    async def fetch_user_ratings(self, user_id: str) -> list[dict[str, Any]]:
+    async def fetch_user_ratings(self, user_id: str, *, raise_on_error: bool = False) -> list[dict[str, Any]]:
         """Fetch user's course ratings. score >= 4 indicates preference."""
         sql = """
             SELECT
-                r.course_id,
-                r.rating AS score,
+                r.target_id AS course_id,
+                r.score AS score,
                 c.title,
                 c.level,
                 COALESCE(
@@ -192,13 +261,18 @@ class CatalogService:
                     '[]'::json
                 ) AS skills
             FROM ratings r
-            JOIN courses c ON c.id = r.course_id AND c.is_active = 'Y'
+            JOIN courses c
+                ON c.id = r.target_id
+               AND r.target_type = 'COURSE'
+               AND c.is_active = 'Y'
             LEFT JOIN course_skills cs ON cs.course_id = c.id
-            LEFT JOIN skills s ON s.id = cs.skill_id
+            LEFT JOIN skills s
+                ON s.id = cs.skill_id
+               AND s.is_active = 'Y'
             WHERE r.user_id = :user_id
               AND r.is_active = 'Y'
-            GROUP BY r.course_id, r.rating, c.title, c.level
-            ORDER BY r.rating DESC
+            GROUP BY r.target_id, r.score, c.title, c.level
+            ORDER BY r.score DESC
         """
         try:
             async with get_db_session() as session:
@@ -212,21 +286,31 @@ class CatalogService:
                     items.append(payload)
                 return items
         except Exception:
+            logger.warning(
+                json.dumps(
+                    {
+                        "event": "catalog_signal_fetch_failed",
+                        "signal": "ratings",
+                        "userId": user_id,
+                    },
+                    ensure_ascii=False,
+                ),
+                exc_info=True,
+            )
+            await runtime_observability_service.record_error(scope="catalog_user_ratings")
+            if raise_on_error:
+                raise
             return []
 
     async def fetch_course_prerequisites(self, course_id: str) -> list[str]:
-        """Fetch prerequisite course IDs for a given course."""
-        sql = """
-            SELECT prerequisite_id
-            FROM course_prerequisites
-            WHERE course_id = :course_id
+        """Return prerequisites when the domain schema supports them.
+
+        techhub.sql currently has no course_prerequisites table. Returning an
+        explicit empty list is safer than hiding a missing-table error and
+        making recommendation logic look data-backed when it is not.
         """
-        try:
-            async with get_db_session() as session:
-                result = await session.execute(text(sql), {"course_id": course_id})
-                return [str(row["prerequisite_id"]) for row in result.mappings().all()]
-        except Exception:
-            return []
+        del course_id
+        return []
 
     async def compute_skill_profile(self, user_id: str) -> dict[str, float]:
         """Compute skill proficiency from completed courses and ratings.
@@ -243,15 +327,16 @@ class CatalogService:
         for item in course_history:
             course_id = item.get("course_id", "")
             status = item.get("status", "")
+            history_bucket = item.get("historyBucket", "")
             progress = float(item.get("progress", 0))
             course_skills = item.get("skills", [])
             rating = ratings_map.get(course_id, 0)
             for skill_name in course_skills:
                 if not skill_name:
                     continue
-                if status == "COMPLETED":
+                if status == "COMPLETED" or history_bucket == "completed":
                     level = 0.9 if rating >= 4 else 0.7
-                elif status == "IN_PROGRESS":
+                elif status == "IN_PROGRESS" or history_bucket == "in_progress":
                     level = round(0.3 * progress, 2)
                 else:
                     level = 0.1
@@ -269,7 +354,12 @@ class CatalogService:
                 c.level,
                 c.language,
                 c.thumbnail,
-                COALESCE(AVG(p.completion), 0.0) AS progress,
+                COALESCE(
+                    AVG(COALESCE(p.completion, 0.0)) FILTER (WHERE l.id IS NOT NULL),
+                    0.0
+                ) AS progress,
+                COUNT(DISTINCT l.id) AS lesson_count,
+                COUNT(DISTINCT p.id) AS progress_record_count,
                 COALESCE(
                     json_agg(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL),
                     '[]'::json
@@ -303,7 +393,7 @@ class CatalogService:
                 payload = dict(row)
                 payload["enrollment_id"] = _normalize_uuidish(payload.get("enrollment_id"))
                 payload["course_id"] = _normalize_uuidish(payload.get("course_id"))
-                payload["progress"] = float(payload.get("progress") or 0.0)
+                payload = self._normalize_course_history_row(payload)
                 payload["skills"] = _normalize_jsonish(payload.get("skills"), [])
                 items.append(payload)
             return items
@@ -425,7 +515,12 @@ class CatalogService:
                 c.title,
                 c.level,
                 c.language,
-                COALESCE(AVG(p.completion), 0.0) AS progress,
+                COALESCE(
+                    AVG(COALESCE(p.completion, 0.0)) FILTER (WHERE l.id IS NOT NULL),
+                    0.0
+                ) AS progress,
+                COUNT(DISTINCT l.id) AS lesson_count,
+                COUNT(DISTINCT p.id) AS progress_record_count,
                 COALESCE(
                     json_agg(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL),
                     '[]'::json
@@ -459,14 +554,19 @@ class CatalogService:
                 user_id = _normalize_uuidish(payload.get("user_id"))
                 if user_id is None:
                     continue
+                payload = self._normalize_course_history_row(payload)
                 grouped[user_id].append(
                     {
                         "course_id": _normalize_uuidish(payload.get("course_id")),
                         "status": payload.get("status"),
+                        "historyBucket": payload.get("historyBucket"),
                         "title": payload.get("title"),
                         "level": payload.get("level"),
                         "language": payload.get("language"),
                         "progress": float(payload.get("progress") or 0.0),
+                        "progressSource": payload.get("progressSource"),
+                        "lessonCount": int(payload.get("lessonCount") or 0),
+                        "progressRecordCount": int(payload.get("progressRecordCount") or 0),
                         "skills": _normalize_jsonish(payload.get("skills"), []),
                     }
                 )
@@ -500,8 +600,16 @@ class CatalogService:
 
     @staticmethod
     def summarize_user_profile(profile: dict[str, Any], course_history: list[dict[str, Any]]) -> str:
-        completed = [item["title"] for item in course_history if item.get("status") == "COMPLETED"]
-        in_progress = [item["title"] for item in course_history if item.get("status") == "IN_PROGRESS"]
+        completed = [
+            item["title"]
+            for item in course_history
+            if item.get("status") == "COMPLETED" or item.get("historyBucket") == "completed"
+        ]
+        in_progress = [
+            item["title"]
+            for item in course_history
+            if item.get("status") == "IN_PROGRESS" or item.get("historyBucket") == "in_progress"
+        ]
         skills = sorted({skill for item in course_history for skill in item.get("skills", [])})
         history = profile.get("learning_history") or {}
         if isinstance(history, dict):
@@ -530,6 +638,8 @@ class CatalogService:
         row["tags"] = _normalize_jsonish(row.get("tags"), [])
         row["skills"] = _normalize_jsonish(row.get("skills"), [])
         row["enrollment_count"] = int(row.get("enrollment_count") or 0)
+        row["average_rating"] = round(float(row.get("average_rating") or 0.0), 2)
+        row["rating_count"] = int(row.get("rating_count") or 0)
         return row
 
     @staticmethod
@@ -540,6 +650,41 @@ class CatalogService:
         row["document_urls"] = _normalize_jsonish(row.get("document_urls"), [])
         row["workspace_languages"] = _normalize_jsonish(row.get("workspace_languages"), [])
         row["workspace_template"] = _normalize_jsonish(row.get("workspace_template"), {})
+        return row
+
+    @staticmethod
+    def _normalize_course_history_row(row: dict[str, Any]) -> dict[str, Any]:
+        status = str(row.get("status") or "ENROLLED").upper()
+        raw_progress = float(row.get("progress") or 0.0)
+        lesson_count = int(row.get("lesson_count") or row.get("lessonCount") or 0)
+        progress_record_count = int(row.get("progress_record_count") or row.get("progressRecordCount") or 0)
+
+        if lesson_count > 0:
+            progress_source = "lesson_progress" if progress_record_count else "lesson_progress_empty"
+            effective_progress = raw_progress
+            if status == "COMPLETED":
+                effective_progress = max(effective_progress, 1.0)
+        else:
+            progress_source = "enrollment_status_fallback"
+            effective_progress = 1.0 if status == "COMPLETED" else 0.0
+
+        effective_progress = round(max(0.0, min(float(effective_progress), 1.0)), 4)
+        if status == "DROPPED":
+            history_bucket = "abandoned"
+        elif status == "COMPLETED" or effective_progress >= 0.95:
+            history_bucket = "completed"
+        elif status == "IN_PROGRESS" or 0.0 < effective_progress < 0.95:
+            history_bucket = "in_progress"
+        else:
+            history_bucket = "enrolled"
+
+        row["status"] = status
+        row["progress"] = effective_progress
+        row["progressRaw"] = round(max(0.0, min(raw_progress, 1.0)), 4)
+        row["progressSource"] = progress_source
+        row["lessonCount"] = lesson_count
+        row["progressRecordCount"] = progress_record_count
+        row["historyBucket"] = history_bucket
         return row
 
 

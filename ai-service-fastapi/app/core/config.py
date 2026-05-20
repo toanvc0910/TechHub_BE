@@ -64,6 +64,17 @@ class Settings:
     database_password: str = field(default_factory=lambda: os.getenv("SPRING_DATASOURCE_PASSWORD", "postgres"))
     database_echo: bool = field(default_factory=lambda: _bool_env("AI_DB_ECHO", False))
     database_auto_create: bool = field(default_factory=lambda: _bool_env("AI_DB_AUTO_CREATE", False))
+    database_pool_size: int = field(default_factory=lambda: _int_env("AI_DB_POOL_SIZE", 10))
+    database_max_overflow: int = field(default_factory=lambda: _int_env("AI_DB_MAX_OVERFLOW", 20))
+    database_pool_recycle_seconds: int = field(
+        default_factory=lambda: _int_env("AI_DB_POOL_RECYCLE_SECONDS", 1800)
+    )
+    database_pool_timeout_seconds: int = field(
+        default_factory=lambda: _int_env("AI_DB_POOL_TIMEOUT_SECONDS", 30)
+    )
+    database_statement_timeout_ms: int = field(
+        default_factory=lambda: _int_env("AI_DB_STATEMENT_TIMEOUT_MS", 10000)
+    )
 
     redis_host: str = field(default_factory=lambda: os.getenv("REDIS_HOST", "localhost"))
     redis_port: int = field(default_factory=lambda: _int_env("REDIS_PORT", 6379))
@@ -134,6 +145,18 @@ class Settings:
         default_factory=lambda: os.getenv("QDRANT_USER_FILE_COLLECTION", "user_file_embeddings")
     )
     file_service_base_url: str | None = field(default_factory=lambda: os.getenv("FILE_SERVICE_BASE_URL"))
+    learning_path_service_base_url: str | None = field(
+        default_factory=lambda: os.getenv("LEARNING_PATH_SERVICE_BASE_URL")
+    )
+    learning_path_service_timeout_seconds: int = field(
+        default_factory=lambda: _int_env("AI_LEARNING_PATH_SERVICE_TIMEOUT_SECONDS", 20)
+    )
+    course_service_base_url: str | None = field(
+        default_factory=lambda: os.getenv("COURSE_SERVICE_BASE_URL")
+    )
+    course_service_timeout_seconds: int = field(
+        default_factory=lambda: _int_env("AI_COURSE_SERVICE_TIMEOUT_SECONDS", 20)
+    )
     file_download_timeout_seconds: int = field(default_factory=lambda: _int_env("AI_FILE_DOWNLOAD_TIMEOUT_SECONDS", 15))
     file_max_download_bytes: int = field(default_factory=lambda: _int_env("AI_FILE_MAX_DOWNLOAD_BYTES", 4000000))
     file_max_chars: int = field(default_factory=lambda: _int_env("AI_FILE_MAX_CHARS", 20000))
