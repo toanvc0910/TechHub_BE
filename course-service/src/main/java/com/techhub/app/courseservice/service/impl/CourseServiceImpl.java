@@ -49,6 +49,7 @@ import com.techhub.app.courseservice.repository.SkillRepository;
 import com.techhub.app.courseservice.repository.TagRepository;
 import com.techhub.app.courseservice.service.CourseNotificationService;
 import com.techhub.app.courseservice.service.CourseService;
+import com.techhub.app.courseservice.service.LearningStreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -90,6 +91,7 @@ public class CourseServiceImpl implements CourseService {
     private final SkillRepository skillRepository;
     private final TagRepository tagRepository;
     private final CourseNotificationService courseNotificationService;
+    private final LearningStreakService learningStreakService;
 
     @Override
     @Transactional(readOnly = true)
@@ -169,6 +171,7 @@ public class CourseServiceImpl implements CourseService {
                 .unlockedChapterIds(snapshot.getUnlockedChapterIds())
                 .lockedChapterIds(snapshot.getLockedChapterIds())
                 .completedLessons(snapshot.getCompletedLessons())
+                .learningStreak(currentUserId != null ? learningStreakService.getStreakForUser(currentUserId) : null)
                 .build();
     }
 

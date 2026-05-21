@@ -497,20 +497,23 @@ public class PayoutService {
                 .sumAmountByInstructorAndReferenceType(instructorIdText, REVENUE_BOOTSTRAP_REFERENCE));
         BigDecimal delta = earned.subtract(alreadySynced).setScale(2, RoundingMode.HALF_UP);
         log.info("[PayoutSync] alreadySynced={} delta={} instructorId={}", alreadySynced, delta, instructorIdText);
-        if (delta.compareTo(BigDecimal.ZERO) <= 0) {
-            log.info("[PayoutSync] delta<=0, no new credit needed. instructorId={}", instructorIdText);
+        if (delta.compareTo(BigDecimal.ZERO) == 0) {
+            log.info("[PayoutSync] delta=0, no ledger adjustment needed. instructorId={}", instructorIdText);
             return;
         }
 
+        PayoutLedgerEntryType entryType = delta.compareTo(BigDecimal.ZERO) > 0
+                ? PayoutLedgerEntryType.CREDIT_SALE
+                : PayoutLedgerEntryType.ADJUSTMENT;
         PayoutLedgerEntry inserted = payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
                 .instructorId(instructorIdText)
-                .entryType(PayoutLedgerEntryType.CREDIT_SALE)
+                .entryType(entryType)
                 .amount(delta)
                 .referenceType(REVENUE_BOOTSTRAP_REFERENCE)
-                .note("Sync instructor earnings from revenue overview (delta)")
+                .note("Sync instructor earnings from revenue overview (currency-normalized delta)")
                 .build());
-        log.info("[PayoutSync] INSERTED ledger entry id={} amount={} instructorId={}",
-                inserted.getId(), inserted.getAmount(), instructorIdText);
+        log.info("[PayoutSync] INSERTED ledger entry id={} type={} amount={} instructorId={}",
+                inserted.getId(), inserted.getEntryType(), inserted.getAmount(), instructorIdText);
     }
 
     private PayoutRequestResponse toResponse(PayoutRequest request) {

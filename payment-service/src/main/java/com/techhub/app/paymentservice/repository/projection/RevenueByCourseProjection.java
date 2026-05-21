@@ -8,6 +8,8 @@ public interface RevenueByCourseProjection {
 
     String getCourseTitle();
 
+    String getCurrency();
+
     BigDecimal getGrossRevenue();
 
     Long getSoldCount();

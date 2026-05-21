@@ -28,7 +28,7 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             "CAST(COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0) AS NUMERIC(18,2)) AS grossAmount, " +
             "CAST(p.method AS VARCHAR(50)) AS paymentMethod, " +
             "CAST(p.status AS VARCHAR(50)) AS status, " +
-            "CAST(COALESCE(MIN(c.currency), 'VND') AS VARCHAR(8)) AS currency, " +
+            "CAST(COALESCE(MIN(COALESCE(ti.price_currency, c.currency, 'VND')), 'VND') AS VARCHAR(8)) AS currency, " +
             "p.created AS created, " +
             "p.updated AS updated " +
             "FROM payments p " +
@@ -51,7 +51,7 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             "CAST(COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0) AS NUMERIC(18,2)) AS grossAmount, " +
             "CAST(p.method AS VARCHAR(50)) AS paymentMethod, " +
             "CAST(p.status AS VARCHAR(50)) AS status, " +
-            "CAST(COALESCE(MIN(c.currency), 'VND') AS VARCHAR(8)) AS currency, " +
+            "CAST(COALESCE(MIN(COALESCE(ti.price_currency, c.currency, 'VND')), 'VND') AS VARCHAR(8)) AS currency, " +
             "p.created AS created, " +
             "p.updated AS updated " +
             "FROM payments p " +
@@ -81,7 +81,7 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             "CAST(COALESCE(SUM(ti.price_at_purchase * COALESCE(ti.quantity, 1)), 0) AS NUMERIC(18,2)) AS grossAmount, " +
             "CAST(p.method AS VARCHAR(50)) AS paymentMethod, " +
             "CAST(p.status AS VARCHAR(50)) AS status, " +
-            "CAST(COALESCE(MIN(c.currency), 'VND') AS VARCHAR(8)) AS currency, " +
+            "CAST(COALESCE(MIN(COALESCE(ti.price_currency, c.currency, 'VND')), 'VND') AS VARCHAR(8)) AS currency, " +
             "p.created AS created, " +
             "p.updated AS updated " +
             "FROM payments p " +

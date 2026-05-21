@@ -11,7 +11,7 @@ public interface PaymentServiceClient {
 
         @PostMapping("/api/v1/payment/paypal/create")
         ResponseEntity<String> createPayPalOrder(
-                        @RequestParam("amount") Double amount,
+                        @RequestParam(value = "amount", required = false) Double amount,
                         @RequestParam(value = "userId", required = false) String userId,
                         @RequestParam(value = "courseId", required = false) String courseId);
 
@@ -30,6 +30,17 @@ public interface PaymentServiceClient {
                         @RequestParam(value = "orderInfo", required = false) String orderInfo,
                         @RequestParam(value = "userId", required = false) String userId,
                         @RequestParam(value = "courseId", required = false) String courseId);
+
+        @GetMapping("/api/v1/fx/rate")
+        ResponseEntity<String> getFxRate(
+                        @RequestParam("from") String from,
+                        @RequestParam("to") String to);
+
+        @GetMapping("/api/v1/fx/convert")
+        ResponseEntity<String> convertFx(
+                        @RequestParam("from") String from,
+                        @RequestParam("to") String to,
+                        @RequestParam("amount") String amount);
 
         // Note: VNPay callback is handled directly in payment-service, not through
         // Feign

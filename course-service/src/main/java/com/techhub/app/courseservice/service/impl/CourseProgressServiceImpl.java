@@ -20,6 +20,7 @@ import com.techhub.app.commonservice.kafka.event.EnrollmentEventPayload;
 import com.techhub.app.commonservice.kafka.publisher.CourseEventPublisher;
 import com.techhub.app.courseservice.service.CourseProgressService;
 import com.techhub.app.courseservice.service.CourseService;
+import com.techhub.app.courseservice.service.LearningStreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class CourseProgressServiceImpl implements CourseProgressService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseService courseService;
     private final CourseEventPublisher courseEventPublisher;
+    private final LearningStreakService learningStreakService;
 
     @Override
     public CourseDetailResponse updateLessonProgress(UUID courseId, UUID lessonId, LessonProgressRequest request) {
@@ -75,6 +77,9 @@ public class CourseProgressServiceImpl implements CourseProgressService {
 
         progress.setUpdatedBy(userId);
         progressRepository.save(progress);
+        if (isTrackableLearningActivity(completionValue, markComplete, progress)) {
+            learningStreakService.recordActivity(userId, OffsetDateTime.now());
+        }
         log.debug("Progress updated for lesson {} by {} - completion {}", lessonId, userId, progress.getCompletion());
 
         // Publish progress event for AI service to update user embeddings
@@ -91,6 +96,12 @@ public class CourseProgressServiceImpl implements CourseProgressService {
         }
 
         return courseService.getCourse(courseId);
+    }
+
+    private boolean isTrackableLearningActivity(Float requestedCompletion, boolean markComplete, Progress progress) {
+        return markComplete
+                || (requestedCompletion != null && requestedCompletion > 0f)
+                || (progress.getCompletion() != null && progress.getCompletion() > 0f);
     }
 
     @Override

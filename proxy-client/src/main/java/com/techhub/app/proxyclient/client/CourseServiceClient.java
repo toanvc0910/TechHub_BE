@@ -41,6 +41,10 @@ public interface CourseServiceClient {
         ResponseEntity<String> createCourse(@RequestBody Object createRequest,
                         @RequestHeader("Authorization") String authHeader);
 
+        @GetMapping("/api/courses/streak")
+        ResponseEntity<String> getLearningStreak(
+                        @RequestHeader("Authorization") String authHeader);
+
         @GetMapping("/api/courses/{courseId}")
         ResponseEntity<String> getCourseById(@PathVariable String courseId,
                         @RequestHeader(value = "Authorization", required = false) String authHeader);

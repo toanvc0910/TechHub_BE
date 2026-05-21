@@ -113,6 +113,9 @@ public class TransactionService {
                 .adminAmount(null)
                 .paymentMethod(payment.getMethod() == null ? null : payment.getMethod().name())
                 .status(payment.getStatus() == null ? null : payment.getStatus().name())
+                .currency(transaction == null || transaction.getOriginalCurrency() == null
+                        ? "VND"
+                        : transaction.getOriginalCurrency())
                 .created(payment.getCreated() == null ? null : payment.getCreated().toOffsetDateTime())
                 .updated(payment.getUpdated() == null ? null : payment.getUpdated().toOffsetDateTime())
                 .build();

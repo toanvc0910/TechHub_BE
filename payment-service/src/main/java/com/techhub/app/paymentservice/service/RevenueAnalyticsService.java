@@ -3,6 +3,7 @@ package com.techhub.app.paymentservice.service;
 import com.techhub.app.paymentservice.dto.response.RevenueByCourseResponse;
 import com.techhub.app.paymentservice.dto.response.RevenueOverviewResponse;
 import com.techhub.app.paymentservice.repository.TransactionItemRepository;
+import com.techhub.app.paymentservice.repository.projection.RevenueByCurrencyProjection;
 import com.techhub.app.paymentservice.repository.projection.RevenueByCourseProjection;
 import com.techhub.app.paymentservice.repository.projection.RevenueOverviewProjection;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,10 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -24,6 +28,7 @@ public class RevenueAnalyticsService {
 
     private final TransactionItemRepository transactionItemRepository;
     private final RevenueSplitPolicyService revenueSplitPolicyService;
+    private final CurrencyExchangeService currencyExchangeService;
 
     @Transactional(readOnly = true)
     public RevenueOverviewResponse getInstructorOverview(UUID instructorId, LocalDate fromDate, LocalDate toDate) {
@@ -33,7 +38,9 @@ public class RevenueAnalyticsService {
         RevenueOverviewProjection projection = transactionItemRepository.getInstructorRevenueOverview(instructorId,
                 from,
                 to);
-        return toOverviewResponse("INSTRUCTOR", instructorId, projection);
+        BigDecimal grossInVnd = revenueRowsToVnd(
+                transactionItemRepository.getInstructorRevenueByCurrency(instructorId, from, to));
+        return toOverviewResponse("INSTRUCTOR", instructorId, projection, grossInVnd);
     }
 
     @Transactional(readOnly = true)
@@ -43,7 +50,9 @@ public class RevenueAnalyticsService {
 
         RevenueOverviewProjection projection = transactionItemRepository.getAdminRevenueOverview(instructorId, from,
                 to);
-        return toOverviewResponse("ADMIN", instructorId, projection);
+        BigDecimal grossInVnd = revenueRowsToVnd(
+                transactionItemRepository.getAdminRevenueByCurrency(instructorId, from, to));
+        return toOverviewResponse("ADMIN", instructorId, projection, grossInVnd);
     }
 
     @Transactional(readOnly = true)
@@ -55,19 +64,30 @@ public class RevenueAnalyticsService {
         List<RevenueByCourseProjection> rows = transactionItemRepository.getInstructorRevenueByCourse(instructorId,
                 from,
                 to);
-        return rows.stream()
+        Map<UUID, CourseRevenueAccumulator> merged = new LinkedHashMap<>();
+        for (RevenueByCourseProjection row : rows) {
+            CourseRevenueAccumulator acc = merged.computeIfAbsent(row.getCourseId(),
+                    id -> new CourseRevenueAccumulator(row.getCourseId(), row.getCourseTitle()));
+            acc.grossRevenue = acc.grossRevenue.add(convertToVnd(safeMoney(row.getGrossRevenue()), row.getCurrency()));
+            acc.soldCount += safeLong(row.getSoldCount());
+            acc.orderCount += safeLong(row.getOrderCount());
+        }
+
+        return merged.values().stream()
+                .sorted(Comparator.comparing((CourseRevenueAccumulator it) -> it.grossRevenue).reversed())
                 .map(it -> RevenueByCourseResponse.builder()
-                        .courseId(it.getCourseId())
-                        .courseTitle(it.getCourseTitle())
-                        .grossRevenue(safeMoney(it.getGrossRevenue()))
-                        .soldCount(safeLong(it.getSoldCount()))
-                        .orderCount(safeLong(it.getOrderCount()))
+                        .courseId(it.courseId)
+                        .courseTitle(it.courseTitle)
+                        .grossRevenue(safeMoney(it.grossRevenue))
+                        .soldCount(it.soldCount)
+                        .orderCount(it.orderCount)
                         .build())
                 .collect(Collectors.toList());
     }
 
-    private RevenueOverviewResponse toOverviewResponse(String scope, UUID instructorId, RevenueOverviewProjection row) {
-        BigDecimal gross = safeMoney(row == null ? null : row.getGrossRevenue());
+    private RevenueOverviewResponse toOverviewResponse(String scope, UUID instructorId, RevenueOverviewProjection row,
+            BigDecimal grossOverride) {
+        BigDecimal gross = safeMoney(grossOverride);
         RevenueSplitPolicyService.ResolvedPolicy resolvedPolicy = revenueSplitPolicyService.resolvePolicy(
                 scope.equals("INSTRUCTOR") ? instructorId : null,
                 null,
@@ -98,6 +118,22 @@ public class RevenueAnalyticsService {
                 : value.setScale(2, RoundingMode.HALF_UP);
     }
 
+    private BigDecimal revenueRowsToVnd(List<RevenueByCurrencyProjection> rows) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (RevenueByCurrencyProjection row : rows) {
+            total = total.add(convertToVnd(safeMoney(row.getGrossRevenue()), row.getCurrency()));
+        }
+        return safeMoney(total);
+    }
+
+    private BigDecimal convertToVnd(BigDecimal amount, String currency) {
+        String code = currency == null ? "VND" : currency.toUpperCase();
+        if ("VND".equals(code)) {
+            return safeMoney(amount);
+        }
+        return safeMoney(currencyExchangeService.convert(amount, code, "VND"));
+    }
+
     private Long safeLong(Long value) {
         return value == null ? 0L : value;
     }
@@ -113,5 +149,18 @@ public class RevenueAnalyticsService {
             return BigDecimal.ONE;
         }
         return value;
+    }
+
+    private static class CourseRevenueAccumulator {
+        private final UUID courseId;
+        private final String courseTitle;
+        private BigDecimal grossRevenue = BigDecimal.ZERO;
+        private long soldCount;
+        private long orderCount;
+
+        private CourseRevenueAccumulator(UUID courseId, String courseTitle) {
+            this.courseId = courseId;
+            this.courseTitle = courseTitle;
+        }
     }
 }

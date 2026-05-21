@@ -74,9 +74,11 @@ public class CourseRatingServiceImpl implements CourseRatingService {
                 .orElseThrow(() -> new NotFoundException("Course not found"));
         ensureCanRate(course, userId);
 
+        final boolean[] created = { false };
         Rating rating = ratingRepository
                 .findByUserIdAndTargetIdAndTargetTypeAndIsActiveTrue(userId, courseId, RatingTarget.COURSE)
                 .orElseGet(() -> {
+                    created[0] = true;
                     Rating entity = new Rating();
                     entity.setUserId(userId);
                     entity.setTargetId(courseId);
@@ -96,7 +98,7 @@ public class CourseRatingServiceImpl implements CourseRatingService {
         // Publish rating event for AI service to update user embeddings
         try {
             courseEventPublisher.publishRatingEvent(RatingEventPayload.builder()
-                    .eventType(rating.getCreated().equals(rating.getUpdated()) ? "CREATED" : "UPDATED")
+                    .eventType(created[0] ? "CREATED" : "UPDATED")
                     .ratingId(String.valueOf(rating.getId()))
                     .userId(String.valueOf(userId))
                     .courseId(String.valueOf(courseId))
@@ -148,15 +150,11 @@ public class CourseRatingServiceImpl implements CourseRatingService {
         distribution.put(4, 0L);
         distribution.put(5, 0L);
 
-        // Get all ratings for this course
-        java.util.List<Rating> ratings = ratingRepository
-                .findByTargetIdAndTargetTypeAndIsActiveTrue(courseId, RatingTarget.COURSE);
-
-        // Count ratings by score
-        for (Rating rating : ratings) {
-            Integer score = rating.getScore();
+        for (RatingRepository.RatingDistributionRow row :
+                ratingRepository.getRatingDistribution(courseId, RatingTarget.COURSE.name())) {
+            Integer score = row.getScore();
             if (score != null && score >= 1 && score <= 5) {
-                distribution.put(score, distribution.get(score) + 1);
+                distribution.put(score, row.getRatingCount() != null ? row.getRatingCount() : 0L);
             }
         }
 

@@ -17,6 +17,8 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -114,7 +116,7 @@ public class VNPayPaymentController {
         String redirectUrl = frontendResultUrl + "?status=" + URLEncoder.encode(status, StandardCharsets.UTF_8) +
                 "&paymentMethod=" + URLEncoder.encode("VNPay", StandardCharsets.UTF_8) +
                 "&txnRef=" + URLEncoder.encode(vnp_TxnRef != null ? vnp_TxnRef : "N/A", StandardCharsets.UTF_8) +
-                "&amount=" + URLEncoder.encode(vnp_Amount != null ? vnp_Amount : "0", StandardCharsets.UTF_8);
+                "&amount=" + URLEncoder.encode(normalizeVnpAmount(vnp_Amount), StandardCharsets.UTF_8);
 
         // Ghi log để gỡ lỗi
         // log.info("VNPay Callback - Valid: {}, Status: {}, TxnRef: {}", isValid,
@@ -152,6 +154,20 @@ public class VNPayPaymentController {
         } catch (GeneralSecurityException e) {
             System.err.println("Error verifying secure hash: " + e.getMessage());
             return false;
+        }
+    }
+
+    private String normalizeVnpAmount(String vnpAmount) {
+        if (vnpAmount == null || vnpAmount.isBlank()) {
+            return "0";
+        }
+        try {
+            return new BigDecimal(vnpAmount)
+                    .movePointLeft(2)
+                    .setScale(0, RoundingMode.HALF_UP)
+                    .toPlainString();
+        } catch (NumberFormatException ex) {
+            return "0";
         }
     }
 

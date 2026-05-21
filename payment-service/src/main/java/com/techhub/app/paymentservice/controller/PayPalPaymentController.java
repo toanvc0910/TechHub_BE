@@ -28,11 +28,13 @@ public class PayPalPaymentController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<GlobalResponse<Map<String, Object>>> createOrder(@RequestParam Double amount,
+    public ResponseEntity<GlobalResponse<Map<String, Object>>> createOrder(
+            @RequestParam(required = false) Double amount,
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String courseId,
             javax.servlet.http.HttpServletRequest request) throws Exception {
-        log.info("Creating PayPal order with amount: {}, userId: {}, courseId: {}", amount, userId, courseId);
+        log.info("Creating PayPal order for userId: {}, courseId: {}; client amount ignored={}",
+                userId, courseId, amount);
 
         UUID userUUID = null;
         if (userId != null && !userId.isEmpty()) {
@@ -67,7 +69,7 @@ public class PayPalPaymentController {
             throw new IllegalArgumentException("courseId parameter is required for PayPal payment");
         }
 
-        Map<String, Object> order = payPalService.createOrder(amount, "USD", userUUID, courseUUID);
+        Map<String, Object> order = payPalService.createOrder(amount, null, userUUID, courseUUID);
         return ResponseEntity.ok(
                 GlobalResponse.success("PayPal order created", order)
                         .withPath(request.getRequestURI()));

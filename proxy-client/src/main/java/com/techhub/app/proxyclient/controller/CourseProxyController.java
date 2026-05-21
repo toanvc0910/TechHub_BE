@@ -55,6 +55,11 @@ public class CourseProxyController {
         return courseServiceClient.createCourse(createRequest, authHeader);
     }
 
+    @GetMapping("/streak")
+    public ResponseEntity<String> getLearningStreak(@RequestHeader("Authorization") String authHeader) {
+        return courseServiceClient.getLearningStreak(authHeader);
+    }
+
     @GetMapping("/{courseId}")
     public ResponseEntity<String> getCourseById(@PathVariable String courseId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {

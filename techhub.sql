@@ -371,6 +371,23 @@ CREATE UNIQUE INDEX uniq_progress_user_lesson ON progress(user_id, lesson_id);
 CREATE INDEX idx_progress_user_id ON progress(user_id);
 CREATE INDEX idx_progress_completion ON progress(completion);
 CREATE INDEX idx_progress_is_active ON progress(is_active);
+-- Learning Streaks Table
+CREATE TABLE learning_streaks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    current_streak INTEGER NOT NULL DEFAULT 0 CHECK (current_streak >= 0),
+    longest_streak INTEGER NOT NULL DEFAULT 0 CHECK (longest_streak >= 0),
+    last_activity_date DATE,
+    last_activity_at TIMESTAMP WITH TIME ZONE,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
+);
+CREATE UNIQUE INDEX uniq_learning_streaks_user_id ON learning_streaks(user_id) WHERE is_active = 'Y';
+CREATE INDEX idx_learning_streaks_last_activity_date ON learning_streaks(last_activity_date);
+CREATE INDEX idx_learning_streaks_is_active ON learning_streaks(is_active);
 -- Comments Table (Polymorphic)
 CREATE TABLE comments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -486,6 +503,13 @@ CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id),
     amount DECIMAL(10,2) NOT NULL,
+    original_amount DECIMAL(14,2),
+    original_currency VARCHAR(3),
+    gateway_amount DECIMAL(14,2),
+    gateway_currency VARCHAR(3),
+    fx_rate DECIMAL(18,8),
+    fx_provider VARCHAR(64),
+    fx_quoted_at TIMESTAMP WITH TIME ZONE,
     status transaction_status NOT NULL,
     refund_reason TEXT,
     refund_amount DECIMAL(10,2),
@@ -505,6 +529,7 @@ CREATE TABLE transaction_items (
     transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     price_at_purchase DECIMAL(10,2) NOT NULL,
+    price_currency VARCHAR(3) NOT NULL DEFAULT 'VND',
     quantity INTEGER DEFAULT 1,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -946,7 +971,7 @@ BEGIN
     FOREACH t IN ARRAY ARRAY[
         'users', 'profiles', 'authentication_logs', 'auth_providers', 'otps', 'user_twofa',
         'permissions', 'roles', 'role_permissions', 'user_roles', 'courses', 'chapters',
-        'lessons', 'exercises', 'progress', 'comments', 'enrollments', 'ratings',
+        'lessons', 'exercises', 'progress', 'learning_streaks', 'comments', 'enrollments', 'ratings',
         'submissions', 'user_codes', 'promotions', 'transactions', 'transaction_items',
         'payments', 'carts', 'blogs', 'forums', 'forum_posts', 'group_chats',
         'learning_paths', 'path_progress', 'badges', 'user_points', 'leaderboards',
@@ -1258,6 +1283,7 @@ WITH seed(name, description, url, method, resource) AS (
         ('COURSE_LESSON_ASSET_UPDATE', 'Update lesson asset', '/api/courses/{courseId}/chapters/{chapterId}/lessons/{lessonId}/assets/{assetId}', 'PUT'::permission_method, 'COURSES'),
         ('COURSE_LESSON_ASSET_DELETE', 'Delete lesson asset', '/api/courses/{courseId}/chapters/{chapterId}/lessons/{lessonId}/assets/{assetId}', 'DELETE'::permission_method, 'COURSES'),
         ('COURSE_PROGRESS_READ', 'Get course progress', '/api/courses/{id}/progress', 'GET'::permission_method, 'COURSES'),
+        ('COURSE_STREAK_READ', 'Get learning streak', '/api/courses/streak', 'GET'::permission_method, 'COURSES'),
         ('COURSE_LESSON_PROGRESS_UPDATE', 'Update lesson progress', '/api/courses/{courseId}/lessons/{lessonId}/progress', 'PUT'::permission_method, 'COURSES'),
         ('COURSE_LESSON_COMPLETE', 'Mark lesson complete', '/api/courses/{courseId}/lessons/{lessonId}/progress/complete', 'POST'::permission_method, 'COURSES'),
         ('COURSE_RATING_READ', 'Get course rating', '/api/courses/{id}/ratings', 'GET'::permission_method, 'COURSES'),
@@ -1501,6 +1527,7 @@ WITH baseline(role_name, permission_name) AS (
         ('INSTRUCTOR', 'COURSE_LESSON_ASSET_UPDATE'),
         ('INSTRUCTOR', 'COURSE_LESSON_ASSET_DELETE'),
         ('INSTRUCTOR', 'COURSE_PROGRESS_READ'),
+        ('INSTRUCTOR', 'COURSE_STREAK_READ'),
         ('INSTRUCTOR', 'COURSE_RATING_READ'),
         ('INSTRUCTOR', 'COURSE_RATING_CREATE'),
         ('INSTRUCTOR', 'COURSE_COMMENT_READ'),
@@ -1634,6 +1661,7 @@ WITH baseline(role_name, permission_name) AS (
         ('LEARNER', 'COURSE_CHAPTER_READ'),
         ('LEARNER', 'COURSE_LESSON_READ'),
         ('LEARNER', 'COURSE_PROGRESS_READ'),
+        ('LEARNER', 'COURSE_STREAK_READ'),
         ('LEARNER', 'COURSE_LESSON_PROGRESS_UPDATE'),
         ('LEARNER', 'COURSE_LESSON_COMPLETE'),
         ('LEARNER', 'COURSE_RATING_READ'),
@@ -1756,6 +1784,25 @@ WITH seed(url_pattern, method, security_level, description) AS (
     VALUES
         ('/api/v1/instructor-applications/n8n-callback', '*', 'PUBLIC'::security_level, 'N8n CV scan callback'),
         ('/api/internal/endpoint-security-policies', 'GET', 'PUBLIC'::security_level, 'Proxy policy cache feed'),
+        ('/api/courses', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated course catalog list'),
+        ('/api/courses/{id}', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated course detail'),
+        ('/api/courses/{id}/chapters', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated course chapter outline'),
+        ('/api/courses/skills', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated course skill filters'),
+        ('/api/courses/skills/{id}', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated course skill detail'),
+        ('/api/courses/tags', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated course tag filters'),
+        ('/api/courses/tags/{id}', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated course tag detail'),
+        ('/api/courses/streak', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated learning streak'),
+        ('/api/courses/{id}/ratings', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated course rating summary'),
+        ('/api/courses/{id}/comments', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated course comments'),
+        ('/api/courses/{courseId}/lessons/{lessonId}/comments', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated lesson comments'),
+        ('/api/learning-paths', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated learning path list'),
+        ('/api/learning-paths/{id}', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated learning path detail'),
+        ('/api/learning-paths/search', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated learning path search'),
+        ('/api/learning-paths/by-course/{courseId}', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated learning paths by course'),
+        ('/api/blogs', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated blog list'),
+        ('/api/blogs/{id}', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated blog detail'),
+        ('/api/blogs/tags', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated blog tags'),
+        ('/api/blogs/{id}/comments', 'GET', 'AUTHENTICATED'::security_level, 'Authenticated blog comments'),
         ('/api/users/instructor-applications/**', '*', 'AUTHORIZED'::security_level, 'Instructor application APIs require DB permissions'),
         ('/api/users/{userId}/permissions/**', '*', 'AUTHORIZED'::security_level, 'User permission APIs require DB permissions'),
         ('/api/users/instructor-applications', '*', 'AUTHORIZED'::security_level, 'Instructor application APIs require DB permissions'),

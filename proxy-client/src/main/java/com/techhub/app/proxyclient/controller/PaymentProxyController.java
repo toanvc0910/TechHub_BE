@@ -25,7 +25,7 @@ public class PaymentProxyController {
 
     @PostMapping("/paypal/create")
     public ResponseEntity<String> createPayPalOrder(
-            @RequestParam Double amount,
+            @RequestParam(required = false) Double amount,
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String courseId) {
         return paymentServiceClient.createPayPalOrder(amount, userId, courseId);
@@ -69,6 +69,19 @@ public class PaymentProxyController {
         // This is handled by VNPayPaymentController in payment-service
         String queryString = request.getQueryString();
         response.sendRedirect(buildRedirectUrl("/api/v1/payment/vn-pay-callback", queryString));
+    }
+
+    @GetMapping("/fx/rate")
+    public ResponseEntity<String> getFxRate(@RequestParam String from, @RequestParam String to) {
+        return paymentServiceClient.getFxRate(from, to);
+    }
+
+    @GetMapping("/fx/convert")
+    public ResponseEntity<String> convertFx(
+            @RequestParam String from,
+            @RequestParam String to,
+            @RequestParam String amount) {
+        return paymentServiceClient.convertFx(from, to, amount);
     }
 
     private String buildRedirectUrl(String path, String query) {

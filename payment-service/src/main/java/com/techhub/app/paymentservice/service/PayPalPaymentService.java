@@ -20,8 +20,6 @@ import org.apache.hc.client5.http.fluent.Response;
 import org.apache.hc.core5.http.ContentType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -35,7 +33,7 @@ public class PayPalPaymentService {
     private final EnrollmentService enrollmentService;
     private final TransactionItemRepository transactionItemRepository;
     private final PaymentEventOutboxService paymentEventOutboxService;
-    private final CurrencyExchangeService currencyExchangeService;
+    private final CoursePaymentPricingService coursePaymentPricingService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public PayPalPaymentService(PayPalConfig config,
@@ -45,7 +43,7 @@ public class PayPalPaymentService {
             EnrollmentService enrollmentService,
             TransactionItemRepository transactionItemRepository,
             PaymentEventOutboxService paymentEventOutboxService,
-            CurrencyExchangeService currencyExchangeService) {
+            CoursePaymentPricingService coursePaymentPricingService) {
         this.config = config;
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
@@ -53,7 +51,7 @@ public class PayPalPaymentService {
         this.enrollmentService = enrollmentService;
         this.transactionItemRepository = transactionItemRepository;
         this.paymentEventOutboxService = paymentEventOutboxService;
-        this.currencyExchangeService = currencyExchangeService;
+        this.coursePaymentPricingService = coursePaymentPricingService;
     }
 
     // Lấy access token
@@ -99,10 +97,28 @@ public class PayPalPaymentService {
             log.info("=== Creating PayPal Order ===");
             log.info("Amount: {}, Currency: {}, userId: {}, courseId: {}", amount, currency, userId, courseId);
 
+            if (userId == null) {
+                throw new IllegalArgumentException("userId parameter is required for PayPal payment");
+            }
+            if (courseId == null) {
+                throw new IllegalArgumentException("courseId parameter is required for PayPal payment");
+            }
+            PaymentPriceQuote quote = coursePaymentPricingService.quoteForGateway(courseId, "USD");
+            log.info("Ignoring client-provided amount/currency. PayPal quote original={} {}, gateway={} {}",
+                    quote.getOriginalAmount(), quote.getOriginalCurrency(),
+                    quote.getGatewayAmount(), quote.getGatewayCurrency());
+
             // Tạo transaction PENDING trước khi tạo PayPal order
             Transaction transaction = Transaction.builder()
                     .userId(userId)
-                    .amount(BigDecimal.valueOf(amount))
+                    .amount(quote.getOriginalAmount())
+                    .originalAmount(quote.getOriginalAmount())
+                    .originalCurrency(quote.getOriginalCurrency())
+                    .gatewayAmount(quote.getGatewayAmount())
+                    .gatewayCurrency(quote.getGatewayCurrency())
+                    .fxRate(quote.getFxRate())
+                    .fxProvider(quote.getFxProvider())
+                    .fxQuotedAt(quote.getFxQuotedAt())
                     .status(TransactionStatus.PENDING)
                     .isActive("Y")
                     .build();
@@ -115,7 +131,8 @@ public class PayPalPaymentService {
                 TransactionItem transactionItem = TransactionItem.builder()
                         .transaction(savedTransaction)
                         .courseId(courseId)
-                        .priceAtPurchase(BigDecimal.valueOf(amount))
+                        .priceAtPurchase(quote.getOriginalAmount())
+                        .priceCurrency(quote.getOriginalCurrency())
                         .quantity(1)
                         .isActive("Y")
                         .build();
@@ -131,20 +148,10 @@ public class PayPalPaymentService {
             Map<String, Object> order = new HashMap<>();
             order.put("intent", "CAPTURE");
 
-            // PayPal yêu cầu currency là USD (hoặc các loại tiền PayPal hỗ trợ).
-            // Nếu currency input không phải USD (ví dụ VND), tự động quy đổi sang USD.
-            String paypalCurrency = currency == null ? "USD" : currency.toUpperCase();
-            BigDecimal originalAmount = BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal paypalAmount = originalAmount;
-            if (!"USD".equals(paypalCurrency)) {
-                paypalAmount = currencyExchangeService.convert(originalAmount, paypalCurrency, "USD");
-                log.info("Converted {} {} -> {} USD for PayPal", originalAmount, paypalCurrency, paypalAmount);
-                paypalCurrency = "USD";
-            }
-            String amountString = paypalAmount.toPlainString();
+            String amountString = quote.getGatewayAmount().toPlainString();
 
             Map<String, Object> amountMap = new HashMap<>();
-            amountMap.put("currency_code", paypalCurrency);
+            amountMap.put("currency_code", quote.getGatewayCurrency());
             amountMap.put("value", amountString);
 
             Map<String, Object> purchaseUnit = new HashMap<>();
@@ -162,7 +169,9 @@ public class PayPalPaymentService {
             order.put("application_context", applicationContext);
 
             String orderJson = mapper.writeValueAsString(order);
-            log.info("Creating PayPal order with amount: {} {} (formatted: {})", amount, currency, amountString);
+            log.info("Creating PayPal order original={} {}, gateway={} {}",
+                    quote.getOriginalAmount(), quote.getOriginalCurrency(),
+                    quote.getGatewayAmount(), quote.getGatewayCurrency());
             log.debug("PayPal order request body: {}", orderJson);
 
             String responseBody = Request.post(config.getApiBase() + "/v2/checkout/orders")
@@ -193,6 +202,12 @@ public class PayPalPaymentService {
 
                 // Thêm transaction ID vào result để tracking
                 result.put("transaction_id", transaction.getId().toString());
+                result.put("original_amount", quote.getOriginalAmount());
+                result.put("original_currency", quote.getOriginalCurrency());
+                result.put("gateway_amount", quote.getGatewayAmount());
+                result.put("gateway_currency", quote.getGatewayCurrency());
+                result.put("fx_rate", quote.getFxRate());
+                result.put("fx_provider", quote.getFxProvider());
                 return result;
             } else {
                 log.error("PayPal order creation failed. Response: {}", responseBody);
@@ -288,6 +303,12 @@ public class PayPalPaymentService {
             gatewayResponse.put("orderId", orderId);
             gatewayResponse.put("status", status);
             gatewayResponse.put("captureResult", captureResult);
+            gatewayResponse.put("originalAmount", transaction.getOriginalAmount());
+            gatewayResponse.put("originalCurrency", transaction.getOriginalCurrency());
+            gatewayResponse.put("gatewayAmount", transaction.getGatewayAmount());
+            gatewayResponse.put("gatewayCurrency", transaction.getGatewayCurrency());
+            gatewayResponse.put("fxRate", transaction.getFxRate());
+            gatewayResponse.put("fxProvider", transaction.getFxProvider());
 
             // Extract more details for gateway response
             if (captureResult.containsKey("id")) {
