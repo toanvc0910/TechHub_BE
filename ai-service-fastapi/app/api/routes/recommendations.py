@@ -32,6 +32,17 @@ async def scheduled(payload: RecommendationRequest, request: Request) -> dict:
         path=request.url.path,
         status="AI_RECOMMENDATION_SCHEDULED",
     )
+    
+
+@router.post("/simple")
+async def simple(payload: RecommendationRequest, request: Request) -> dict:
+    response = await recommendation_service.generate_simple(payload)
+    return success_response(
+        message="Simple recommendations generated",
+        data=response.model_dump(mode="json"),
+        path=request.url.path,
+        status="AI_RECOMMENDATION_SIMPLE",
+    )
 
 
 @router.get("/history")

@@ -511,6 +511,7 @@ class RecommendationService:
         request_payload: dict[str, Any],
         prompt: str,
         result_payload: dict[str, Any],
+        model_used: str | None = None,
     ) -> str:
         async with get_db_session() as session:
             task = AiGenerationTaskModel(
@@ -520,11 +521,119 @@ class RecommendationService:
                 request_payload=request_payload,
                 result_payload=result_payload,
                 prompt=prompt,
-                model_used=await provider_config_service.get_active_chat_model(),
+                model_used=model_used or await provider_config_service.get_active_chat_model(),
             )
             session.add(task)
             await session.flush()
             return str(task.id)
+
+    # ------------------------------------------------------------------
+    # Simple collaborative filtering pipeline (no LLM, no vector search)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _jaccard(set_a: set[str], set_b: set[str]) -> float:
+        if not set_a and not set_b:
+            return 0.0
+        return len(set_a & set_b) / len(set_a | set_b)
+
+    def _score_tag_skill_collab(
+        self, candidates: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        if not candidates:
+            return []
+
+        max_co = max(c["co_count"] for c in candidates) or 1
+        # All rows carry the same user_tags / user_skills — take from first row.
+        user_tags: set[str] = set(candidates[0].get("user_tags") or [])
+        user_skills: set[str] = set(candidates[0].get("user_skills") or [])
+
+        for c in candidates:
+            collab = c["co_count"] / max_co
+            skill = self._jaccard(user_skills, set(c.get("skills") or []))
+            tag = self._jaccard(user_tags, set(c.get("tags") or []))
+            c["score"] = round(0.4 * collab + 0.35 * skill + 0.25 * tag, 4)
+
+            signals: list[str] = []
+            if collab > 0.5:
+                signals.append("co_learners")
+            if skill > 0.3:
+                signals.append("skill_match")
+            if tag > 0.3:
+                signals.append("tag_match")
+            c["signals"] = signals
+
+        return sorted(candidates, key=lambda x: x["score"], reverse=True)
+
+    @staticmethod
+    def _reason_from_collab_signals(signals: list[str], skills: list[str]) -> str:
+        parts: list[str] = []
+        if "co_learners" in signals:
+            parts.append("Học viên có hành trình học tương tự bạn đang học khóa này")
+        if "skill_match" in signals and skills:
+            skill_str = ", ".join(skills[:3])
+            parts.append(f"Trùng kỹ năng: {skill_str}")
+        if "tag_match" in signals:
+            parts.append("Phù hợp với chủ đề bạn quan tâm")
+        return ". ".join(parts) if parts else "Có thể phù hợp với bạn"
+
+    async def generate_simple(
+        self, request: RecommendationRequest, top_n: int = 5
+    ) -> RecommendationResponse:
+        """Lightweight recommendation — no LLM, no Qdrant.
+
+        Uses co-enrollment collaborative filtering combined with
+        tag/skill Jaccard similarity.
+        """
+        user_id = str(request.userId)
+        candidates = await catalog_service.fetch_collaborative_candidates(
+            user_id, limit=20
+        )
+
+        if not candidates:
+            return RecommendationResponse(
+                taskId=None,
+                recommendations=[],
+                metadata={"pipeline": "tag-skill-collab", "total_candidates": 0},
+            )
+
+        scored = self._score_tag_skill_collab(candidates)
+        top = scored[:top_n]
+
+        recommendations: list[RecommendationItem] = []
+        for c in top:
+            signals: list[str] = c.get("signals") or []
+            course_skills: list[str] = c.get("skills") or []
+            recommendations.append(
+                RecommendationItem(
+                    courseId=str(c.get("id") or ""),
+                    title=str(c.get("title") or ""),
+                    description=str(c.get("description") or ""),
+                    score=float(c.get("score") or 0.0),
+                    reason=self._reason_from_collab_signals(signals, course_skills),
+                    tags=c.get("tags") or [],
+                )
+            )
+
+        task_id = await self._persist_generation(
+            task_type=AiTaskType.RECOMMENDATION_REALTIME,
+            target_reference=user_id,
+            request_payload=request.model_dump(mode="json"),
+            prompt="rule-based:tag-skill-collab",
+            result_payload={
+                "recommendations": [r.model_dump(mode="json") for r in recommendations]
+            },
+            model_used="rule-based",
+        )
+
+        return RecommendationResponse(
+            taskId=task_id,
+            recommendations=recommendations,
+            metadata={
+                "pipeline": "tag-skill-collab",
+                "total_candidates": len(candidates),
+            },
+        )
 
 
 recommendation_service = RecommendationService()

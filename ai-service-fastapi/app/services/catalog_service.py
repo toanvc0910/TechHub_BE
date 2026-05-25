@@ -521,6 +521,108 @@ class CatalogService:
         ]
         return "\n".join(part for part in parts if part.strip()).strip()
 
+    async def fetch_collaborative_candidates(
+        self, user_id: str, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        """Return candidate courses for collaborative filtering.
+
+        Uses a 4-CTE query to:
+        1. Find courses the target user is enrolled in.
+        2. Aggregate their tag/skill context.
+        3. Find co-learners (users sharing at least one enrolled course).
+        4. Rank courses the co-learners are in that the user has not seen yet,
+           by co-enrollment count.
+        """
+        sql = """
+            WITH user_courses AS (
+                SELECT e.course_id
+                FROM enrollments e
+                WHERE e.user_id = :user_id
+                  AND e.is_active = 'Y'
+                  AND e.status NOT IN ('DROPPED')
+            ),
+            user_context AS (
+                SELECT
+                    COALESCE(
+                        json_agg(DISTINCT t.name) FILTER (WHERE t.name IS NOT NULL),
+                        '[]'::json
+                    ) AS user_tags,
+                    COALESCE(
+                        json_agg(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL),
+                        '[]'::json
+                    ) AS user_skills
+                FROM user_courses uc
+                LEFT JOIN course_tags ct   ON ct.course_id  = uc.course_id
+                LEFT JOIN tags t           ON t.id = ct.tag_id AND t.is_active = 'Y'
+                LEFT JOIN course_skills cs ON cs.course_id = uc.course_id
+                LEFT JOIN skills s         ON s.id = cs.skill_id AND s.is_active = 'Y'
+            ),
+            co_learners AS (
+                SELECT DISTINCT e.user_id
+                FROM enrollments e
+                WHERE e.course_id IN (SELECT course_id FROM user_courses)
+                  AND e.user_id != :user_id
+                  AND e.is_active = 'Y'
+                  AND e.status NOT IN ('DROPPED')
+            ),
+            co_enrolled AS (
+                SELECT e.course_id, COUNT(DISTINCT e.user_id) AS co_count
+                FROM enrollments e
+                WHERE e.user_id IN (SELECT user_id FROM co_learners)
+                  AND e.course_id NOT IN (SELECT course_id FROM user_courses)
+                  AND e.is_active = 'Y'
+                  AND e.status NOT IN ('DROPPED')
+                GROUP BY e.course_id
+            )
+            SELECT
+                c.id,
+                c.title,
+                c.description,
+                c.level,
+                c.language,
+                c.thumbnail,
+                c.instructor_id,
+                ce.co_count,
+                COALESCE(
+                    json_agg(DISTINCT t.name)  FILTER (WHERE t.name  IS NOT NULL),
+                    '[]'::json
+                ) AS tags,
+                COALESCE(
+                    json_agg(DISTINCT s.name)  FILTER (WHERE s.name  IS NOT NULL),
+                    '[]'::json
+                ) AS skills,
+                (SELECT user_tags   FROM user_context) AS user_tags,
+                (SELECT user_skills FROM user_context) AS user_skills
+            FROM co_enrolled ce
+            JOIN courses c ON c.id = ce.course_id
+                AND c.is_active = 'Y'
+                AND c.status = 'PUBLISHED'
+            LEFT JOIN course_tags   ct ON ct.course_id = c.id
+            LEFT JOIN tags          t  ON t.id  = ct.tag_id  AND t.is_active = 'Y'
+            LEFT JOIN course_skills cs ON cs.course_id = c.id
+            LEFT JOIN skills        s  ON s.id  = cs.skill_id AND s.is_active = 'Y'
+            GROUP BY c.id, c.title, c.description, c.level, c.language, c.thumbnail,
+                     c.instructor_id, ce.co_count
+            ORDER BY ce.co_count DESC
+            LIMIT :limit
+        """
+        async with get_db_session() as session:
+            result = await session.execute(
+                text(sql), {"user_id": user_id, "limit": limit}
+            )
+            items: list[dict[str, Any]] = []
+            for row in result.mappings().all():
+                payload = dict(row)
+                payload["id"] = _normalize_uuidish(payload.get("id"))
+                payload["instructor_id"] = _normalize_uuidish(payload.get("instructor_id"))
+                payload["co_count"] = int(payload.get("co_count") or 0)
+                payload["tags"] = _normalize_jsonish(payload.get("tags"), [])
+                payload["skills"] = _normalize_jsonish(payload.get("skills"), [])
+                payload["user_tags"] = _normalize_jsonish(payload.get("user_tags"), [])
+                payload["user_skills"] = _normalize_jsonish(payload.get("user_skills"), [])
+                items.append(payload)
+            return items
+
     @staticmethod
     def _normalize_course_row(row: dict[str, Any]) -> dict[str, Any]:
         row["id"] = _normalize_uuidish(row.get("id"))
