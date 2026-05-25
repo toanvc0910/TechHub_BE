@@ -260,6 +260,20 @@ public class UserController {
                         .withPath(httpServletRequest.getRequestURI()));
     }
 
+    /**
+     * Internal batch lookup. Returns minimal {id, username, avatar} for given ids.
+     * Order/missing ids are not guaranteed to match input.
+     */
+    @PostMapping("/internal/batch")
+    public ResponseEntity<GlobalResponse<java.util.List<java.util.Map<String, Object>>>> getUsersBatch(
+            @RequestBody java.util.List<UUID> ids,
+            HttpServletRequest httpServletRequest) {
+        java.util.List<java.util.Map<String, Object>> data = userService.getMinimalByIds(ids);
+        return ResponseEntity.ok(
+                GlobalResponse.success("Users retrieved", data)
+                        .withPath(httpServletRequest.getRequestURI()));
+    }
+
     private UUID parseRequiredUserId(String userIdHeader, String missingHeaderMessage) {
         if (userIdHeader == null || userIdHeader.isBlank()) {
             throw new BadRequestException(missingHeaderMessage);

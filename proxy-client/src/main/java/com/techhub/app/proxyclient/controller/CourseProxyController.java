@@ -297,6 +297,13 @@ public class CourseProxyController {
         return courseServiceClient.getExercises(courseId, lessonId, authHeader);
     }
 
+    @GetMapping("/{courseId}/lessons/{lessonId}/leaderboard")
+    public ResponseEntity<String> getLessonLeaderboard(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @RequestParam(value = "limit", defaultValue = "10") int limit) {
+        return courseServiceClient.getLessonLeaderboard(courseId, lessonId, limit);
+    }
+
     @PostMapping("/{courseId}/lessons/{lessonId}/exercises")
     public ResponseEntity<String> createExercises(@PathVariable String courseId,
             @PathVariable String lessonId,

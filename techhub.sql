@@ -1246,6 +1246,52 @@ CREATE TABLE IF NOT EXISTS instructor_application_certificates (
 );
 CREATE INDEX IF NOT EXISTS idx_instructor_app_certs_app ON instructor_application_certificates(application_id);
 
+-- Instructor profile: structured data trích từ AI khi đơn được duyệt.
+-- 1-1 với users; cập nhật mỗi lần admin approve đơn mới (giữ snapshot mới nhất).
+CREATE TABLE IF NOT EXISTS instructor_profiles (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    source_application_id UUID REFERENCES instructor_applications(id) ON DELETE SET NULL,
+
+    -- Từ CCCD mặt trước
+    id_number VARCHAR(20),
+    full_name VARCHAR(200),
+    date_of_birth VARCHAR(20),
+    gender VARCHAR(10),
+    nationality VARCHAR(100),
+    place_of_origin TEXT,
+    place_of_residence TEXT,
+
+    -- Từ CCCD mặt sau
+    cccd_issue_date VARCHAR(20),
+    cccd_issue_place TEXT,
+    cccd_mrz TEXT,
+    identifying_features TEXT,
+
+    -- Từ CV
+    cv_summary TEXT,
+    cv_email VARCHAR(200),
+    cv_phone VARCHAR(50),
+    cv_location VARCHAR(200),
+    linkedin_url TEXT,
+    github_url TEXT,
+    portfolio_url TEXT,
+    years_of_experience INT,
+    skills JSONB,
+    languages JSONB,
+    education JSONB,
+    experience JSONB,
+    projects JSONB,
+    cv_certifications JSONB,
+
+    -- Từ chứng chỉ uploaded (mảng các object đã trích xuất)
+    certificates JSONB,
+
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_instructor_profiles_app ON instructor_profiles(source_application_id);
+CREATE INDEX IF NOT EXISTS idx_instructor_profiles_id_number ON instructor_profiles(id_number);
+
 -- DB-first RBAC seed. New API/page permissions should be added here or by the admin permissions API, not in backend startup code.
 WITH seed(name, description) AS (
     VALUES
@@ -1445,6 +1491,8 @@ WITH seed(name, description, url, method, resource) AS (
         ('INSTRUCTOR_APPLICATION_READ', 'Read instructor application detail', '/api/users/instructor-applications/{id}', 'GET'::permission_method, 'INSTRUCTOR_APPLICATIONS'),
         ('INSTRUCTOR_APPLICATION_APPROVE', 'Approve instructor application', '/api/users/instructor-applications/{id}/approve', 'PUT'::permission_method, 'INSTRUCTOR_APPLICATIONS'),
         ('INSTRUCTOR_APPLICATION_REJECT', 'Reject instructor application', '/api/users/instructor-applications/{id}/reject', 'PUT'::permission_method, 'INSTRUCTOR_APPLICATIONS'),
+        ('INSTRUCTOR_PROFILE_READ_OWN', 'Read own instructor profile', '/api/users/instructor-profiles/me', 'GET'::permission_method, 'INSTRUCTOR_PROFILES'),
+        ('INSTRUCTOR_PROFILE_READ', 'Read instructor profile by user id', '/api/users/instructor-profiles/{userId}', 'GET'::permission_method, 'INSTRUCTOR_PROFILES'),
         ('FILE_CONTENT_READ', 'Read file content stream', '/api/files/{id}/content', 'GET'::permission_method, 'FILES'),
         ('FILE_THUMBNAIL_READ', 'Read file thumbnail stream', '/api/files/{id}/thumbnail', 'GET'::permission_method, 'FILES'),
         ('AI_QDRANT_STATS_READ', 'Read Qdrant statistics', '/api/ai/admin/qdrant-stats', 'GET'::permission_method, 'AI'),
@@ -1690,6 +1738,9 @@ WITH baseline(role_name, permission_name) AS (
         ('INSTRUCTOR', 'MANAGE_FILES_VIEW'),
         ('INSTRUCTOR', 'MANAGE_COURSES_VIEW'),
         ('INSTRUCTOR', 'MANAGE_COURSE_CONTENT_VIEW'),
+        ('INSTRUCTOR', 'INSTRUCTOR_PROFILE_READ_OWN'),
+        ('INSTRUCTOR', 'INSTRUCTOR_PROFILE_READ'),
+        ('LEARNER', 'INSTRUCTOR_PROFILE_READ'),
         ('INSTRUCTOR', 'MANAGE_LEARNING_PATHS_VIEW'),
         ('LEARNER', 'USER_PROFILE'),
         ('LEARNER', 'USER_CHANGE_PASSWORD'),
@@ -1852,6 +1903,8 @@ WITH seed(url_pattern, method, security_level, description) AS (
         ('/api/v1/instructor-applications/**', '*', 'AUTHORIZED'::security_level, 'Direct instructor application APIs require DB permissions'),
         ('/api/users/resend-reset-code/**', '*', 'PUBLIC'::security_level, 'Resend reset code'),
         ('/api/v1/instructor-applications', '*', 'AUTHORIZED'::security_level, 'Direct instructor application APIs require DB permissions'),
+        ('/api/v1/instructor-profiles/**', '*', 'AUTHORIZED'::security_level, 'Instructor profile APIs require DB permissions'),
+        ('/api/users/instructor-profiles/**', '*', 'AUTHORIZED'::security_level, 'Proxied instructor profile APIs require DB permissions'),
         ('/api/v1/payment/vn-pay-callback', 'GET', 'PUBLIC'::security_level, 'Direct VNPay callback'),
         ('/api/v1/payment/paypal/success', 'GET', 'PUBLIC'::security_level, 'Direct PayPal success callback'),
         ('/api/payments/vn-pay-callback', 'GET', 'PUBLIC'::security_level, 'VNPay callback'),

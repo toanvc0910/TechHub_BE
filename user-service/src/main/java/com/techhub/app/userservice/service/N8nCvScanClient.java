@@ -3,8 +3,6 @@ package com.techhub.app.userservice.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techhub.app.userservice.enums.InstructorApplicationAiStatus;
-import com.techhub.app.userservice.repository.InstructorApplicationCertificateRepository;
-import com.techhub.app.userservice.repository.InstructorApplicationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,11 +29,26 @@ public class N8nCvScanClient {
             .connectTimeout(Duration.ofSeconds(15))
             .build();
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final InstructorApplicationRepository applicationRepository;
-    private final InstructorApplicationCertificateRepository certificateRepository;
+    private final ScanUpdater scanUpdater;
 
     @Value("${n8n.webhook-url:}")
     private String webhookUrl;
+
+    @Value("${n8n.webhook-url-cv:}")
+    private String webhookUrlCv;
+
+    @Value("${n8n.webhook-url-cccd-front:}")
+    private String webhookUrlCccdFront;
+
+    @Value("${n8n.webhook-url-cccd-back:}")
+    private String webhookUrlCccdBack;
+
+    @Value("${n8n.webhook-url-certificate:}")
+    private String webhookUrlCertificate;
+
+    private String resolve(String specific) {
+        return (specific != null && !specific.isBlank()) ? specific : webhookUrl;
+    }
 
     @Async
     public void triggerCvScan(UUID applicationId, String cvFileUrl) {
@@ -43,19 +56,11 @@ public class N8nCvScanClient {
         form.put("applicationId", applicationId.toString());
         form.put("source_system", "E_OFFICE");
         form.put("type", "Cv");
-        ScanResult r = doScan(cvFileUrl, form, true);
-        if (r.success) {
-            updateApp(applicationId, app -> {
-                app.setAiStatus(InstructorApplicationAiStatus.PROCESSED);
-                app.setAiExtractedData(r.dataJson);
-                app.setAiError(null);
-            });
-        } else {
-            updateApp(applicationId, app -> {
-                app.setAiStatus(InstructorApplicationAiStatus.FAILED);
-                app.setAiError(r.error);
-            });
-        }
+        ScanResult r = doScan(resolve(webhookUrlCv), cvFileUrl, form, true);
+        InstructorApplicationAiStatus status = r.success
+                ? InstructorApplicationAiStatus.PROCESSED : InstructorApplicationAiStatus.FAILED;
+        scanUpdater.updateCv(applicationId, status,
+                r.success ? r.dataJson : null, r.success ? null : r.error);
     }
 
     @Async
@@ -63,41 +68,32 @@ public class N8nCvScanClient {
         Map<String, String> form = new LinkedHashMap<>();
         form.put("type", "CCCD");
         form.put("side", front ? "FRONT" : "BACK");
-        ScanResult r = doScan(fileUrl, form, false);
-        updateApp(applicationId, app -> {
-            if (front) {
-                app.setCccdFrontStatus(r.success
-                        ? InstructorApplicationAiStatus.PROCESSED : InstructorApplicationAiStatus.FAILED);
-                app.setCccdFrontData(r.success ? r.dataJson : null);
-                app.setCccdFrontError(r.success ? null : r.error);
-            } else {
-                app.setCccdBackStatus(r.success
-                        ? InstructorApplicationAiStatus.PROCESSED : InstructorApplicationAiStatus.FAILED);
-                app.setCccdBackData(r.success ? r.dataJson : null);
-                app.setCccdBackError(r.success ? null : r.error);
-            }
-        });
+        ScanResult r = doScan(resolve(front ? webhookUrlCccdFront : webhookUrlCccdBack), fileUrl, form, false);
+        InstructorApplicationAiStatus status = r.success
+                ? InstructorApplicationAiStatus.PROCESSED : InstructorApplicationAiStatus.FAILED;
+        String data = r.success ? r.dataJson : null;
+        String err = r.success ? null : r.error;
+        if (front) scanUpdater.updateCccdFront(applicationId, status, data, err);
+        else scanUpdater.updateCccdBack(applicationId, status, data, err);
     }
 
     @Async
     public void triggerCertificateScan(UUID certificateId, String fileUrl) {
         Map<String, String> form = new LinkedHashMap<>();
         form.put("type", "scan-certificate");
-        ScanResult r = doScan(fileUrl, form, false);
-        updateCert(certificateId, cert -> {
-            cert.setAiStatus(r.success
-                    ? InstructorApplicationAiStatus.PROCESSED : InstructorApplicationAiStatus.FAILED);
-            cert.setAiData(r.success ? r.dataJson : null);
-            cert.setAiError(r.success ? null : r.error);
-        });
+        ScanResult r = doScan(resolve(webhookUrlCertificate), fileUrl, form, false);
+        InstructorApplicationAiStatus status = r.success
+                ? InstructorApplicationAiStatus.PROCESSED : InstructorApplicationAiStatus.FAILED;
+        scanUpdater.updateCertificate(certificateId, status,
+                r.success ? r.dataJson : null, r.success ? null : r.error);
     }
 
-    private ScanResult doScan(String fileUrl, Map<String, String> textParts, boolean includeTypeApplication) {
+    private ScanResult doScan(String webhookUrl, String fileUrl, Map<String, String> textParts, boolean includeTypeApplication) {
         String scanType = textParts.getOrDefault("type", "?");
         String scanSide = textParts.getOrDefault("side", "");
         String tag = scanType + (scanSide.isEmpty() ? "" : "/" + scanSide);
         long t0 = System.currentTimeMillis();
-        log.info("[N8n][{}] START scan url={}", tag, fileUrl);
+        log.info("[N8n][{}] START scan webhook={} fileUrl={}", tag, webhookUrl, fileUrl);
 
         if (webhookUrl == null || webhookUrl.isBlank()) {
             log.warn("[N8n][{}] webhook URL chưa cấu hình", tag);
@@ -183,23 +179,7 @@ public class N8nCvScanClient {
         }
     }
 
-    private void updateApp(UUID applicationId,
-            java.util.function.Consumer<com.techhub.app.userservice.entity.InstructorApplication> mutator) {
-        applicationRepository.findById(applicationId).ifPresent(app -> {
-            mutator.accept(app);
-            applicationRepository.save(app);
-        });
-    }
-
-    private void updateCert(UUID certificateId,
-            java.util.function.Consumer<com.techhub.app.userservice.entity.InstructorApplicationCertificate> mutator) {
-        certificateRepository.findById(certificateId).ifPresent(cert -> {
-            mutator.accept(cert);
-            certificateRepository.save(cert);
-        });
-    }
-
-    private void writeFilePart(ByteArrayOutputStream baos, String boundary, String name,
+private void writeFilePart(ByteArrayOutputStream baos, String boundary, String name,
                                String fileName, String contentType, byte[] data) throws Exception {
         baos.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
         baos.write(("Content-Disposition: form-data; name=\"" + name + "\"; filename=\"" + fileName + "\"\r\n")

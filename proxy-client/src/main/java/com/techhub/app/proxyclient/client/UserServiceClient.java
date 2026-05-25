@@ -252,4 +252,34 @@ public interface UserServiceClient {
             @RequestBody Object body,
             @RequestHeader("X-User-Id") String userId,
             @RequestHeader("X-User-Roles") String roles);
+
+    @PostMapping("/api/v1/instructor-applications/{id}/rescan/cv")
+    ResponseEntity<String> rescanCv(
+            @PathVariable String id,
+            @RequestHeader("X-User-Roles") String roles);
+
+    @PostMapping("/api/v1/instructor-applications/{id}/rescan/cccd-front")
+    ResponseEntity<String> rescanCccdFront(
+            @PathVariable String id,
+            @RequestHeader("X-User-Roles") String roles);
+
+    @PostMapping("/api/v1/instructor-applications/{id}/rescan/cccd-back")
+    ResponseEntity<String> rescanCccdBack(
+            @PathVariable String id,
+            @RequestHeader("X-User-Roles") String roles);
+
+    @PostMapping("/api/v1/instructor-applications/certificates/{certId}/rescan")
+    ResponseEntity<String> rescanCertificate(
+            @PathVariable String certId,
+            @RequestHeader("X-User-Roles") String roles);
+
+    @GetMapping("/api/v1/instructor-profiles/me")
+    ResponseEntity<String> getMyInstructorProfile(
+            @RequestHeader("X-User-Id") String userId);
+
+    @GetMapping("/api/v1/instructor-profiles/{userId}")
+    ResponseEntity<String> getInstructorProfile(
+            @PathVariable String userId,
+            @RequestHeader(value = "X-User-Id", required = false) String callerId,
+            @RequestHeader(value = "X-User-Roles", required = false) String roles);
 }

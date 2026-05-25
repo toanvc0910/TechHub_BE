@@ -41,6 +41,7 @@ public class InstructorApplicationService {
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
     private final N8nCvScanClient n8nClient;
+    private final InstructorProfileSyncService profileSyncService;
 
     @Transactional
     public InstructorApplicationResponse submit(UUID userId, CreateInstructorApplicationRequest request) {
@@ -200,6 +201,15 @@ public class InstructorApplicationService {
             userRoleRepository.save(ur);
             log.info("[InstructorApp] Granted INSTRUCTOR role to userId={}", app.getUserId());
         }
+
+        // Sync data AI vào instructor_profiles snapshot
+        try {
+            profileSyncService.syncFromApplication(app);
+        } catch (Exception e) {
+            log.warn("[InstructorApp] Profile sync failed (non-blocking) userId={}: {}",
+                    app.getUserId(), e.getMessage(), e);
+        }
+
         return toResponse(app);
     }
 

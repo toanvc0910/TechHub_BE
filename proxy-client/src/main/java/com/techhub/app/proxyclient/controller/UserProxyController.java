@@ -197,4 +197,44 @@ public class UserProxyController {
         return userServiceClient.rejectInstructorApplication(id, body, uid.toString(),
                 roles == null ? "" : roles.toString());
     }
+
+    @PostMapping("/instructor-applications/{id}/rescan/cv")
+    public ResponseEntity<String> rescanCv(@PathVariable String id, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        return userServiceClient.rescanCv(id, roles == null ? "" : roles.toString());
+    }
+
+    @PostMapping("/instructor-applications/{id}/rescan/cccd-front")
+    public ResponseEntity<String> rescanCccdFront(@PathVariable String id, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        return userServiceClient.rescanCccdFront(id, roles == null ? "" : roles.toString());
+    }
+
+    @PostMapping("/instructor-applications/{id}/rescan/cccd-back")
+    public ResponseEntity<String> rescanCccdBack(@PathVariable String id, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        return userServiceClient.rescanCccdBack(id, roles == null ? "" : roles.toString());
+    }
+
+    @PostMapping("/instructor-applications/certificates/{certId}/rescan")
+    public ResponseEntity<String> rescanCertificate(@PathVariable String certId, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        return userServiceClient.rescanCertificate(certId, roles == null ? "" : roles.toString());
+    }
+
+    @GetMapping("/instructor-profiles/me")
+    public ResponseEntity<String> getMyInstructorProfile(HttpServletRequest httpReq) {
+        Object uid = httpReq.getAttribute("userId");
+        if (uid == null) throw new UnauthorizedException("User context missing");
+        return userServiceClient.getMyInstructorProfile(uid.toString());
+    }
+
+    @GetMapping("/instructor-profiles/{userId}")
+    public ResponseEntity<String> getInstructorProfile(@PathVariable String userId, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        Object callerId = httpReq.getAttribute("userId");
+        return userServiceClient.getInstructorProfile(userId,
+                callerId == null ? "" : callerId.toString(),
+                roles == null ? "" : roles.toString());
+    }
 }
