@@ -1,5 +1,8 @@
 package com.techhub.app.fileservice.service;
 
+import com.techhub.app.commonservice.exception.BadRequestException;
+import com.techhub.app.commonservice.exception.ConflictException;
+import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.fileservice.dto.request.CreateFolderRequest;
 import com.techhub.app.fileservice.dto.request.UpdateFolderRequest;
 import com.techhub.app.fileservice.dto.response.FolderResponse;
@@ -31,25 +34,53 @@ public class FolderService {
     @Transactional
     public FolderResponse createFolder(CreateFolderRequest request) {
         String folderName = normalizeFolderName(request.getName());
+        UUID userId = request.getUserId();
+        UUID parentId = request.getParentId();
 
-        // Check if folder with same name exists in the same parent
-        if (folderRepository.existsByUserIdAndNameAndParentIdAndIsActive(
-                request.getUserId(), folderName, request.getParentId(), "Y")) {
-            throw new RuntimeException("Folder with this name already exists in the same location");
+        // Look for ANY folder (active or soft-deleted) with the same name+parent
+        // to avoid hitting the DB unique index when an inactive duplicate exists.
+        Optional<FileFolderEntity> existingByName = folderRepository
+                .findByUserIdAndNameAndParent(userId, folderName, parentId);
+        if (existingByName.isPresent()) {
+            FileFolderEntity existing = existingByName.get();
+            if ("Y".equals(existing.getIsActive())) {
+                throw new ConflictException(
+                        "Folder with this name already exists in the same location");
+            }
+            // Reactivate the previously soft-deleted folder instead of inserting a new row.
+            String storagePath = buildFolderPath(userId, parentId, folderName);
+            existing.setIsActive("Y");
+            existing.setParentId(parentId);
+            existing.setPath(storagePath);
+            existing.setUpdatedBy(userId);
+            FileFolderEntity revived = folderRepository.save(existing);
+            createFolderMarker(revived);
+            return mapToResponse(revived);
         }
 
-        String storagePath = buildFolderPath(request.getUserId(), request.getParentId(), folderName);
-        if (folderRepository.existsByUserIdAndPathAndIsActive(request.getUserId(), storagePath, "Y")) {
-            throw new RuntimeException("Folder with this storage path already exists in the same location");
+        String storagePath = buildFolderPath(userId, parentId, folderName);
+        Optional<FileFolderEntity> existingByPath = folderRepository.findByUserIdAndPath(userId, storagePath);
+        if (existingByPath.isPresent()) {
+            FileFolderEntity existing = existingByPath.get();
+            if ("Y".equals(existing.getIsActive())) {
+                throw new ConflictException(
+                        "Folder with this storage path already exists in the same location");
+            }
+            existing.setIsActive("Y");
+            existing.setName(folderName);
+            existing.setParentId(parentId);
+            existing.setUpdatedBy(userId);
+            FileFolderEntity revived = folderRepository.save(existing);
+            createFolderMarker(revived);
+            return mapToResponse(revived);
         }
 
         FileFolderEntity folder = new FileFolderEntity();
-        folder.setUserId(request.getUserId());
-        folder.setParentId(request.getParentId());
+        folder.setUserId(userId);
+        folder.setParentId(parentId);
         folder.setName(folderName);
         folder.setIsActive("Y");
-        folder.setCreatedBy(request.getUserId());
-
+        folder.setCreatedBy(userId);
         folder.setPath(storagePath);
 
         FileFolderEntity saved = folderRepository.save(folder);
@@ -116,7 +147,7 @@ public class FolderService {
                 // Check for duplicate name
                 if (folderRepository.existsByUserIdAndNameAndParentIdAndIsActive(
                         userId, folderName, folder.getParentId(), "Y")) {
-                    throw new RuntimeException("Folder with this name already exists in the same location");
+                    throw new ConflictException("Folder with this name already exists in the same location");
                 }
                 String storagePath = buildFolderPath(userId, folder.getParentId(), folderName);
                 ensureStoragePathAvailable(userId, storagePath, folderId);
@@ -184,7 +215,7 @@ public class FolderService {
 
     private void ensureStoragePathAvailable(UUID userId, String storagePath, UUID currentFolderId) {
         if (folderRepository.existsByUserIdAndPathAndIsActiveAndIdNot(userId, storagePath, "Y", currentFolderId)) {
-            throw new RuntimeException("Folder with this storage path already exists in the same location");
+            throw new ConflictException("Folder with this storage path already exists in the same location");
         }
     }
 

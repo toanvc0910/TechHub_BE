@@ -36,7 +36,13 @@ CREATE INDEX idx_file_folders_user_id ON file_folders(user_id);
 CREATE INDEX idx_file_folders_parent_id ON file_folders(parent_id);
 CREATE INDEX idx_file_folders_path ON file_folders(path);
 CREATE INDEX idx_file_folders_is_active ON file_folders(is_active);
-CREATE UNIQUE INDEX uniq_file_folders_user_name_parent ON file_folders(user_id, name, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'::uuid));
+-- Partial unique index: only enforce uniqueness for ACTIVE folders.
+-- This allows reactivating a soft-deleted folder with the same name+parent
+-- (handled in FolderService.createFolder) instead of failing with 409 Conflict
+-- because of a leftover soft-deleted row.
+CREATE UNIQUE INDEX uniq_file_folders_user_name_parent
+    ON file_folders(user_id, name, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'::uuid))
+    WHERE is_active = 'Y';
 
 -- Files Table (File metadata)
 CREATE TABLE files (

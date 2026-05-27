@@ -178,7 +178,7 @@ public class CourseCommentServiceImpl implements CourseCommentService {
 
         UUID currentUserId = requireCurrentUser();
         boolean isOwner = currentUserId.equals(comment.getUserId());
-        boolean isAdmin = UserContext.hasAnyRole(UserRole.ADMIN.name());
+        boolean isAdmin = UserContext.hasAnyRole(UserRole.ADMIN.name(), UserRole.SUPER_ADMIN.name());
         boolean isInstructor = UserContext.hasAnyRole(UserRole.INSTRUCTOR.name()) && course.getInstructorId() != null
                 && course.getInstructorId().equals(currentUserId);
 

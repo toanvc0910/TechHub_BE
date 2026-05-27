@@ -13,6 +13,7 @@ import com.techhub.app.courseservice.dto.response.CourseSummaryResponse;
 import com.techhub.app.courseservice.dto.response.LessonAssetResponse;
 import com.techhub.app.courseservice.dto.response.LessonResponse;
 import com.techhub.app.courseservice.enums.CourseLevel;
+import com.techhub.app.courseservice.enums.CourseStatus;
 import com.techhub.app.courseservice.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -86,9 +87,17 @@ public class CourseController {
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
                         @RequestParam(required = false) String search,
+                        @RequestParam(required = false) CourseStatus status,
+                        @RequestParam(required = false) CourseLevel level,
+                        @RequestParam(required = false) Language language,
+                        @RequestParam(required = false) BigDecimal minPrice,
+                        @RequestParam(required = false) BigDecimal maxPrice,
+                        @RequestParam(required = false) List<UUID> skillIds,
+                        @RequestParam(required = false) List<UUID> tagIds,
                         HttpServletRequest request) {
                 Pageable pageable = PageRequest.of(page, size);
-                Page<CourseSummaryResponse> coursePage = courseService.getMyCourses(search, pageable);
+                Page<CourseSummaryResponse> coursePage = courseService.getMyCourses(search, status, level, language,
+                                minPrice, maxPrice, skillIds, tagIds, pageable);
 
                 PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
                                 .page(coursePage.getNumber())

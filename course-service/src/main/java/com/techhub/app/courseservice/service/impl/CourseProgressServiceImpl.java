@@ -153,7 +153,7 @@ public class CourseProgressServiceImpl implements CourseProgressService {
             course = courseRepository.findById(courseId)
                     .orElseThrow(() -> new NotFoundException("Course not found"));
         }
-        boolean isAdmin = UserContext.hasAnyRole(UserRole.ADMIN.name());
+        boolean isAdmin = UserContext.hasAnyRole(UserRole.ADMIN.name(), UserRole.SUPER_ADMIN.name());
         boolean isInstructor = UserContext.hasAnyRole(UserRole.INSTRUCTOR.name())
                 && userId.equals(course.getInstructorId());
         if (isAdmin || isInstructor) {

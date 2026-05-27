@@ -121,7 +121,7 @@ public class UserWorkspaceServiceImpl implements UserWorkspaceService {
         if (course.getInstructorId() != null && course.getInstructorId().equals(userId)) {
             return;
         }
-        if (UserContext.hasAnyRole(UserRole.ADMIN.name())) {
+        if (UserContext.hasAnyRole(UserRole.ADMIN.name(), UserRole.SUPER_ADMIN.name())) {
             return;
         }
         boolean enrolled = enrollmentRepository.findByUserIdAndCourse_IdAndIsActiveTrue(userId, course.getId())
