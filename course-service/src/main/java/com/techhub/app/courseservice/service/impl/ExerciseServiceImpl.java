@@ -799,7 +799,7 @@ public class ExerciseServiceImpl implements ExerciseService {
         if (currentUserId == null) {
             return false;
         }
-        if (UserContext.hasAnyRole(UserRole.ADMIN.name())) {
+        if (UserContext.hasAnyRole(UserRole.ADMIN.name(), UserRole.SUPER_ADMIN.name())) {
             return true;
         }
         return UserContext.hasAnyRole(UserRole.INSTRUCTOR.name()) && course.getInstructorId() != null

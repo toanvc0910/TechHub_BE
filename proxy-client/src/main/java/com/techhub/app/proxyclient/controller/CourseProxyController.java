@@ -30,8 +30,16 @@ public class CourseProxyController {
     public ResponseEntity<String> getMyCourses(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String language,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) List<UUID> skillIds,
+            @RequestParam(required = false) List<UUID> tagIds,
             @RequestHeader("Authorization") String authHeader) {
-        return courseServiceClient.getMyCourses(page, size, search, authHeader);
+        return courseServiceClient.getMyCourses(page, size, search, status, level, language, minPrice, maxPrice,
+                skillIds, tagIds, authHeader);
     }
 
     // Course core operations

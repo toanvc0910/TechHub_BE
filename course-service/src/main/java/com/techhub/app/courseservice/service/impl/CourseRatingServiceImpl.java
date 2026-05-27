@@ -113,7 +113,7 @@ public class CourseRatingServiceImpl implements CourseRatingService {
 
     private void ensureCanRate(Course course, UUID userId) {
         // Only ADMIN can bypass enrollment check
-        if (UserContext.hasAnyRole(UserRole.ADMIN.name())) {
+        if (UserContext.hasAnyRole(UserRole.ADMIN.name(), UserRole.SUPER_ADMIN.name())) {
             return;
         }
 

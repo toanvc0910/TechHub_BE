@@ -11,6 +11,7 @@ import com.techhub.app.courseservice.dto.response.LessonAssetResponse;
 import com.techhub.app.courseservice.dto.response.LessonResponse;
 import com.techhub.app.commonservice.enums.Language;
 import com.techhub.app.courseservice.enums.CourseLevel;
+import com.techhub.app.courseservice.enums.CourseStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -23,7 +24,8 @@ public interface CourseService {
     Page<CourseSummaryResponse> getCourses(String search, CourseLevel level, Language language, BigDecimal minPrice,
             BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds, Pageable pageable);
 
-    Page<CourseSummaryResponse> getMyCourses(String search, Pageable pageable);
+    Page<CourseSummaryResponse> getMyCourses(String search, CourseStatus status, CourseLevel level, Language language,
+            BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds, Pageable pageable);
 
     CourseDetailResponse getCourse(UUID courseId);
 

@@ -76,6 +76,7 @@ import java.util.stream.Collectors;
 @Transactional
 public class CourseServiceImpl implements CourseService {
 
+    private static final String ROLE_SUPER_ADMIN = UserRole.SUPER_ADMIN.name();
     private static final String ROLE_ADMIN = UserRole.ADMIN.name();
     private static final String ROLE_INSTRUCTOR = UserRole.INSTRUCTOR.name();
 
@@ -98,35 +99,37 @@ public class CourseServiceImpl implements CourseService {
     public Page<CourseSummaryResponse> getCourses(String search, CourseLevel level, Language language,
             BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds, Pageable pageable) {
         String normalized = normalizeSearch(search);
-        boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN);
+        boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN);
         CourseStatus visibleStatus = isAdmin ? null : CourseStatus.PUBLISHED;
         CourseLevel normalizedLevel = level == CourseLevel.ALL_LEVELS ? null : level;
 
         Page<Course> courses = courseRepository.findAll(
-                buildCourseSearchSpecification(visibleStatus, normalized, normalizedLevel, language, minPrice, maxPrice,
-                        normalizeIdList(skillIds), normalizeIdList(tagIds)),
+                buildCourseSearchSpecification(null, visibleStatus, normalized, normalizedLevel, language, minPrice,
+                        maxPrice, normalizeIdList(skillIds), normalizeIdList(tagIds)),
                 pageable);
         return courses.map(this::buildCourseSummary);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CourseSummaryResponse> getMyCourses(String search, Pageable pageable) {
+    public Page<CourseSummaryResponse> getMyCourses(String search, CourseStatus status, CourseLevel level,
+            Language language, BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds,
+            Pageable pageable) {
         String normalized = normalizeSearch(search);
         UUID currentUserId = UserContext.getCurrentUserId();
-        boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN);
+        boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN);
+        CourseLevel normalizedLevel = level == CourseLevel.ALL_LEVELS ? null : level;
 
-        Page<Course> courses;
-        if (isAdmin) {
-            // ADMIN: Xem tất cả courses (mọi status)
-            courses = courseRepository.searchCourses(null, normalized, pageable);
-        } else if (currentUserId != null) {
-            // INSTRUCTOR: Xem tất cả courses của mình (mọi status: DRAFT, PUBLISHED, etc.)
-            courses = courseRepository.searchInstructorCourses(currentUserId, normalized, pageable);
-        } else {
-            // Không có user -> trả về rỗng
-            courses = Page.empty(pageable);
+        // Restrict by instructor for non-admin users; admins see every author's courses.
+        UUID instructorScope = isAdmin ? null : currentUserId;
+        if (!isAdmin && currentUserId == null) {
+            return Page.empty(pageable);
         }
+
+        Page<Course> courses = courseRepository.findAll(
+                buildCourseSearchSpecification(instructorScope, status, normalized, normalizedLevel, language, minPrice,
+                        maxPrice, normalizeIdList(skillIds), normalizeIdList(tagIds)),
+                pageable);
         return courses.map(this::buildCourseSummary);
     }
 
@@ -269,7 +272,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         if (request.getInstructorId() != null && !request.getInstructorId().equals(course.getInstructorId())) {
-            if (!UserContext.hasAnyRole(ROLE_ADMIN)) {
+            if (!UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN)) {
                 throw new ForbiddenException("Only admins can reassign course instructors");
             }
             course.setInstructorId(request.getInstructorId());
@@ -983,7 +986,7 @@ public class CourseServiceImpl implements CourseService {
         if (userId == null) {
             return false;
         }
-        return userId.equals(course.getInstructorId()) || UserContext.hasAnyRole(ROLE_ADMIN);
+        return userId.equals(course.getInstructorId()) || UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN);
     }
 
     private void ensureCanManage(Course course, UUID currentUserId) {
@@ -1001,7 +1004,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     private void ensureInstructorOrAdmin() {
-        if (!UserContext.hasAnyRole(ROLE_ADMIN, ROLE_INSTRUCTOR)) {
+        if (!UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN, ROLE_INSTRUCTOR)) {
             throw new ForbiddenException("Only instructors or admins can perform this action");
         }
     }
@@ -1010,7 +1013,7 @@ public class CourseServiceImpl implements CourseService {
         if (requestedInstructorId == null || requestedInstructorId.equals(currentUserId)) {
             return currentUserId;
         }
-        if (!UserContext.hasAnyRole(ROLE_ADMIN)) {
+        if (!UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN)) {
             throw new ForbiddenException("Only admins can assign courses to other instructors");
         }
         return requestedInstructorId;
@@ -1230,7 +1233,8 @@ public class CourseServiceImpl implements CourseService {
         log.info("========== mapTagsToCourse END ==========");
     }
 
-    private Specification<Course> buildCourseSearchSpecification(CourseStatus status, String search, CourseLevel level,
+    private Specification<Course> buildCourseSearchSpecification(UUID instructorId, CourseStatus status, String search,
+            CourseLevel level,
             Language language, BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds) {
         return (root, query, criteriaBuilder) -> {
             if (query != null) {
@@ -1240,6 +1244,9 @@ public class CourseServiceImpl implements CourseService {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(criteriaBuilder.isTrue(root.get("isActive")));
 
+            if (instructorId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("instructorId"), instructorId));
+            }
             if (status != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));
             }

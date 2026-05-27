@@ -25,6 +25,13 @@ public interface FileFolderRepository extends JpaRepository<FileFolderEntity, UU
     Optional<FileFolderEntity> findByUserIdAndNameAndParentIdAndIsActive(UUID userId, String name, UUID parentId,
             String isActive);
 
+    @Query("SELECT f FROM FileFolderEntity f WHERE f.userId = :userId AND f.name = :name "
+            + "AND ((:parentId IS NULL AND f.parentId IS NULL) OR (f.parentId = :parentId))")
+    Optional<FileFolderEntity> findByUserIdAndNameAndParent(@Param("userId") UUID userId,
+            @Param("name") String name, @Param("parentId") UUID parentId);
+
+    Optional<FileFolderEntity> findByUserIdAndPath(UUID userId, String path);
+
     @Query("SELECT f FROM FileFolderEntity f WHERE f.userId = :userId AND f.isActive = :isActive ORDER BY f.path")
     List<FileFolderEntity> findAllByUserIdOrderByPath(@Param("userId") UUID userId, @Param("isActive") String isActive);
 
