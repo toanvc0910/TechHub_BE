@@ -4,11 +4,13 @@ import com.techhub.app.userservice.dto.request.CreateInstructorApplicationReques
 import com.techhub.app.userservice.dto.request.ReviewInstructorApplicationRequest;
 import com.techhub.app.userservice.dto.response.InstructorApplicationResponse;
 import com.techhub.app.userservice.entity.InstructorApplication;
+import com.techhub.app.userservice.entity.InstructorApplicationCertificate;
 import com.techhub.app.userservice.entity.Role;
 import com.techhub.app.userservice.entity.User;
 import com.techhub.app.userservice.entity.UserRole;
 import com.techhub.app.userservice.enums.InstructorApplicationAdminStatus;
 import com.techhub.app.userservice.enums.InstructorApplicationAiStatus;
+import com.techhub.app.userservice.repository.InstructorApplicationCertificateRepository;
 import com.techhub.app.userservice.repository.InstructorApplicationRepository;
 import com.techhub.app.userservice.repository.RoleRepository;
 import com.techhub.app.userservice.repository.UserRepository;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,10 +36,12 @@ import java.util.stream.Collectors;
 public class InstructorApplicationService {
 
     private final InstructorApplicationRepository applicationRepository;
+    private final InstructorApplicationCertificateRepository certificateRepository;
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
     private final N8nCvScanClient n8nClient;
+    private final InstructorProfileSyncService profileSyncService;
 
     @Transactional
     public InstructorApplicationResponse submit(UUID userId, CreateInstructorApplicationRequest request) {
@@ -69,15 +74,80 @@ public class InstructorApplicationService {
                 .cvFileId(request.getCvFileId())
                 .cvFileUrl(request.getCvFileUrl())
                 .aiStatus(InstructorApplicationAiStatus.PENDING)
+                .cccdFrontFileId(request.getCccdFrontFileId())
+                .cccdFrontFileUrl(request.getCccdFrontFileUrl())
+                .cccdFrontStatus(request.getCccdFrontFileId() != null
+                        ? InstructorApplicationAiStatus.PENDING : null)
+                .cccdBackFileId(request.getCccdBackFileId())
+                .cccdBackFileUrl(request.getCccdBackFileUrl())
+                .cccdBackStatus(request.getCccdBackFileId() != null
+                        ? InstructorApplicationAiStatus.PENDING : null)
                 .adminStatus(InstructorApplicationAdminStatus.PENDING)
                 .isActive(true)
                 .build();
         InstructorApplication saved = applicationRepository.save(app);
         log.info("[InstructorApp] Created applicationId={} userId={}", saved.getId(), userId);
 
-        // Async fire N8n
-        n8nClient.triggerCvScan(saved.getId(), saved.getCvFileUrl());
+        List<InstructorApplicationCertificate> savedCerts = new ArrayList<>();
+        if (request.getCertificates() != null) {
+            for (CreateInstructorApplicationRequest.CertificateItem item : request.getCertificates()) {
+                if (item == null || item.getFileId() == null) continue;
+                InstructorApplicationCertificate cert = InstructorApplicationCertificate.builder()
+                        .applicationId(saved.getId())
+                        .fileId(item.getFileId())
+                        .fileUrl(item.getFileUrl())
+                        .aiStatus(InstructorApplicationAiStatus.PENDING)
+                        .isActive(true)
+                        .build();
+                savedCerts.add(certificateRepository.save(cert));
+            }
+        }
+
+        // KHÔNG auto-trigger N8n ở đây.
+        // User chỉ submit hồ sơ, admin sẽ bấm "Quét n8n" khi review.
         return toResponse(saved);
+    }
+
+    public void rescanCv(UUID applicationId) {
+        InstructorApplication app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new IllegalArgumentException("Application not found"));
+        if (app.getCvFileUrl() == null || app.getCvFileUrl().isBlank()) {
+            throw new IllegalArgumentException("Đơn này không có CV");
+        }
+        app.setAiStatus(InstructorApplicationAiStatus.PENDING);
+        app.setAiError(null);
+        applicationRepository.save(app);
+        n8nClient.triggerCvScan(applicationId, app.getCvFileUrl());
+    }
+
+    public void rescanCccd(UUID applicationId, boolean front) {
+        InstructorApplication app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new IllegalArgumentException("Application not found"));
+        String url = front ? app.getCccdFrontFileUrl() : app.getCccdBackFileUrl();
+        if (url == null || url.isBlank()) {
+            throw new IllegalArgumentException("Đơn này không có CCCD " + (front ? "mặt trước" : "mặt sau"));
+        }
+        if (front) {
+            app.setCccdFrontStatus(InstructorApplicationAiStatus.PENDING);
+            app.setCccdFrontError(null);
+        } else {
+            app.setCccdBackStatus(InstructorApplicationAiStatus.PENDING);
+            app.setCccdBackError(null);
+        }
+        applicationRepository.save(app);
+        n8nClient.triggerCccdScan(applicationId, url, front);
+    }
+
+    public void rescanCertificate(UUID certId) {
+        InstructorApplicationCertificate cert = certificateRepository.findById(certId)
+                .orElseThrow(() -> new IllegalArgumentException("Certificate not found"));
+        if (cert.getFileUrl() == null || cert.getFileUrl().isBlank()) {
+            throw new IllegalArgumentException("Chứng chỉ này không có file");
+        }
+        cert.setAiStatus(InstructorApplicationAiStatus.PENDING);
+        cert.setAiError(null);
+        certificateRepository.save(cert);
+        n8nClient.triggerCertificateScan(cert.getId(), cert.getFileUrl());
     }
 
     @Transactional(readOnly = true)
@@ -131,6 +201,15 @@ public class InstructorApplicationService {
             userRoleRepository.save(ur);
             log.info("[InstructorApp] Granted INSTRUCTOR role to userId={}", app.getUserId());
         }
+
+        // Sync data AI vào instructor_profiles snapshot
+        try {
+            profileSyncService.syncFromApplication(app);
+        } catch (Exception e) {
+            log.warn("[InstructorApp] Profile sync failed (non-blocking) userId={}: {}",
+                    app.getUserId(), e.getMessage(), e);
+        }
+
         return toResponse(app);
     }
 
@@ -161,6 +240,19 @@ public class InstructorApplicationService {
             userName = userOpt.get().getUsername();
             userEmail = userOpt.get().getEmail();
         }
+        List<InstructorApplicationResponse.CertificateResponse> certs = certificateRepository
+                .findByApplicationIdAndIsActiveTrueOrderByCreatedAsc(app.getId())
+                .stream()
+                .map(c -> InstructorApplicationResponse.CertificateResponse.builder()
+                        .id(c.getId())
+                        .fileId(c.getFileId())
+                        .fileUrl(c.getFileUrl())
+                        .aiStatus(c.getAiStatus() == null ? null : c.getAiStatus().name())
+                        .aiData(c.getAiData())
+                        .aiError(c.getAiError())
+                        .build())
+                .collect(Collectors.toList());
+
         return InstructorApplicationResponse.builder()
                 .id(app.getId())
                 .userId(app.getUserId())
@@ -171,6 +263,17 @@ public class InstructorApplicationService {
                 .aiStatus(app.getAiStatus() == null ? null : app.getAiStatus().name())
                 .aiExtractedData(app.getAiExtractedData())
                 .aiError(app.getAiError())
+                .cccdFrontFileId(app.getCccdFrontFileId())
+                .cccdFrontFileUrl(app.getCccdFrontFileUrl())
+                .cccdFrontStatus(app.getCccdFrontStatus() == null ? null : app.getCccdFrontStatus().name())
+                .cccdFrontData(app.getCccdFrontData())
+                .cccdFrontError(app.getCccdFrontError())
+                .cccdBackFileId(app.getCccdBackFileId())
+                .cccdBackFileUrl(app.getCccdBackFileUrl())
+                .cccdBackStatus(app.getCccdBackStatus() == null ? null : app.getCccdBackStatus().name())
+                .cccdBackData(app.getCccdBackData())
+                .cccdBackError(app.getCccdBackError())
+                .certificates(certs)
                 .adminStatus(app.getAdminStatus() == null ? null : app.getAdminStatus().name())
                 .adminNote(app.getAdminNote())
                 .reviewedBy(app.getReviewedBy())

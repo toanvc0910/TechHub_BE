@@ -376,6 +376,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<java.util.Map<String, Object>> getMinimalByIds(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return java.util.Collections.emptyList();
+        return userRepository.findByIdInAndIsActiveTrue(ids).stream()
+                .map(u -> {
+                    java.util.Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("id", u.getId());
+                    m.put("username", u.getUsername());
+                    m.put("avatar", u.getAvatar());
+                    return m;
+                })
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<UserResponse> getInstructorsByRole(String roleName, Pageable pageable) {
         log.info("Fetching instructors with role: {}", roleName);
 

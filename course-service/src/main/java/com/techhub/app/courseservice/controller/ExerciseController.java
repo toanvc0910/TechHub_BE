@@ -5,7 +5,9 @@ import com.techhub.app.courseservice.dto.request.ExerciseRequest;
 import com.techhub.app.courseservice.dto.request.ExerciseSubmissionRequest;
 import com.techhub.app.courseservice.dto.response.ExerciseResponse;
 import com.techhub.app.courseservice.dto.response.ExerciseSubmissionResponse;
+import com.techhub.app.courseservice.dto.response.LeaderboardEntryResponse;
 import com.techhub.app.courseservice.service.ExerciseService;
+import com.techhub.app.courseservice.service.LeaderboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +34,7 @@ import java.util.UUID;
 public class ExerciseController {
 
         private final ExerciseService exerciseService;
+        private final LeaderboardService leaderboardService;
 
         // Legacy single exercise endpoint
         @GetMapping("/exercise")
@@ -119,6 +122,18 @@ public class ExerciseController {
                 return ResponseEntity.ok(
                                 GlobalResponse.success("Exercise submitted", response)
                                                 .withStatus("EXERCISE_SUBMITTED")
+                                                .withPath(request.getRequestURI()));
+        }
+
+        @GetMapping("/leaderboard")
+        public ResponseEntity<GlobalResponse<List<LeaderboardEntryResponse>>> getLessonLeaderboard(
+                        @PathVariable UUID courseId,
+                        @PathVariable UUID lessonId,
+                        @org.springframework.web.bind.annotation.RequestParam(value = "limit", defaultValue = "10") int limit,
+                        HttpServletRequest request) {
+                List<LeaderboardEntryResponse> result = leaderboardService.getLessonLeaderboard(lessonId, limit);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Leaderboard retrieved", result)
                                                 .withPath(request.getRequestURI()));
         }
 }

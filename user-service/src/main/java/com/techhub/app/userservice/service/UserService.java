@@ -64,4 +64,7 @@ public interface UserService {
 
     // Get all active user IDs for broadcast notifications
     java.util.List<UUID> getAllActiveUserIds();
+
+    // Minimal {id, username, avatar} batch lookup
+    java.util.List<java.util.Map<String, Object>> getMinimalByIds(java.util.List<UUID> ids);
 }

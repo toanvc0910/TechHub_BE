@@ -52,4 +52,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     // Get all active users for broadcast notifications
     java.util.List<User> findAllByIsActiveTrue();
+
+    java.util.List<User> findByIdInAndIsActiveTrue(java.util.Collection<UUID> ids);
 }

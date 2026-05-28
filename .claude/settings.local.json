@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -rn \"quản lý nội dung\\\\|Quản lý nội dung\\\\|manage.*content\\\\|courses/.*content\\\\|/curriculum\" d:/Work/TechHub/TechHubFE/tech-hub/src/app/manage 2>&1 | head -20)",
+      "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/app/manage/**)",
+      "Bash(grep -n \"useGetCourseById\\\\|useGetLesson\\\\b\\\\|useCreateAssetMutation\\\\|useUpdateAssetMutation\\\\|useDeleteAssetMutation\" d:/Work/TechHub/TechHubFE/tech-hub/src/queries/*.ts d:/Work/TechHub/TechHubFE/tech-hub/src/apiRequests/course.ts 2>&1 | head -40)",
+      "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/queries/**)",
+      "Bash(grep -n \"getCourseById\\\\|getLessonDetail\\\\|getLesson\\\\b\\\\|courses/\\\\${\" d:/Work/TechHub/TechHubFE/tech-hub/src/apiRequests/course.ts | head -20)",
+      "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/apiRequests/**)",
+      "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/app/\\(public\\)/account/instructor-application/**)",
+      "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/app/\\(public\\)/courses/[slug]/**)",
+      "Bash(grep -n \"Curriculum\\\\|Content\\\\|Course content\\\\|Nội dung\\\\|Chương trình\\\\|courseDescription\" d:/Work/TechHub/TechHubFE/tech-hub/src/app/\\\\\\(public\\\\\\)/courses/\\\\[slug\\\\]/page.tsx | head -10)",
+      "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/app/\\(public\\)/courses/**)"
+    ],
+    "additionalDirectories": [
+      "d:\\Work\\TechHub\\TechHubFE\\tech-hub\\src\\app\\(public)\\account\\instructor-application",
+      "d:\\Work\\TechHub\\TechHubFE\\tech-hub\\src\\app\\(public)\\instructor\\[userId]",
+      "d:\\Work\\TechHub\\TechHubFE\\tech-hub\\src\\app\\(public)\\courses\\[slug]"
+    ]
+  }
+}

@@ -142,6 +142,74 @@ public class InstructorApplicationController {
         }
     }
 
+    @PostMapping("/{id}/rescan/cv")
+    public ResponseEntity<GlobalResponse<Void>> rescanCv(
+            @RequestHeader(value = "X-User-Roles", required = false) String roles,
+            @PathVariable UUID id) {
+        if (!hasAdminRole(roles)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(GlobalResponse.error("Admin role required", HttpStatus.FORBIDDEN.value()));
+        }
+        try {
+            service.rescanCv(id);
+            return ResponseEntity.ok(GlobalResponse.success("Đã gửi lại quét CV", null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+    @PostMapping("/{id}/rescan/cccd-front")
+    public ResponseEntity<GlobalResponse<Void>> rescanCccdFront(
+            @RequestHeader(value = "X-User-Roles", required = false) String roles,
+            @PathVariable UUID id) {
+        if (!hasAdminRole(roles)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(GlobalResponse.error("Admin role required", HttpStatus.FORBIDDEN.value()));
+        }
+        try {
+            service.rescanCccd(id, true);
+            return ResponseEntity.ok(GlobalResponse.success("Đã gửi lại quét CCCD mặt trước", null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+    @PostMapping("/{id}/rescan/cccd-back")
+    public ResponseEntity<GlobalResponse<Void>> rescanCccdBack(
+            @RequestHeader(value = "X-User-Roles", required = false) String roles,
+            @PathVariable UUID id) {
+        if (!hasAdminRole(roles)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(GlobalResponse.error("Admin role required", HttpStatus.FORBIDDEN.value()));
+        }
+        try {
+            service.rescanCccd(id, false);
+            return ResponseEntity.ok(GlobalResponse.success("Đã gửi lại quét CCCD mặt sau", null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+    @PostMapping("/certificates/{certId}/rescan")
+    public ResponseEntity<GlobalResponse<Void>> rescanCertificate(
+            @RequestHeader(value = "X-User-Roles", required = false) String roles,
+            @PathVariable UUID certId) {
+        if (!hasAdminRole(roles)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(GlobalResponse.error("Admin role required", HttpStatus.FORBIDDEN.value()));
+        }
+        try {
+            service.rescanCertificate(certId);
+            return ResponseEntity.ok(GlobalResponse.success("Đã gửi lại quét chứng chỉ", null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
     private UUID parseUid(String userId) {
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("Missing X-User-Id header");
