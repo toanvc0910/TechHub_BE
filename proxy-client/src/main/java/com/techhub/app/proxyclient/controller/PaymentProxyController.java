@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/proxy/payments")
@@ -18,8 +23,10 @@ public class PaymentProxyController {
 
     private final PaymentServiceClient paymentServiceClient;
     private final AnalyticsServiceClient analyticsServiceClient;
-    @Value("${PAYMENT_SERVICE_BASE_URL:http://localhost:8084}")
-    private String paymentServiceBaseUrl;
+    @Value("${PAYMENT_FRONTEND_RESULT_URL:http://localhost:3000/result}")
+    private String paymentFrontendResultUrl;
+    @Value("${PAYMENT_FRONTEND_VNPAY_RETURN_URL:http://localhost:3000/vnpay-return}")
+    private String paymentFrontendVnpayReturnUrl;
 
     // ===== PAYPAL ENDPOINTS =====
 
@@ -35,19 +42,15 @@ public class PaymentProxyController {
     public void paypalSuccess(@RequestParam String token,
             @RequestParam(required = false) String PayerID,
             HttpServletResponse response) throws IOException {
-        // Forward all parameters to payment service
-        String queryParams = "token=" + token;
-        if (PayerID != null) {
-            queryParams += "&PayerID=" + PayerID;
-        }
-        response.sendRedirect(buildRedirectUrl("/api/v1/payment/paypal/success", queryParams));
+        Map<String, String> result = paymentServiceClient.capturePayPalOrder(token, PayerID).getBody();
+        response.sendRedirect(buildFrontendResultUrl(paymentFrontendResultUrl, result, failedPayPalResult(token)));
     }
 
     @GetMapping("/paypal/cancel")
     public void paypalCancel(@RequestParam(required = false) String token,
             HttpServletResponse response) throws IOException {
-        String queryParams = token != null ? "token=" + token : "";
-        response.sendRedirect(buildRedirectUrl("/api/v1/payment/paypal/cancel", queryParams));
+        Map<String, String> result = paymentServiceClient.getPayPalCancelResult(token).getBody();
+        response.sendRedirect(buildFrontendResultUrl(paymentFrontendResultUrl, result, cancelledPayPalResult(token)));
     }
 
     // ===== VNPAY ENDPOINTS =====
@@ -64,11 +67,12 @@ public class PaymentProxyController {
 
     @GetMapping("/vn-pay-callback")
     public void vnPayCallback(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        // VNPay callback redirects directly - we forward to the payment service
-        // callback URL
-        // This is handled by VNPayPaymentController in payment-service
-        String queryString = request.getQueryString();
-        response.sendRedirect(buildRedirectUrl("/api/v1/payment/vn-pay-callback", queryString));
+        Map<String, String> params = request.getParameterMap().entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue()[0]));
+        Map<String, String> result = paymentServiceClient.handleVnPayCallback(params).getBody();
+        response.sendRedirect(buildFrontendResultUrl(paymentFrontendVnpayReturnUrl, result, failedVnPayResult()));
     }
 
     @GetMapping("/fx/rate")
@@ -84,15 +88,51 @@ public class PaymentProxyController {
         return paymentServiceClient.convertFx(from, to, amount);
     }
 
-    private String buildRedirectUrl(String path, String query) {
-        String normalizedBaseUrl = paymentServiceBaseUrl.endsWith("/")
-                ? paymentServiceBaseUrl.substring(0, paymentServiceBaseUrl.length() - 1)
-                : paymentServiceBaseUrl;
+    private String buildFrontendResultUrl(String frontendResultUrl, Map<String, String> result,
+            Map<String, String> fallback) {
+        Map<String, String> params = result == null || result.isEmpty() ? fallback : result;
+        StringBuilder redirectUrl = new StringBuilder(frontendResultUrl);
+        redirectUrl.append(frontendResultUrl.contains("?") ? "&" : "?");
 
-        if (query == null || query.isBlank()) {
-            return normalizedBaseUrl + path;
+        boolean first = true;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            if (!first) {
+                redirectUrl.append("&");
+            }
+            redirectUrl.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+            redirectUrl.append("=");
+            redirectUrl.append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
+            first = false;
         }
-        return normalizedBaseUrl + path + "?" + query;
+
+        return redirectUrl.toString();
+    }
+
+    private Map<String, String> failedPayPalResult(String token) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("status", "failed");
+        params.put("paymentMethod", "PayPal");
+        params.put("txnRef", token);
+        params.put("message", "Payment processing failed");
+        return params;
+    }
+
+    private Map<String, String> cancelledPayPalResult(String token) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("status", "cancelled");
+        params.put("paymentMethod", "PayPal");
+        params.put("txnRef", token != null ? token : "N/A");
+        params.put("message", "Payment was cancelled by user");
+        return params;
+    }
+
+    private Map<String, String> failedVnPayResult() {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("status", "failed");
+        params.put("paymentMethod", "VNPay");
+        params.put("txnRef", "N/A");
+        params.put("amount", "0");
+        return params;
     }
 
     // ===== GENERIC PAYMENT ENDPOINTS =====

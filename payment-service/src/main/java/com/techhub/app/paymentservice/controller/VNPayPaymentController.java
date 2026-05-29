@@ -23,6 +23,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -86,45 +87,58 @@ public class VNPayPaymentController {
 
     @GetMapping("/vn-pay-callback")
     public void payCallbackHandler(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        // Lấy tất cả tham số từ yêu cầu
+        response.sendRedirect(buildFrontendRedirectUrl(buildCallbackResult(request)));
+    }
+
+    @GetMapping("/vn-pay-callback-result")
+    public ResponseEntity<Map<String, String>> payCallbackResult(HttpServletRequest request) {
+        return ResponseEntity.ok(buildCallbackResult(request));
+    }
+
+    private Map<String, String> buildCallbackResult(HttpServletRequest request) {
         Map<String, String> params = request.getParameterMap().entrySet().stream()
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
                         entry -> entry.getValue()[0]));
 
-        // Lấy các tham số quan trọng
         String vnp_SecureHash = params.get("vnp_SecureHash");
         String vnp_TransactionStatus = params.get("vnp_TransactionStatus");
         String vnp_TxnRef = params.get("vnp_TxnRef");
         String vnp_Amount = params.get("vnp_Amount");
 
-        // Xác minh chữ ký
         boolean isValid = verifySecureHash(params, vnp_SecureHash, vnpayConfig.getSecretKey());
 
-        // Lưu lịch sử giao dịch vào database
         try {
             paymentService.handlePaymentCallback(params, isValid, vnp_TransactionStatus);
         } catch (RuntimeException e) {
             log.error("Error saving payment history: {}", e.getMessage(), e);
         }
 
-        // URL trang kết quả trên frontend - sử dụng VNPay frontend URL
-        String frontendResultUrl = vnpayConfig.getFrontendVnpayReturnUrl();
-
-        // Tạo URL chuyển hướng với các tham số
         String status = isValid && "00".equals(vnp_TransactionStatus) ? "success" : "failed";
-        String redirectUrl = frontendResultUrl + "?status=" + URLEncoder.encode(status, StandardCharsets.UTF_8) +
-                "&paymentMethod=" + URLEncoder.encode("VNPay", StandardCharsets.UTF_8) +
-                "&txnRef=" + URLEncoder.encode(vnp_TxnRef != null ? vnp_TxnRef : "N/A", StandardCharsets.UTF_8) +
-                "&amount=" + URLEncoder.encode(normalizeVnpAmount(vnp_Amount), StandardCharsets.UTF_8);
+        Map<String, String> result = new LinkedHashMap<>();
+        result.put("status", status);
+        result.put("paymentMethod", "VNPay");
+        result.put("txnRef", vnp_TxnRef != null ? vnp_TxnRef : "N/A");
+        result.put("amount", normalizeVnpAmount(vnp_Amount));
+        return result;
+    }
 
-        // Ghi log để gỡ lỗi
-        // log.info("VNPay Callback - Valid: {}, Status: {}, TxnRef: {}", isValid,
-        // status, vnp_TxnRef);
-        // log.info("Redirecting to frontend: {}", redirectUrl);
+    private String buildFrontendRedirectUrl(Map<String, String> params) {
+        StringBuilder redirectUrl = new StringBuilder(vnpayConfig.getFrontendVnpayReturnUrl());
+        redirectUrl.append("?");
 
-        // Chuyển hướng đến trang frontend
-        response.sendRedirect(redirectUrl);
+        boolean first = true;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            if (!first) {
+                redirectUrl.append("&");
+            }
+            redirectUrl.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+            redirectUrl.append("=");
+            redirectUrl.append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
+            first = false;
+        }
+
+        return redirectUrl.toString();
     }
 
     private boolean verifySecureHash(Map<String, String> params, String secureHash, String secretKey) {
