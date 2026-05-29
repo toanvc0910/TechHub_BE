@@ -1,8 +1,11 @@
 package com.techhub.app.proxyclient.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @FeignClient(name = "PAYMENT-SERVICE")
 public interface PaymentServiceClient {
@@ -15,11 +18,14 @@ public interface PaymentServiceClient {
                         @RequestParam(value = "userId", required = false) String userId,
                         @RequestParam(value = "courseId", required = false) String courseId);
 
-        @GetMapping("/api/v1/payment/paypal/success")
-        ResponseEntity<String> paypalSuccess(@RequestParam("token") String token);
+        @GetMapping("/api/v1/payment/paypal/capture")
+        ResponseEntity<Map<String, String>> capturePayPalOrder(
+                        @RequestParam("token") String token,
+                        @RequestParam(value = "PayerID", required = false) String payerId);
 
-        @GetMapping("/api/v1/payment/paypal/cancel")
-        ResponseEntity<String> paypalCancel();
+        @GetMapping("/api/v1/payment/paypal/cancel-result")
+        ResponseEntity<Map<String, String>> getPayPalCancelResult(
+                        @RequestParam(value = "token", required = false) String token);
 
         // ===== VNPAY ENDPOINTS =====
 
@@ -30,6 +36,9 @@ public interface PaymentServiceClient {
                         @RequestParam(value = "orderInfo", required = false) String orderInfo,
                         @RequestParam(value = "userId", required = false) String userId,
                         @RequestParam(value = "courseId", required = false) String courseId);
+
+        @GetMapping("/api/v1/payment/vn-pay-callback-result")
+        ResponseEntity<Map<String, String>> handleVnPayCallback(@SpringQueryMap Map<String, String> params);
 
         @GetMapping("/api/v1/fx/rate")
         ResponseEntity<String> getFxRate(

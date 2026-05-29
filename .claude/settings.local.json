@@ -10,12 +10,17 @@
       "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/app/\\(public\\)/account/instructor-application/**)",
       "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/app/\\(public\\)/courses/[slug]/**)",
       "Bash(grep -n \"Curriculum\\\\|Content\\\\|Course content\\\\|Nội dung\\\\|Chương trình\\\\|courseDescription\" d:/Work/TechHub/TechHubFE/tech-hub/src/app/\\\\\\(public\\\\\\)/courses/\\\\[slug\\\\]/page.tsx | head -10)",
-      "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/app/\\(public\\)/courses/**)"
+      "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/app/\\(public\\)/courses/**)",
+      "Bash(find d:/Work/TechHub/TechHubFE/tech-hub/src/app -path \"*profile*page*\" 2>&1 | head)",
+      "Read(//d/Work/TechHub/TechHubFE/tech-hub/src/app/**)",
+      "Read(//d/Work/TechHub/Media/Design/3/Dbiz 2/**)",
+      "Read(//d/Work/TechHub/Media/Design/3/**)"
     ],
     "additionalDirectories": [
       "d:\\Work\\TechHub\\TechHubFE\\tech-hub\\src\\app\\(public)\\account\\instructor-application",
       "d:\\Work\\TechHub\\TechHubFE\\tech-hub\\src\\app\\(public)\\instructor\\[userId]",
-      "d:\\Work\\TechHub\\TechHubFE\\tech-hub\\src\\app\\(public)\\courses\\[slug]"
+      "d:\\Work\\TechHub\\TechHubFE\\tech-hub\\src\\app\\(public)\\courses\\[slug]",
+      "d:\\Work\\TechHub\\TechHubFE\\tech-hub\\src\\app\\(public)\\profile"
     ]
   }
 }
