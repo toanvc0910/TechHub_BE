@@ -41,13 +41,24 @@ async def context_load_node(state: OrchestratorState) -> dict:
             errors.append(f"file_context_hydration_failed:{exc}")
 
     # Load user personalization data for downstream agents
+    user_profile: dict = {}
     skill_profile: dict = {}
     user_course_history: list = []
     user_ratings: list = []
     try:
+        fetched_profile = await catalog_service.fetch_user_profile(user_id)
+        if isinstance(fetched_profile, dict):
+            user_profile = fetched_profile
+            profile_skills = fetched_profile.get("skill_profile")
+            if isinstance(profile_skills, dict):
+                skill_profile = profile_skills
+    except Exception:
+        pass
+    try:
         user_course_history = await catalog_service.fetch_user_course_history(user_id)
         user_ratings = await catalog_service.fetch_user_ratings(user_id)
-        skill_profile = await catalog_service.compute_skill_profile(user_id)
+        if not skill_profile:
+            skill_profile = await catalog_service.compute_skill_profile(user_id)
     except Exception:
         pass  # graceful degradation — RAG still works without personalization
 
@@ -68,6 +79,7 @@ async def context_load_node(state: OrchestratorState) -> dict:
         "errors": errors,
         "hitl_round": hitl_round,
         "user_input": updated_input,
+        "user_profile": user_profile,
         "skill_profile": skill_profile,
         "user_course_history": user_course_history,
         "user_ratings": user_ratings,

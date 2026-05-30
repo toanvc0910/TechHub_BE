@@ -2,11 +2,14 @@ package com.techhub.app.fileservice.service.impl;
 
 import com.techhub.app.fileservice.config.MinioProperties;
 import com.techhub.app.fileservice.service.ObjectStorageService;
+import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.http.Method;
+import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -28,6 +31,33 @@ public class MinioObjectStorageService implements ObjectStorageService {
     private final MinioClient minioClient;
     private final MinioProperties minioProperties;
 
+    private volatile boolean bucketChecked = false;
+
+    @PostConstruct
+    void init() {
+        // Best-effort at startup; if MinIO is momentarily unreachable we retry
+        // lazily on first use rather than crashing the service.
+        ensureBucketExists();
+    }
+
+    private void ensureBucketExists() {
+        if (bucketChecked) {
+            return;
+        }
+        String bucket = minioProperties.getBucket();
+        try {
+            boolean exists = minioClient.bucketExists(
+                    BucketExistsArgs.builder().bucket(bucket).build());
+            if (!exists) {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+                log.info("Created missing MinIO bucket '{}'", bucket);
+            }
+            bucketChecked = true;
+        } catch (Exception e) {
+            log.warn("Could not verify/create MinIO bucket '{}' (will retry on next use)", bucket, e);
+        }
+    }
+
     @Override
     public StoredObjectDetails upload(MultipartFile file, String objectKey) {
         try (InputStream inputStream = file.getInputStream()) {
@@ -40,6 +70,7 @@ public class MinioObjectStorageService implements ObjectStorageService {
 
     @Override
     public StoredObjectDetails upload(InputStream inputStream, long size, String contentType, String objectKey) {
+        ensureBucketExists();
         try {
             minioClient.putObject(
                     PutObjectArgs.builder()

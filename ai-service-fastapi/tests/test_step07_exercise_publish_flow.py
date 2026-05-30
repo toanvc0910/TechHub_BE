@@ -71,8 +71,14 @@ async def setup_lesson_fixture() -> None:
         await session.execute(
             text(
                 """
+                WITH next_order AS (
+                    SELECT COALESCE(MAX("order"), 0) + 1 AS value
+                    FROM chapters
+                    WHERE course_id = CAST(:course_id AS uuid)
+                )
                 INSERT INTO chapters (id, title, "order", course_id, is_active, created, updated)
-                VALUES (CAST(:id AS uuid), :title, 1, CAST(:course_id AS uuid), 'Y', now(), now())
+                SELECT CAST(:id AS uuid), :title, next_order.value, CAST(:course_id AS uuid), 'Y', now(), now()
+                FROM next_order
                 """
             ),
             {"id": TEST_CHAPTER_ID, "title": "step07-test chapter", "course_id": REAL_COURSE_ID},

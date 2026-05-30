@@ -20,6 +20,7 @@ class IntentRouter:
             ("visualization", "chart", [r"\b(chart|bieu do|visual|plot|dashboard|do thi)\b"]),
             ("data_query", "analytics", [r"\b(so lieu|thong ke|bao nhieu|analytics|report|tong hop|bang du lieu|truy van|query)\b"]),
             ("recommendation", "course-advice", [r"\b(goi y|de xuat|recommend|phu hop|nen hoc)\b"]),
+            ("conversation", "profile-identity", [r"\b(ten toi|ten cua toi|toi ten|toi la ai|ten minh|ten cua minh|minh ten|what is my name|who am i)\b"]),
             ("knowledge", "lesson-qa", [r"\b(giai thich|khai niem|la gi|ai la|who is|how|tai sao)\b"]),
             ("conversation", "greeting", [r"\b(xin chao|hello|hi|cam on)\b"]),
         ]

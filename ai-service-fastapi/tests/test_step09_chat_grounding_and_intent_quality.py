@@ -74,6 +74,8 @@ INTENT_PROMPTS: list[tuple[str, str]] = [
     ("Cảm ơn bạn nhiều", "conversation"),
     ("Hi, mình mới tham gia nền tảng", "conversation"),
     ("Chào bạn, hello!", "conversation"),
+    ("Ten toi la gi?", "conversation"),
+    ("What is my name?", "conversation"),
     # ----- recommendation -----
     ("Gợi ý khóa học phù hợp cho người mới bắt đầu", "recommendation"),
     ("Tôi nên học khóa nào tiếp theo?", "recommendation"),

@@ -33,6 +33,7 @@ class OrchestratorState(TypedDict, total=False):
     token_usage: dict[str, Any]
     request_id: str | None
     # Personalization fields
+    user_profile: dict[str, Any]
     skill_profile: dict[str, float]
     user_course_history: list[dict[str, Any]]
     user_ratings: list[dict[str, Any]]
@@ -93,6 +94,7 @@ def make_initial_state(
         node_timings={},
         token_usage={},
         request_id=request_id,
+        user_profile={},
         skill_profile={},
         user_course_history=[],
         user_ratings=[],

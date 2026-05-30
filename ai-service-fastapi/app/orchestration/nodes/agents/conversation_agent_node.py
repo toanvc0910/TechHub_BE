@@ -23,7 +23,7 @@ class ConversationAgentNode:
 
         # ── Normal conversation ──
         response = await switchable_ai_gateway.stream_and_emit(
-            prompt=append_request_instructions(state["user_input"], state.get("request_context")),
+            prompt=append_request_instructions(self._build_conversation_prompt(state), state.get("request_context")),
             system_prompt=settings.system_prompt,
             model=state.get("selected_model"),
         )
@@ -77,6 +77,41 @@ class ConversationAgentNode:
             "hitl_options": options,
             "execution_trace": list(state.get("execution_trace", [])),
         }
+
+    @staticmethod
+    def _build_conversation_prompt(state: OrchestratorState) -> str:
+        profile_context = ConversationAgentNode._build_profile_context(state)
+        if not profile_context:
+            return state["user_input"]
+        return f"{profile_context}\n\nCurrent user message: {state['user_input']}"
+
+    @staticmethod
+    def _build_profile_context(state: OrchestratorState) -> str:
+        profile = state.get("user_profile") if isinstance(state.get("user_profile"), dict) else {}
+        full_name = ConversationAgentNode._clean_profile_value(profile.get("full_name"))
+        username = ConversationAgentNode._clean_profile_value(profile.get("username"))
+        if not full_name and not username:
+            return ""
+
+        lines = [
+            "Verified TechHub profile context for the current authenticated user:",
+        ]
+        if full_name:
+            lines.append(f"- Full/display name: {full_name}")
+        if username:
+            lines.append(f"- Username: {username}")
+        lines.append(
+            "If the user asks for their name, answer from this profile context. "
+            "Do not call it a legal identity."
+        )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _clean_profile_value(value: Any) -> str:
+        if value is None:
+            return ""
+        cleaned = str(value).strip()
+        return cleaned[:120]
 
 
 conversation_agent_node = ConversationAgentNode()

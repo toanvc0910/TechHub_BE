@@ -224,7 +224,7 @@ public class FolderService {
             return StorageObjectKeyUtils.buildFolderStoragePath(null, folderName);
         }
         FileFolderEntity parent = folderRepository.findByIdAndUserIdAndIsActive(parentId, userId, "Y")
-                .orElseThrow(() -> new RuntimeException("Parent folder not found"));
+                .orElseThrow(() -> new NotFoundException("Parent folder not found"));
         return StorageObjectKeyUtils.buildFolderStoragePath(parent.getPath(), folderName);
     }
 
@@ -258,8 +258,16 @@ public class FolderService {
     private void createFolderMarker(FileFolderEntity folder) {
         String markerObjectKey = StorageObjectKeyUtils.buildFolderMarkerObjectKey(folder.getUserId(),
                 folder.getPath());
-        objectStorageService.upload(new ByteArrayInputStream(new byte[0]), 0, "application/x-directory",
-                markerObjectKey);
+        try {
+            objectStorageService.upload(new ByteArrayInputStream(new byte[0]), 0, "application/x-directory",
+                    markerObjectKey);
+        } catch (RuntimeException ex) {
+            // The folder is already persisted in the database; the MinIO marker is
+            // only a best-effort placeholder for empty directories. Never fail
+            // folder creation just because the object store hiccuped.
+            log.warn("Failed to create MinIO folder marker {} for user {} path {} (folder still created)",
+                    markerObjectKey, folder.getUserId(), folder.getPath(), ex);
+        }
     }
 
     private void replaceFolderMarker(FileFolderEntity folder, String oldPath) {

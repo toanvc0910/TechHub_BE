@@ -568,6 +568,7 @@ class ChatService:
             f"{item.get('role', 'unknown')}: {item.get('content', '')}" for item in recent_messages if isinstance(item, dict)
         )
         user_memory = ", ".join(f"{key}={value}" for key, value in state.get("user_memory", {}).items())
+        profile_context = ChatService._build_profile_context(state)
         intent_hint = (
             "Nguoi dung dang can tu van hoc tap va de xuat khoa hoc phu hop."
             if state.get("intent") == "recommendation"
@@ -577,8 +578,30 @@ class ChatService:
             f"{intent_hint}\n"
             f"Recent context:\n{recent_context or '(empty)'}\n"
             f"User memory: {user_memory or '(empty)'}\n"
+            f"{profile_context}"
             f"Current user message: {state['user_input']}"
         ), state.get("request_context"))
+
+    @staticmethod
+    def _build_profile_context(state: OrchestratorState) -> str:
+        profile = state.get("user_profile") if isinstance(state.get("user_profile"), dict) else {}
+        full_name = ChatService._clean_profile_value(profile.get("full_name"))
+        username = ChatService._clean_profile_value(profile.get("username"))
+        if not full_name and not username:
+            return ""
+        lines = ["Verified TechHub profile context:"]
+        if full_name:
+            lines.append(f"- Full/display name: {full_name}")
+        if username:
+            lines.append(f"- Username: {username}")
+        lines.append("If the user asks for their name, answer from this profile context.\n")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _clean_profile_value(value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()[:120]
 
     @staticmethod
     def _fallback_reason(state: OrchestratorState) -> str | None:
