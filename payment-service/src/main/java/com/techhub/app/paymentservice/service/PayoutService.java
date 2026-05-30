@@ -38,10 +38,12 @@ import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.ByteArrayOutputStream;
 import java.awt.Color;
@@ -57,6 +59,7 @@ import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -88,6 +91,10 @@ public class PayoutService {
     private final com.techhub.app.paymentservice.repository.TransactionItemRepository transactionItemRepository;
     private final CurrencyExchangeService currencyExchangeService;
     private final RevenueSplitPolicyService revenueSplitPolicyService;
+    private final RestTemplate restTemplate;
+
+    @Value("${user-service.name:USER-SERVICE}")
+    private String userServiceName;
 
     /** Tổng doanh thu của hệ thống (admin share) cộng dồn theo VND, không phụ thuộc ledger. */
     @Transactional(readOnly = true)
@@ -687,11 +694,131 @@ public class PayoutService {
                 "Platform payout operations",
                 TECHHUB_CONTACT,
                 "Settlement currency: VND"));
-        parties.addCell(partyCard("PAID TO", "TECHHUB INSTRUCTOR ACCOUNT",
-                "Instructor ID: " + nullableText(invoice.getInstructorId()),
+
+        // Enrich the recipient block with the instructor's real name and avatar.
+        // Best-effort: if user-service is unavailable we fall back to the
+        // generic account label so the invoice still renders.
+        RecipientInfo recipient = fetchRecipientInfo(invoice.getInstructorId());
+        String recipientName = (recipient != null && recipient.name != null && !recipient.name.isBlank())
+                ? recipient.name
+                : "TECHHUB INSTRUCTOR ACCOUNT";
+        Image avatar = recipient == null ? null : loadAvatarImage(recipient.avatarUrl);
+        parties.addCell(recipientCard("PAID TO", recipientName, avatar,
+                recipient != null && recipient.email != null && !recipient.email.isBlank()
+                        ? recipient.email
+                        : "Instructor ID: " + nullableText(invoice.getInstructorId()),
                 "Recipient profile verified by TechHub",
                 "Account settlement beneficiary"));
         document.add(parties);
+    }
+
+    /** Lightweight holder for the recipient info shown on the invoice. */
+    private static final class RecipientInfo {
+        private final String name;
+        private final String email;
+        private final String avatarUrl;
+
+        private RecipientInfo(String name, String email, String avatarUrl) {
+            this.name = name;
+            this.email = email;
+            this.avatarUrl = avatarUrl;
+        }
+    }
+
+    /**
+     * Resolve the instructor's display name, email and avatar from user-service.
+     * Returns null on any failure so PDF generation never breaks on this lookup.
+     */
+    @SuppressWarnings("unchecked")
+    private RecipientInfo fetchRecipientInfo(String instructorId) {
+        if (instructorId == null || instructorId.isBlank()) {
+            return null;
+        }
+        String name = null;
+        String email = null;
+        String avatarUrl = null;
+
+        // 1) Core user record: avatar + email + username.
+        try {
+            Map<String, Object> body = (Map<String, Object>) restTemplate.getForObject(
+                    "http://" + userServiceName + "/api/users/" + instructorId, Map.class);
+            Map<String, Object> data = body == null ? null : (Map<String, Object>) body.get("data");
+            if (data != null) {
+                Object avatarObj = data.get("avatar");
+                if (avatarObj != null) avatarUrl = String.valueOf(avatarObj);
+                Object emailObj = data.get("email");
+                if (emailObj != null) email = String.valueOf(emailObj);
+                Object usernameObj = data.get("username");
+                if (usernameObj != null) name = String.valueOf(usernameObj);
+            }
+        } catch (Exception ex) {
+            log.warn("Unable to load user {} for invoice recipient", instructorId, ex);
+        }
+
+        // 2) Instructor profile: prefer the real full name when available.
+        try {
+            Map<String, Object> body = (Map<String, Object>) restTemplate.getForObject(
+                    "http://" + userServiceName + "/api/v1/instructor-profiles/" + instructorId, Map.class);
+            Map<String, Object> data = body == null ? null : (Map<String, Object>) body.get("data");
+            if (data != null) {
+                Object fullName = data.get("fullName");
+                if (fullName != null && !String.valueOf(fullName).isBlank()) {
+                    name = String.valueOf(fullName);
+                }
+            }
+        } catch (Exception ex) {
+            log.debug("No instructor profile for {} (using user record name)", instructorId);
+        }
+
+        return new RecipientInfo(name, email, avatarUrl);
+    }
+
+    /** Download and decode the avatar image; returns null if unavailable. */
+    private Image loadAvatarImage(String avatarUrl) {
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            return null;
+        }
+        try {
+            byte[] bytes = restTemplate.getForObject(avatarUrl, byte[].class);
+            if (bytes == null || bytes.length == 0) {
+                return null;
+            }
+            return Image.getInstance(bytes);
+        } catch (Exception ex) {
+            log.warn("Unable to load recipient avatar from {}", avatarUrl, ex);
+            return null;
+        }
+    }
+
+    /** Party card variant that renders the recipient avatar next to the name. */
+    private PdfPCell recipientCard(String label, String name, Image avatar, String... lines)
+            throws DocumentException {
+        PdfPCell cell = styledCell(SOFT_GRAY, new Color(219, 226, 232), 8f);
+        cell.addElement(paragraph(label, 8f, Font.BOLD, BRAND_BLUE, 0f));
+
+        if (avatar != null) {
+            // Name + avatar side by side in a borderless 2-column sub-table.
+            PdfPTable head = new PdfPTable(new float[] { 1f, 5f });
+            head.setWidthPercentage(100f);
+            avatar.scaleToFit(26f, 26f);
+            PdfPCell avatarCell = borderlessCell();
+            avatarCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            avatarCell.addElement(avatar);
+            head.addCell(avatarCell);
+            PdfPCell nameCell = borderlessCell();
+            nameCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            nameCell.addElement(paragraph(name, 11f, Font.BOLD, BRAND_NAVY, 0f));
+            head.addCell(nameCell);
+            head.setSpacingBefore(5f);
+            cell.addElement(head);
+        } else {
+            cell.addElement(paragraph(name, 11f, Font.BOLD, BRAND_NAVY, 5f));
+        }
+
+        for (String line : lines) {
+            cell.addElement(paragraph(line, 8f, Font.NORMAL, TEXT_MUTED, 3f));
+        }
+        return cell;
     }
 
     private void addAmountSummary(Document document, PayoutInvoice invoice) throws DocumentException {

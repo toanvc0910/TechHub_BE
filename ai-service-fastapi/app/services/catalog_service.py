@@ -13,6 +13,8 @@ from app.services.observability_service import runtime_observability_service
 
 logger = logging.getLogger(__name__)
 
+ACTIVE_COURSE_SQL = "UPPER(COALESCE(c.is_active::text, 'N')) IN ('Y', 'TRUE', 'T', '1')"
+
 
 def _normalize_uuidish(value: Any) -> str | None:
     if value is None:
@@ -36,8 +38,13 @@ def _normalize_jsonish(value: Any, default: Any) -> Any:
 
 
 class CatalogService:
-    async def fetch_published_courses(self, limit: int | None = None) -> list[dict[str, Any]]:
-        sql = """
+    async def fetch_published_courses(
+        self,
+        limit: int | None = None,
+        *,
+        instructor_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        sql = f"""
             SELECT
                 c.id,
                 c.title,
@@ -77,19 +84,31 @@ class CatalogService:
             LEFT JOIN ratings r
                 ON r.target_id = c.id
                AND r.target_type = 'COURSE'
-            WHERE c.is_active = 'Y'
+            WHERE {ACTIVE_COURSE_SQL}
               AND c.status = 'PUBLISHED'
+        """
+        params: dict[str, Any] = {}
+        if instructor_id:
+            sql += "\n              AND c.instructor_id = CAST(:instructor_id AS uuid)"
+            params["instructor_id"] = str(instructor_id)
+        sql += """
             GROUP BY c.id
             ORDER BY c.created DESC
         """
         if limit:
             sql += "\nLIMIT :limit"
+            params["limit"] = limit
 
         async with get_db_session() as session:
-            result = await session.execute(text(sql), {"limit": limit} if limit else {})
+            result = await session.execute(text(sql), params)
             return [self._normalize_course_row(dict(row)) for row in result.mappings().all()]
 
-    async def fetch_courses_by_ids(self, course_ids: Iterable[str]) -> list[dict[str, Any]]:
+    async def fetch_courses_by_ids(
+        self,
+        course_ids: Iterable[str],
+        *,
+        instructor_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         # HOT PATH: recommendation_service calls this twice per request and
         # the old implementation fetched the entire published catalog then
         # filtered in Python — scaled with table size, not request size. Use
@@ -99,7 +118,7 @@ class CatalogService:
         if not ids:
             return []
 
-        sql = """
+        sql = f"""
             SELECT
                 c.id,
                 c.title,
@@ -139,13 +158,19 @@ class CatalogService:
             LEFT JOIN ratings r
                 ON r.target_id = c.id
                AND r.target_type = 'COURSE'
-            WHERE c.is_active = 'Y'
+            WHERE {ACTIVE_COURSE_SQL}
               AND c.status = 'PUBLISHED'
               AND c.id = ANY(CAST(:ids AS uuid[]))
+        """
+        params: dict[str, Any] = {"ids": ids}
+        if instructor_id:
+            sql += "\n              AND c.instructor_id = CAST(:instructor_id AS uuid)"
+            params["instructor_id"] = str(instructor_id)
+        sql += """
             GROUP BY c.id
         """
         async with get_db_session() as session:
-            result = await session.execute(text(sql), {"ids": ids})
+            result = await session.execute(text(sql), params)
             rows = [self._normalize_course_row(dict(row)) for row in result.mappings().all()]
         # Preserve caller-supplied order so recommendation re-rank keeps its
         # priority list.
@@ -153,7 +178,7 @@ class CatalogService:
         return [by_id[cid] for cid in ids if cid in by_id]
 
     async def fetch_lessons(self) -> list[dict[str, Any]]:
-        sql = """
+        sql = f"""
             SELECT
                 l.id,
                 l.title,
@@ -185,7 +210,7 @@ class CatalogService:
             return [self._normalize_lesson_row(dict(row)) for row in result.mappings().all()]
 
     async def fetch_lesson_by_id(self, lesson_id: str) -> dict[str, Any] | None:
-        sql = """
+        sql = f"""
             SELECT
                 l.id,
                 l.title,
@@ -250,7 +275,7 @@ class CatalogService:
 
     async def fetch_user_ratings(self, user_id: str, *, raise_on_error: bool = False) -> list[dict[str, Any]]:
         """Fetch user's course ratings. score >= 4 indicates preference."""
-        sql = """
+        sql = f"""
             SELECT
                 r.target_id AS course_id,
                 r.score AS score,
@@ -264,7 +289,7 @@ class CatalogService:
             JOIN courses c
                 ON c.id = r.target_id
                AND r.target_type = 'COURSE'
-               AND c.is_active = 'Y'
+               AND {ACTIVE_COURSE_SQL}
             LEFT JOIN course_skills cs ON cs.course_id = c.id
             LEFT JOIN skills s
                 ON s.id = cs.skill_id
@@ -344,7 +369,7 @@ class CatalogService:
         return skills
 
     async def fetch_user_course_history(self, user_id: str) -> list[dict[str, Any]]:
-        sql = """
+        sql = f"""
             SELECT
                 e.id AS enrollment_id,
                 e.course_id,
@@ -367,7 +392,7 @@ class CatalogService:
             FROM enrollments e
             JOIN courses c
                 ON c.id = e.course_id
-               AND c.is_active = 'Y'
+               AND {ACTIVE_COURSE_SQL}
             LEFT JOIN chapters ch
                 ON ch.course_id = c.id
             LEFT JOIN lessons l
@@ -399,7 +424,7 @@ class CatalogService:
             return items
 
     async def fetch_user_learning_paths(self, user_id: str) -> list[dict[str, Any]]:
-        sql = """
+        sql = f"""
             SELECT
                 lp.id AS path_id,
                 lp.title,
@@ -507,7 +532,7 @@ class CatalogService:
             return items
 
     async def _fetch_all_enrollment_histories(self) -> dict[str, list[dict[str, Any]]]:
-        sql = """
+        sql = f"""
             SELECT
                 e.user_id,
                 e.course_id,
@@ -528,7 +553,7 @@ class CatalogService:
             FROM enrollments e
             JOIN courses c
                 ON c.id = e.course_id
-               AND c.is_active = 'Y'
+               AND {ACTIVE_COURSE_SQL}
             LEFT JOIN chapters ch
                 ON ch.course_id = c.id
             LEFT JOIN lessons l

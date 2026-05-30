@@ -2,7 +2,11 @@ package com.techhub.app.proxyclient.controller;
 
 import com.techhub.app.proxyclient.client.AiServiceClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,6 +16,10 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+
+import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/proxy/ai")
@@ -19,6 +27,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class AiProxyController {
 
     private final AiServiceClient aiServiceClient;
+    private final RestTemplate restTemplate;
+
+    @Value("${ai.service.direct-url:${AI_SERVICE_DIRECT_URL:}}")
+    private String aiServiceDirectUrl;
 
     @PostMapping("/exercises/generate")
     public ResponseEntity<String> generateExercises(@RequestBody Object request,
@@ -28,8 +40,44 @@ public class AiProxyController {
 
     @PostMapping("/learning-paths/generate")
     public ResponseEntity<String> generateLearningPaths(@RequestBody Object request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        return aiServiceClient.generateLearningPath(request, authHeader);
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            HttpServletRequest httpRequest) {
+        if (!StringUtils.hasText(aiServiceDirectUrl)) {
+            return aiServiceClient.generateLearningPath(request, authHeader);
+        }
+
+        HttpHeaders headers = buildAiHeaders(authHeader, httpRequest);
+        return restTemplate.postForEntity(
+                aiServiceDirectUrl + "/api/ai/learning-paths/generate",
+                new HttpEntity<>(request, headers),
+                String.class);
+    }
+
+    private HttpHeaders buildAiHeaders(String authHeader, HttpServletRequest request) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_TYPE, "application/json");
+        if (authHeader != null && !authHeader.isBlank()) {
+            headers.add(HttpHeaders.AUTHORIZATION, authHeader);
+        }
+
+        Object userId = request.getAttribute("userId");
+        if (userId != null) {
+            headers.add("X-User-Id", userId.toString());
+        }
+
+        Object userEmail = request.getAttribute("userEmail");
+        if (userEmail != null) {
+            headers.add("X-User-Email", userEmail.toString());
+        }
+
+        Object userRoles = request.getAttribute("userRoles");
+        if (userRoles instanceof List<?>) {
+            headers.add("X-User-Roles", String.join(",", ((List<?>) userRoles).stream().map(String::valueOf).toList()));
+        } else if (userRoles != null) {
+            headers.add("X-User-Roles", userRoles.toString());
+        }
+        headers.add("X-Request-Source", "proxy-client");
+        return headers;
     }
 
     @PostMapping("/recommendations/realtime")

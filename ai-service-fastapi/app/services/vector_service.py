@@ -43,6 +43,7 @@ class VectorService:
         level: str | None = None,
         language: str | None = None,
         exclude_course_ids: Iterable[str] | None = None,
+        instructor_id: str | None = None,
     ) -> list[dict[str, Any]]:
         started = perf_counter()
         sanitized_query = query.strip()
@@ -54,6 +55,8 @@ class VectorService:
             must_filters.append({"key": "level", "match": {"value": level.upper()}})
         if language:
             must_filters.append({"key": "language", "match": {"value": language.upper()}})
+        if instructor_id:
+            must_filters.append({"key": "instructor_id", "match": {"value": str(instructor_id)}})
 
         must_not_filters = []
         for course_id in exclude_course_ids or []:
@@ -108,6 +111,7 @@ class VectorService:
             level=level,
             language=language,
             exclude_course_ids=exclude_course_ids,
+            instructor_id=instructor_id,
         )
         for item in results:
             item["retrievalMode"] = "lexical_fallback"
@@ -957,8 +961,9 @@ class VectorService:
         level: str | None,
         language: str | None,
         exclude_course_ids: Iterable[str] | None,
+        instructor_id: str | None,
     ) -> list[dict[str, Any]]:
-        courses = await catalog_service.fetch_published_courses(limit=200)
+        courses = await catalog_service.fetch_published_courses(limit=200, instructor_id=instructor_id)
         query_terms = self._tokenize(query)
         excluded = {str(course_id) for course_id in (exclude_course_ids or [])}
 

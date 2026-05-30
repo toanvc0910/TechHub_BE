@@ -8,7 +8,6 @@ from app.db.models import AiGenerationTaskModel
 from app.db.session import get_db_session
 from app.schemas.learning_path import LearningPathDraftResponse, LearningPathGenerateRequest
 from app.services.catalog_service import catalog_service
-from app.services.llm_gateway import switchable_ai_gateway
 from app.services.provider_config import provider_config_service
 from app.services.runtime_request_context import runtime_request_context_service
 from app.services.vector_service import vector_service
@@ -20,6 +19,7 @@ class LearningPathService:
 
     async def generate(self, request: LearningPathGenerateRequest) -> LearningPathDraftResponse:
         with runtime_request_context_service.begin(scope="learning_path_generate") as runtime_state:
+            instructor_id = str(request.userId)
             user_profile = await catalog_service.fetch_user_profile(str(request.userId))
             course_history = await catalog_service.fetch_user_course_history(str(request.userId))
             active_paths = await catalog_service.fetch_user_learning_paths(str(request.userId))
@@ -40,34 +40,48 @@ class LearningPathService:
                         limit=12,
                         language=request.language,
                         exclude_course_ids=completed_ids,
+                        instructor_id=instructor_id,
+                    )
+                    relevant_courses = await self._hydrate_vector_courses(
+                        relevant_courses,
+                        instructor_id=instructor_id,
+                        completed_ids=completed_ids,
                     )
                 except Exception:
                     relevant_courses = []
                     pipeline = "fallback"
             preferred_courses = [
                 course
-                for course in await catalog_service.fetch_courses_by_ids([str(item) for item in request.preferredCourseIds or []])
+                for course in await catalog_service.fetch_courses_by_ids(
+                    [str(item) for item in request.preferredCourseIds or []],
+                    instructor_id=instructor_id,
+                )
                 if course.get("id") not in completed_ids
             ]
             candidates = self._merge_candidates(relevant_courses, preferred_courses)
 
             if not candidates:
-                catalog_courses = await catalog_service.fetch_published_courses(limit=12)
+                catalog_courses = await catalog_service.fetch_published_courses(limit=12, instructor_id=instructor_id)
                 candidates = self._merge_candidates([], [course for course in catalog_courses if course.get("id") not in completed_ids])
                 pipeline = "fallback"
             if not candidates:
-                raise ValueError("No published courses available to build a learning path.")
+                raise ValueError("No published courses owned by this instructor are available to build a learning path.")
 
             prompt = self._build_prompt(request, candidates, user_profile, course_history, active_paths)
             fallback_path = self._fallback_path(request, candidates, user_profile, course_history)
-            if self._settings.business_safe_mode_enabled:
-                path = fallback_path
-                pipeline = "fallback"
-            else:
-                ai_payload = await switchable_ai_gateway.generate_structured_json(prompt=prompt, fallback_payload=fallback_path)
-                path = self._normalize_payload(ai_payload, fallback_path, candidates)
-                if path == fallback_path:
-                    pipeline = "fallback"
+            path = fallback_path
+            path.setdefault("metadata", {})
+            path["metadata"].update(
+                {
+                    "courseSource": "instructor_db_only",
+                    "llmCourseSelection": False,
+                    "candidateCourseIds": [
+                        str(candidate["payload"].get("id") or candidate["payload"].get("course_id"))
+                        for candidate in candidates
+                    ],
+                }
+            )
+            path = await self._ensure_path_courses_active(path, instructor_id=instructor_id)
 
             async with get_db_session() as session:
                 task = AiGenerationTaskModel(
@@ -106,6 +120,123 @@ class LearningPathService:
                     nodes=path.get("nodes"),
                     edges=path.get("edges"),
                 )
+
+    async def _hydrate_vector_courses(
+        self,
+        vector_candidates: list[dict[str, Any]],
+        *,
+        instructor_id: str,
+        completed_ids: set[str],
+    ) -> list[dict[str, Any]]:
+        score_by_id: dict[str, float] = {}
+        ordered_ids: list[str] = []
+        for candidate in vector_candidates:
+            payload = candidate.get("payload", {}) if isinstance(candidate, dict) else {}
+            course_id = str(payload.get("id") or payload.get("course_id") or "")
+            if not course_id or course_id in completed_ids or course_id in score_by_id:
+                continue
+            score_by_id[course_id] = float(candidate.get("score") or 0.0)
+            ordered_ids.append(course_id)
+
+        if not ordered_ids:
+            return []
+
+        rows = await catalog_service.fetch_courses_by_ids(ordered_ids, instructor_id=instructor_id)
+        rank_by_id = {course_id: index for index, course_id in enumerate(ordered_ids)}
+        hydrated = [
+            {
+                "id": course["id"],
+                "score": score_by_id.get(course["id"], 0.0),
+                "payload": course,
+                "retrievalMode": "vector_hydrated_from_db",
+            }
+            for course in rows
+            if course.get("id") and course.get("id") not in completed_ids
+        ]
+        hydrated.sort(key=lambda item: rank_by_id.get(item["payload"]["id"], 9999))
+        return hydrated
+
+    async def _ensure_path_courses_active(self, path: dict[str, Any], *, instructor_id: str) -> dict[str, Any]:
+        courses = path.get("courses")
+        if not isinstance(courses, list) or not courses:
+            raise ValueError("Learning path must contain at least one active published course.")
+
+        ordered_ids: list[str] = []
+        for item in courses:
+            if not isinstance(item, dict):
+                continue
+            course_id = str(item.get("courseId") or item.get("course_id") or "")
+            if course_id and course_id not in ordered_ids:
+                ordered_ids.append(course_id)
+
+        if not ordered_ids:
+            raise ValueError("Learning path must contain valid course IDs.")
+
+        active_rows = await catalog_service.fetch_courses_by_ids(ordered_ids, instructor_id=instructor_id)
+        active_by_id = {str(course["id"]): course for course in active_rows if course.get("id")}
+        missing_ids = [course_id for course_id in ordered_ids if course_id not in active_by_id]
+        if missing_ids:
+            raise ValueError(
+                "Learning path contains courses that are inactive, unpublished, deleted, or not owned by this instructor: "
+                + ", ".join(missing_ids)
+            )
+
+        hydrated_courses: list[dict[str, Any]] = []
+        for index, item in enumerate(courses, start=1):
+            if not isinstance(item, dict):
+                continue
+            course_id = str(item.get("courseId") or item.get("course_id") or "")
+            source = active_by_id.get(course_id)
+            if source is None:
+                continue
+            hydrated_courses.append(
+                {
+                    **item,
+                    "courseId": course_id,
+                    "title": str(source.get("title") or item.get("title") or f"Course {index}"),
+                    "description": str(source.get("description") or item.get("description") or "")[:150],
+                    "thumbnail": source.get("thumbnail"),
+                    "order": int(item.get("order") or index),
+                    "isOptional": "Y" if str(item.get("isOptional", "N")).upper() == "Y" else "N",
+                }
+            )
+
+        hydrated_courses.sort(key=lambda item: item["order"])
+        path["courses"] = hydrated_courses
+
+        existing_nodes = {
+            str(node.get("id")): node
+            for node in path.get("nodes", [])
+            if isinstance(node, dict) and node.get("id")
+        }
+        nodes: list[dict[str, Any]] = []
+        for index, course in enumerate(hydrated_courses, start=1):
+            node = existing_nodes.get(course["courseId"], {})
+            position = node.get("position") if isinstance(node.get("position"), dict) else {}
+            nodes.append(
+                {
+                    "id": course["courseId"],
+                    "type": "courseNode",
+                    "data": {
+                        **(node.get("data") if isinstance(node.get("data"), dict) else {}),
+                        "label": course["title"],
+                        "courseId": course["courseId"],
+                    },
+                    "position": {
+                        "x": float(position.get("x", course.get("positionX", 120 + (index - 1) * 280))),
+                        "y": float(position.get("y", course.get("positionY", 220))),
+                    },
+                }
+            )
+        path["nodes"] = nodes
+        path["edges"] = self._normalize_edges(path.get("edges"), hydrated_courses)
+        path["layoutEdges"] = [
+            {"source": edge["source"], "target": edge["target"]}
+            for edge in path["edges"]
+        ]
+        path.setdefault("metadata", {})
+        path["metadata"]["totalCourses"] = len(hydrated_courses)
+        return path
 
     def _build_query(
         self,
@@ -353,6 +484,10 @@ class LearningPathService:
             str(candidate["payload"].get("id") or candidate["payload"].get("course_id"))
             for candidate in candidates
         }
+        candidate_by_id = {
+            str(candidate["payload"].get("id") or candidate["payload"].get("course_id")): candidate["payload"]
+            for candidate in candidates
+        }
         courses = payload.get("courses")
         nodes = payload.get("nodes")
         edges = payload.get("edges")
@@ -367,12 +502,13 @@ class LearningPathService:
             course_id = str(item.get("courseId") or "")
             if course_id not in allowed_ids:
                 continue
+            source_course = candidate_by_id.get(course_id, {})
             cleaned_courses.append(
                 {
                     "courseId": course_id,
-                    "title": str(item.get("title") or ""),
-                    "description": str(item.get("description") or "")[:150],
-                    "thumbnail": item.get("thumbnail"),
+                    "title": str(source_course.get("title") or item.get("title") or ""),
+                    "description": str(source_course.get("description") or item.get("description") or "")[:150],
+                    "thumbnail": source_course.get("thumbnail") or item.get("thumbnail"),
                     "order": int(item.get("order") or index),
                     "positionX": int(item.get("positionX") or 120 + (index - 1) * 280),
                     "positionY": int(item.get("positionY") or 220),
