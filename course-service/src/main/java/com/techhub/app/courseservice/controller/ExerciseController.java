@@ -131,7 +131,7 @@ public class ExerciseController {
                         @PathVariable UUID lessonId,
                         @org.springframework.web.bind.annotation.RequestParam(value = "limit", defaultValue = "10") int limit,
                         HttpServletRequest request) {
-                List<LeaderboardEntryResponse> result = leaderboardService.getLessonLeaderboard(lessonId, limit);
+                List<LeaderboardEntryResponse> result = leaderboardService.getLessonLeaderboard(courseId, lessonId, limit);
                 return ResponseEntity.ok(
                                 GlobalResponse.success("Leaderboard retrieved", result)
                                                 .withPath(request.getRequestURI()));

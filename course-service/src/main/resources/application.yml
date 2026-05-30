@@ -41,6 +41,13 @@ spring:
       properties:
         spring.json.trusted.packages: "*"
         spring.json.use.type.headers: false
+  cloud:
+    openfeign:
+      client:
+        config:
+          AI-SERVICE:
+            connectTimeout: ${AI_FEEDBACK_CONNECT_TIMEOUT_MS:1000}
+            readTimeout: ${AI_FEEDBACK_READ_TIMEOUT_MS:2000}
 
 # Kafka Topics Configuration
 kafka:

@@ -1,6 +1,7 @@
 package com.techhub.app.courseservice.repository;
 
 import com.techhub.app.courseservice.entity.LessonAsset;
+import com.techhub.app.courseservice.enums.LessonAssetType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +15,12 @@ public interface LessonAssetRepository extends JpaRepository<LessonAsset, UUID> 
     List<LessonAsset> findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(UUID lessonId);
 
     Optional<LessonAsset> findByIdAndLesson_IdAndIsActiveTrue(UUID id, UUID lessonId);
+
+    Optional<LessonAsset> findFirstByLesson_IdAndAssetTypeAndFileIdAndIsActiveTrueOrderByCreatedAsc(
+            UUID lessonId, LessonAssetType assetType, UUID fileId);
+
+    Optional<LessonAsset> findFirstByLesson_IdAndAssetTypeAndExternalUrlAndIsActiveTrueOrderByCreatedAsc(
+            UUID lessonId, LessonAssetType assetType, String externalUrl);
 
     @Query("SELECT COALESCE(MAX(a.orderIndex), 0) FROM LessonAsset a " +
            "WHERE a.lesson.id = :lessonId AND a.isActive = true")

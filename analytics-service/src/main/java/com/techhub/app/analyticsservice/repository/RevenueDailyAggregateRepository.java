@@ -33,6 +33,14 @@ public interface RevenueDailyAggregateRepository extends JpaRepository<RevenueDa
                         @Param("fromDate") LocalDate fromDate,
                         @Param("toDate") LocalDate toDate);
 
+        @Query("SELECT COALESCE(SUM(r.instructorRevenue), 0) FROM RevenueDailyAggregate r " +
+                        "WHERE (:instructorId IS NULL OR r.instructorId = :instructorId) " +
+                        "AND r.metricDate >= :fromDate " +
+                        "AND r.metricDate <= :toDate")
+        BigDecimal sumAdminInstructorNetRevenue(@Param("instructorId") UUID instructorId,
+                        @Param("fromDate") LocalDate fromDate,
+                        @Param("toDate") LocalDate toDate);
+
         @Query("SELECT COALESCE(SUM(r.grossRevenue), 0) FROM RevenueDailyAggregate r " +
                         "WHERE (:instructorId IS NULL OR r.instructorId = :instructorId) " +
                         "AND r.metricDate >= :fromDate " +

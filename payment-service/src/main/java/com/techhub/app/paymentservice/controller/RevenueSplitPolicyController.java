@@ -65,12 +65,24 @@ public class RevenueSplitPolicyController {
     @GetMapping("/active")
     public ResponseEntity<GlobalResponse<RevenueSplitPolicyService.ResolvedPolicy>> getActivePolicy(
             @RequestHeader(value = "X-User-Roles", required = false) String userRoles,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
             @RequestParam(required = false) UUID instructorId,
             @RequestParam(required = false) UUID courseId,
             @RequestParam(required = false) String refTime) {
+        UUID resolvedInstructorId = instructorId;
         if (!hasAdminRole(userRoles)) {
+            UUID requesterId = parseOptionalUuid(userId);
+            if (requesterId == null || courseId != null ||
+                    (instructorId != null && !requesterId.equals(instructorId))) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(GlobalResponse.error("Only admins can resolve another revenue policy",
+                                HttpStatus.FORBIDDEN.value()));
+            }
+            resolvedInstructorId = requesterId;
+        }
+        if (resolvedInstructorId == null && !hasAdminRole(userRoles)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(GlobalResponse.error("Admin role is required", HttpStatus.FORBIDDEN.value()));
+                    .body(GlobalResponse.error("Instructor identity is required", HttpStatus.FORBIDDEN.value()));
         }
 
         OffsetDateTime parsedRefTime = null;
@@ -84,9 +96,20 @@ public class RevenueSplitPolicyController {
             }
         }
 
-        RevenueSplitPolicyService.ResolvedPolicy response = revenueSplitPolicyService.resolvePolicy(instructorId,
+        RevenueSplitPolicyService.ResolvedPolicy response = revenueSplitPolicyService.resolvePolicy(resolvedInstructorId,
                 courseId, parsedRefTime);
         return ResponseEntity.ok(GlobalResponse.success("Active revenue split policy", response));
+    }
+
+    private UUID parseOptionalUuid(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value.trim());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private boolean hasAdminRole(String rolesHeader) {

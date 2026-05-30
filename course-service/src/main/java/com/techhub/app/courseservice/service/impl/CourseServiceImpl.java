@@ -64,6 +64,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -612,6 +613,11 @@ public class CourseServiceImpl implements CourseService {
         Lesson lesson = resolveLesson(courseId, chapterId, lessonId);
 
         validateLessonAssetRequest(request);
+        LessonAsset existingAsset = findMatchingLessonAsset(lessonId, request);
+        if (existingAsset != null) {
+            log.info("Reusing existing asset {} for lesson {}", existingAsset.getId(), lessonId);
+            return buildAssetResponse(existingAsset, course);
+        }
 
         Integer orderIndex = request.getOrderIndex();
         if (orderIndex == null) {
@@ -908,10 +914,12 @@ public class CourseServiceImpl implements CourseService {
     }
 
     private LessonResponse buildLessonResponse(Lesson lesson, Course course, Progress progress) {
-        List<LessonAssetResponse> assets = lessonAssetRepository
-                .findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId()).stream()
-                .map(asset -> buildAssetResponse(asset, course))
-                .collect(Collectors.toList());
+        Map<String, LessonAssetResponse> uniqueAssets = new LinkedHashMap<>();
+        lessonAssetRepository.findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId())
+                .forEach(asset -> uniqueAssets.putIfAbsent(
+                        buildLessonAssetIdentity(asset),
+                        buildAssetResponse(asset, course)));
+        List<LessonAssetResponse> assets = new ArrayList<>(uniqueAssets.values());
 
         Float completion = progress != null && progress.getCompletion() != null
                 ? Math.max(0f, Math.min(1f, progress.getCompletion()))
@@ -945,6 +953,32 @@ public class CourseServiceImpl implements CourseService {
                 .completedAt(progress != null ? progress.getCompletedAt() : null)
                 .progressUpdatedAt(progress != null ? progress.getUpdated() : null)
                 .build();
+    }
+
+    private LessonAsset findMatchingLessonAsset(UUID lessonId, LessonAssetRequest request) {
+        if (request.getFileId() != null) {
+            return lessonAssetRepository
+                    .findFirstByLesson_IdAndAssetTypeAndFileIdAndIsActiveTrueOrderByCreatedAsc(
+                            lessonId, request.getAssetType(), request.getFileId())
+                    .orElse(null);
+        }
+        if (request.getExternalUrl() != null && !request.getExternalUrl().isBlank()) {
+            return lessonAssetRepository
+                    .findFirstByLesson_IdAndAssetTypeAndExternalUrlAndIsActiveTrueOrderByCreatedAsc(
+                            lessonId, request.getAssetType(), request.getExternalUrl().trim())
+                    .orElse(null);
+        }
+        return null;
+    }
+
+    private String buildLessonAssetIdentity(LessonAsset asset) {
+        if (asset.getFileId() != null) {
+            return asset.getAssetType() + ":file:" + asset.getFileId();
+        }
+        if (asset.getExternalUrl() != null && !asset.getExternalUrl().isBlank()) {
+            return asset.getAssetType() + ":url:" + asset.getExternalUrl().trim();
+        }
+        return "asset:" + asset.getId();
     }
 
     private LessonAssetResponse buildAssetResponse(LessonAsset asset, Course course) {

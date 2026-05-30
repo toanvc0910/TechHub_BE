@@ -3,6 +3,7 @@ package com.techhub.app.analyticsservice.controller;
 import com.techhub.app.analyticsservice.dto.RevenueOverviewResponse;
 import com.techhub.app.analyticsservice.dto.RevenueDailyTrendResponse;
 import com.techhub.app.analyticsservice.service.RevenueProjectionService;
+import com.techhub.app.analyticsservice.service.RevenueOutboxReplayService;
 import com.techhub.app.commonservice.payload.GlobalResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import java.util.UUID;
 public class RevenueAnalyticsController {
 
     private final RevenueProjectionService projectionService;
+    private final RevenueOutboxReplayService revenueOutboxReplayService;
 
     @GetMapping("/instructor/overview")
     public ResponseEntity<GlobalResponse<RevenueOverviewResponse>> getInstructorOverview(
@@ -46,6 +48,7 @@ public class RevenueAnalyticsController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
         }
+        revenueOutboxReplayService.replayPendingRevenueEvents();
         RevenueOverviewResponse response = projectionService.getInstructorOverview(instructorId, parsedFromDate,
                 parsedToDate);
         return ResponseEntity.ok(GlobalResponse.success("Instructor revenue overview", response));
@@ -76,6 +79,7 @@ public class RevenueAnalyticsController {
                     .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
         }
 
+        revenueOutboxReplayService.replayPendingRevenueEvents();
         RevenueOverviewResponse response = projectionService.getAdminOverview(parsedInstructorId, parsedFromDate,
                 parsedToDate);
         return ResponseEntity.ok(GlobalResponse.success("Admin revenue overview", response));
@@ -100,6 +104,7 @@ public class RevenueAnalyticsController {
                     .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
         }
 
+        revenueOutboxReplayService.replayPendingRevenueEvents();
         List<RevenueDailyTrendResponse> response = projectionService.getInstructorTrend(instructorId, parsedFromDate,
                 parsedToDate);
         return ResponseEntity.ok(GlobalResponse.success("Instructor revenue trend", response));
@@ -130,6 +135,7 @@ public class RevenueAnalyticsController {
                     .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
         }
 
+        revenueOutboxReplayService.replayPendingRevenueEvents();
         List<RevenueDailyTrendResponse> response = projectionService.getAdminTrend(parsedInstructorId, parsedFromDate,
                 parsedToDate);
         return ResponseEntity.ok(GlobalResponse.success("Admin revenue trend", response));

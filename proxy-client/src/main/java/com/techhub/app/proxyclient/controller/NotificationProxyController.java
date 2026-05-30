@@ -47,4 +47,18 @@ public class NotificationProxyController {
         log.debug("🔔 [PROXY] PUT /notifications/read - mark all as read");
         return notificationServiceClient.markAllAsRead(authHeader);
     }
+
+    @DeleteMapping("/{notificationId}")
+    public ResponseEntity<Object> deleteNotification(
+            @PathVariable String notificationId,
+            @RequestHeader("Authorization") String authHeader) {
+        log.debug("🔔 [PROXY] DELETE /notifications/{}", notificationId);
+        return notificationServiceClient.deleteNotification(notificationId, authHeader);
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Object> deleteAllNotifications(@RequestHeader("Authorization") String authHeader) {
+        log.debug("🔔 [PROXY] DELETE /notifications - delete all");
+        return notificationServiceClient.deleteAllNotifications(authHeader);
+    }
 }

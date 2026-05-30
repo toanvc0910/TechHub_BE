@@ -85,7 +85,8 @@ public class RevenueProjectionService {
                                                                 effectiveToDate)))
                                 .instructorRevenue(safe(revenueRepository.sumInstructorNetRevenue(instructorId,
                                                 effectiveFromDate, effectiveToDate)))
-                                .adminRevenue(BigDecimal.ZERO)
+                                .adminRevenue(safe(revenueRepository.sumAdminNetRevenue(instructorId,
+                                                effectiveFromDate, effectiveToDate)))
                                 .policyScope("MIXED")
                                 .policyVersion(null)
                                 .totalOrders(safeLong(
@@ -108,7 +109,10 @@ public class RevenueProjectionService {
                                                 revenueRepository.sumAdminGrossRevenue(instructorId,
                                                                 effectiveFromDate,
                                                                 effectiveToDate)))
-                                .instructorRevenue(BigDecimal.ZERO)
+                                .instructorRevenue(safe(
+                                                revenueRepository.sumAdminInstructorNetRevenue(instructorId,
+                                                                effectiveFromDate,
+                                                                effectiveToDate)))
                                 .adminRevenue(safe(
                                                 revenueRepository.sumAdminNetRevenue(instructorId,
                                                                 effectiveFromDate,

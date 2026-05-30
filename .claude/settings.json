@@ -1,7 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(python -m venv .venv)",
+      "Bash(.venv/Scripts/python.exe -m pip install -r requirements.txt)",
+      "Bash(.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8091 --host 0.0.0.0)",
+      "Bash(curl -s -o /dev/null -w \"health: %{http_code}\\\\n\" http://localhost:8091/actuator/health)",
+      "Bash(curl -s -o /dev/null -w \"docs: %{http_code}\\\\n\" http://localhost:8091/docs)",
+      "Bash(curl -s http://localhost:8091/api/ai/health)",
+      "Bash(ls -la ai-service-fastapi/.gitignore)",
+      "Bash(ls -la .gitignore)",
+      "Bash(grep -iE \"\\\\.pyc$|/.venv/|__pycache__\")",
+      "Bash(grep -zZiE \"\\\\.pyc$|__pycache__\")",
+      "Bash(xargs -0 git rm --cached --quiet)",
+      "Bash(grep -ciE \"\\\\.pyc$|__pycache__\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('next:', \\(p.dependencies&&p.dependencies.next\\)\\)\")",
+      "Bash(ls -ld .next)",
+      "Bash(echo \"=== TSC EXIT: $? ===\")"
     ]
   }
 }

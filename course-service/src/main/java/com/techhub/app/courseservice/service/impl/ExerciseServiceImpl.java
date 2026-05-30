@@ -492,7 +492,12 @@ public class ExerciseServiceImpl implements ExerciseService {
             payload.put("explanation", baseExplanation);
             payload.put("language", "vi");
 
-            String body = aiExerciseFeedbackClient.generateQuizFeedback(payload).getBody();
+            String body = aiExerciseFeedbackClient.generateQuizFeedback(
+                    payload,
+                    String.valueOf(requireCurrentUser()),
+                    UserContext.getCurrentUserEmail(),
+                    currentUserRoles(),
+                    "course-service").getBody();
             if (body == null || body.isBlank()) {
                 return fallback;
             }
@@ -812,6 +817,11 @@ public class ExerciseServiceImpl implements ExerciseService {
             throw new UnauthorizedException("Authentication required");
         }
         return userId;
+    }
+
+    private String currentUserRoles() {
+        List<String> roles = UserContext.getCurrentUserRoles();
+        return roles == null ? "" : String.join(",", roles);
     }
 
     private void syncTestCases(Exercise exercise, List<ExerciseTestCaseDto> testCaseDtos) {

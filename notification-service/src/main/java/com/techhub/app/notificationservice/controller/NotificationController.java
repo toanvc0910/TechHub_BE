@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -68,6 +69,25 @@ public class NotificationController {
         notificationService.markAllAsRead(currentUserId);
         return ResponseEntity.ok(
                 GlobalResponse.<Void>success("All notifications marked as read", null)
+                        .withPath(request.getRequestURI()));
+    }
+
+    @DeleteMapping("/{notificationId}")
+    public ResponseEntity<GlobalResponse<Void>> deleteNotification(@PathVariable UUID notificationId,
+            HttpServletRequest request) {
+        UUID currentUserId = requireUser();
+        notificationService.deleteNotification(notificationId, currentUserId);
+        return ResponseEntity.ok(
+                GlobalResponse.<Void>success("Notification deleted", null)
+                        .withPath(request.getRequestURI()));
+    }
+
+    @DeleteMapping
+    public ResponseEntity<GlobalResponse<Void>> deleteAllNotifications(HttpServletRequest request) {
+        UUID currentUserId = requireUser();
+        notificationService.deleteAllNotifications(currentUserId);
+        return ResponseEntity.ok(
+                GlobalResponse.<Void>success("All notifications deleted", null)
                         .withPath(request.getRequestURI()));
     }
 

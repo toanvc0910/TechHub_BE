@@ -23,7 +23,7 @@ public class PaymentProxyController {
 
     private final PaymentServiceClient paymentServiceClient;
     private final AnalyticsServiceClient analyticsServiceClient;
-    @Value("${PAYMENT_FRONTEND_RESULT_URL:http://localhost:3000/result}")
+    @Value("${PAYMENT_FRONTEND_RESULT_URL}")
     private String paymentFrontendResultUrl;
     @Value("${PAYMENT_FRONTEND_VNPAY_RETURN_URL:http://localhost:3000/vnpay-return}")
     private String paymentFrontendVnpayReturnUrl;
@@ -215,7 +215,8 @@ public class PaymentProxyController {
             @RequestParam(required = false) String instructorId,
             @RequestParam(required = false) String courseId,
             @RequestParam(required = false) String refTime) {
-        return paymentServiceClient.getActiveRevenuePolicy(getRolesHeader(request), instructorId, courseId, refTime);
+        return paymentServiceClient.getActiveRevenuePolicy(
+                getRolesHeader(request), getUserIdHeader(request), instructorId, courseId, refTime);
     }
 
     @GetMapping("/payouts/balance")

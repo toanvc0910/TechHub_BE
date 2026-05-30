@@ -4,6 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.util.List;
 import java.util.Map;
@@ -25,5 +26,9 @@ public interface UserServiceClient {
      * Response format: { "data": [{id,username,avatar}, ...], "statusCode": 200 }
      */
     @PostMapping("/internal/batch")
-    Map<String, Object> getUsersBatch(@RequestBody List<UUID> ids);
+    Map<String, Object> getUsersBatch(@RequestBody List<UUID> ids,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Email") String userEmail,
+            @RequestHeader("X-User-Roles") String userRoles,
+            @RequestHeader("X-Request-Source") String requestSource);
 }

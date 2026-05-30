@@ -117,6 +117,7 @@ public interface PaymentServiceClient {
         @GetMapping("/api/v1/revenue-policies/active")
         ResponseEntity<String> getActiveRevenuePolicy(
                         @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId,
                         @RequestParam(value = "instructorId", required = false) String instructorId,
                         @RequestParam(value = "courseId", required = false) String courseId,
                         @RequestParam(value = "refTime", required = false) String refTime);

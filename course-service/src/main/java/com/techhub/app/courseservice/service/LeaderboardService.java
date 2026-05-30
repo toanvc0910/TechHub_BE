@@ -2,7 +2,12 @@ package com.techhub.app.courseservice.service;
 
 import com.techhub.app.courseservice.client.UserServiceClient;
 import com.techhub.app.courseservice.dto.response.LeaderboardEntryResponse;
+import com.techhub.app.courseservice.entity.Lesson;
+import com.techhub.app.courseservice.repository.LessonRepository;
 import com.techhub.app.courseservice.repository.SubmissionRepository;
+import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.exception.ForbiddenException;
+import com.techhub.app.commonservice.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,9 +28,11 @@ import java.util.UUID;
 public class LeaderboardService {
 
     private final SubmissionRepository submissionRepository;
+    private final LessonRepository lessonRepository;
     private final UserServiceClient userServiceClient;
 
-    public List<LeaderboardEntryResponse> getLessonLeaderboard(UUID lessonId, int limit) {
+    public List<LeaderboardEntryResponse> getLessonLeaderboard(UUID courseId, UUID lessonId, int limit) {
+        validateLesson(courseId, lessonId);
         int safeLimit = Math.min(Math.max(limit, 1), 50);
         List<Object[]> rows = submissionRepository.findLessonLeaderboard(lessonId, safeLimit);
         if (rows.isEmpty()) return Collections.emptyList();
@@ -62,7 +69,12 @@ public class LeaderboardService {
     @SuppressWarnings("unchecked")
     private Map<UUID, Map<String, Object>> fetchUserInfo(List<UUID> ids) {
         try {
-            Map<String, Object> resp = userServiceClient.getUsersBatch(ids);
+            Map<String, Object> resp = userServiceClient.getUsersBatch(
+                    ids,
+                    currentUserId(),
+                    UserContext.getCurrentUserEmail(),
+                    currentUserRoles(),
+                    "course-service");
             Object data = resp == null ? null : resp.get("data");
             if (!(data instanceof List)) return Collections.emptyMap();
             Map<UUID, Map<String, Object>> map = new HashMap<>();
@@ -79,6 +91,30 @@ public class LeaderboardService {
             log.warn("[Leaderboard] Failed fetching user info batch: {}", ex.getMessage());
             return Collections.emptyMap();
         }
+    }
+
+    private void validateLesson(UUID courseId, UUID lessonId) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new NotFoundException("Lesson not found"));
+        if (lesson.getChapter() == null || lesson.getChapter().getCourse() == null) {
+            throw new NotFoundException("Lesson is not attached to a course");
+        }
+        if (!lesson.getChapter().getCourse().getId().equals(courseId)) {
+            throw new ForbiddenException("Lesson does not belong to the specified course");
+        }
+        if (lesson.getIsActive() != null && !lesson.getIsActive()) {
+            throw new NotFoundException("Lesson is not active");
+        }
+    }
+
+    private String currentUserId() {
+        UUID userId = UserContext.getCurrentUserId();
+        return userId != null ? userId.toString() : null;
+    }
+
+    private String currentUserRoles() {
+        List<String> roles = UserContext.getCurrentUserRoles();
+        return roles == null ? null : String.join(",", roles);
     }
 
     private OffsetDateTime toOffsetDateTime(Object value) {
