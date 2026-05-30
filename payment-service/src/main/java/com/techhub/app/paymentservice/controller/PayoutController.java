@@ -7,6 +7,7 @@ import com.techhub.app.paymentservice.dto.request.ReviewPayoutRequestRequest;
 import com.techhub.app.paymentservice.dto.response.PayoutBalanceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutBatchResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutInvoiceResponse;
+import com.techhub.app.paymentservice.dto.response.PayoutOperationsSummaryResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutRequestResponse;
 import com.techhub.app.paymentservice.service.PayoutService;
 import lombok.RequiredArgsConstructor;
@@ -84,6 +85,21 @@ public class PayoutController {
             UUID requesterId = parseRequiredUserId(userId);
             List<PayoutRequestResponse> response = payoutService.listRequests(requesterId, admin);
             return ResponseEntity.ok(GlobalResponse.success("Payout requests", response));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<GlobalResponse<PayoutOperationsSummaryResponse>> getOperationsSummary(
+            @RequestHeader(value = "X-User-Roles", required = false) String userRoles,
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        try {
+            boolean admin = hasAdminRole(userRoles);
+            UUID requesterId = parseRequiredUserId(userId);
+            PayoutOperationsSummaryResponse response = payoutService.getOperationsSummary(requesterId, admin);
+            return ResponseEntity.ok(GlobalResponse.success("Payout operations summary", response));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(GlobalResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));

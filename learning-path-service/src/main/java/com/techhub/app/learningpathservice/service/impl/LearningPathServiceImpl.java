@@ -1,5 +1,6 @@
 package com.techhub.app.learningpathservice.service.impl;
 
+import com.techhub.app.commonservice.context.UserContext;
 import com.techhub.app.learningpathservice.dto.*;
 import com.techhub.app.learningpathservice.entity.LearningPath;
 import com.techhub.app.learningpathservice.entity.LearningPathCourse;
@@ -364,6 +365,9 @@ public class LearningPathServiceImpl implements LearningPathService {
                         log.info("mapSkillsToPath: Skill '{}' not found, creating new", skillName);
                         Skill newSkill = new Skill();
                         newSkill.setName(skillName);
+                        UUID currentUserId = UserContext.getCurrentUserId();
+                        newSkill.setCreatedBy(currentUserId);
+                        newSkill.setUpdatedBy(currentUserId);
                         Skill saved = skillRepository.save(newSkill);
                         log.info("mapSkillsToPath: Created skill ID: {}, name: '{}'", saved.getId(), saved.getName());
                         return saved;

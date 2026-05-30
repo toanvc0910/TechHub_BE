@@ -15,4 +15,5 @@ public class SkillDTO {
     private String name;
     private String thumbnail;
     private SkillCategory category;
+    private UUID createdBy;
 }

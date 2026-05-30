@@ -236,6 +236,11 @@ public class PaymentProxyController {
         return paymentServiceClient.listPayoutRequests(getRolesHeader(request), getUserIdHeader(request));
     }
 
+    @GetMapping("/payouts/summary")
+    public ResponseEntity<String> getPayoutOperationsSummary(HttpServletRequest request) {
+        return paymentServiceClient.getPayoutOperationsSummary(getRolesHeader(request), getUserIdHeader(request));
+    }
+
     @GetMapping("/payouts/requests/{requestId}")
     public ResponseEntity<String> getPayoutRequest(HttpServletRequest request,
             @PathVariable String requestId) {

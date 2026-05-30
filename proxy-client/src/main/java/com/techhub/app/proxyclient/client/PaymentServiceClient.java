@@ -138,6 +138,11 @@ public interface PaymentServiceClient {
                         @RequestHeader(value = "X-User-Roles", required = false) String roles,
                         @RequestHeader(value = "X-User-Id", required = false) String userId);
 
+        @GetMapping("/api/v1/payouts/summary")
+        ResponseEntity<String> getPayoutOperationsSummary(
+                        @RequestHeader(value = "X-User-Roles", required = false) String roles,
+                        @RequestHeader(value = "X-User-Id", required = false) String userId);
+
         @GetMapping("/api/v1/payouts/requests/{requestId}")
         ResponseEntity<String> getPayoutRequest(
                         @RequestHeader(value = "X-User-Roles", required = false) String roles,

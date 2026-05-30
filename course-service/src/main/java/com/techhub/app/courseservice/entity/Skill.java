@@ -30,4 +30,10 @@ public class Skill {
     @Enumerated(EnumType.STRING)
     @org.hibernate.annotations.Type(type = "com.techhub.app.commonservice.jpa.PostgreSQLEnumType", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.commonservice.enums.SkillCategory"))
     private SkillCategory category;
+
+    @Column(name = "created_by")
+    private UUID createdBy;
+
+    @Column(name = "updated_by")
+    private UUID updatedBy;
 }

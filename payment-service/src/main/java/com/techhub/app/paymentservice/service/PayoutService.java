@@ -6,6 +6,7 @@ import com.techhub.app.paymentservice.dto.request.ReviewPayoutRequestRequest;
 import com.techhub.app.paymentservice.dto.response.PayoutBalanceResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutBatchResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutInvoiceResponse;
+import com.techhub.app.paymentservice.dto.response.PayoutOperationsSummaryResponse;
 import com.techhub.app.paymentservice.dto.response.PayoutRequestResponse;
 import com.techhub.app.paymentservice.entity.PayoutBatch;
 import com.techhub.app.paymentservice.entity.PayoutInvoice;
@@ -21,10 +22,17 @@ import com.techhub.app.paymentservice.repository.PayoutLedgerEntryRepository;
 import com.techhub.app.paymentservice.repository.PayoutRequestRepository;
 import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
+import com.lowagie.text.Element;
 import com.lowagie.text.Font;
 import com.lowagie.text.FontFactory;
+import com.lowagie.text.Image;
+import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
+import com.lowagie.text.Rectangle;
+import com.lowagie.text.pdf.BaseFont;
+import com.lowagie.text.pdf.PdfContentByte;
+import com.lowagie.text.pdf.PdfGState;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
@@ -33,8 +41,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.core.io.ClassPathResource;
 
 import java.io.ByteArrayOutputStream;
+import java.awt.Color;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -43,8 +53,10 @@ import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -55,7 +67,19 @@ public class PayoutService {
 
     private static final DateTimeFormatter PERIOD_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
     private static final DateTimeFormatter INVOICE_NUMBER_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter PDF_DATE_FORMAT = DateTimeFormatter
+            .ofPattern("dd MMM yyyy, HH:mm:ss XXX")
+            .withLocale(Locale.ENGLISH);
     private static final String REVENUE_BOOTSTRAP_REFERENCE = "REVENUE_BOOTSTRAP";
+    private static final String TECHHUB_LEGAL_NAME = "TECHHUB LEARNING PLATFORM";
+    private static final String TECHHUB_CONTACT = "support@techhub.com | techhub.com";
+    private static final Color BRAND_NAVY = new Color(8, 47, 73);
+    private static final Color BRAND_BLUE = new Color(41, 151, 229);
+    private static final Color SOFT_BLUE = new Color(239, 248, 255);
+    private static final Color SOFT_GRAY = new Color(246, 248, 251);
+    private static final Color TEXT_MUTED = new Color(93, 112, 130);
+    private static final Color PAID_GREEN = new Color(17, 145, 95);
+    private static final Color STAMP_RED = new Color(203, 52, 70);
 
     private final PayoutRequestRepository payoutRequestRepository;
     private final PayoutBatchRepository payoutBatchRepository;
@@ -202,6 +226,29 @@ public class PayoutService {
     }
 
     @Transactional(readOnly = true)
+    public PayoutOperationsSummaryResponse getOperationsSummary(UUID requesterId, boolean adminView) {
+        List<PayoutRequest> requests = adminView
+                ? payoutRequestRepository.findByIsActiveOrderByCreatedDesc("Y")
+                : payoutRequestRepository.findByInstructorIdAndIsActiveOrderByCreatedDesc(requesterId.toString(), "Y");
+        BigDecimal totalRequested = requests.stream()
+                .map(PayoutRequest::getAmount)
+                .map(this::safeMoney)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        long approvedRequests = requests.stream()
+                .filter(request -> request.getApprovedAt() != null)
+                .count();
+        long batchCount = adminView ? payoutBatchRepository.findByIsActiveOrderByCreatedDesc("Y").size() : 0;
+
+        return PayoutOperationsSummaryResponse.builder()
+                .approvedRequests(approvedRequests)
+                .totalRequested(totalRequested)
+                .loadedRequests(requests.size())
+                .batchCount(batchCount)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
     public PayoutRequestResponse getRequest(UUID requestId, UUID requesterId, boolean adminView) {
         PayoutRequest request = payoutRequestRepository.findActiveById(requestId.toString())
                 .orElseThrow(() -> new IllegalArgumentException("Payout request not found"));
@@ -229,32 +276,7 @@ public class PayoutService {
 
         PayoutRequest approved = payoutRequestRepository.save(payoutRequest);
         PayoutInvoice invoice = createInvoiceForRequest(approved);
-
-        // MVP auto-transfer sandbox: approved request is settled immediately.
-        String transferReference = generateTransferReference(approved.getId());
-        approved.setStatus(PayoutRequestStatus.MARKED_PAID);
-        approved.setPaymentReference(transferReference);
-        approved.setMarkedPaidBy(approverId.toString());
-        approved.setMarkedPaidAt(OffsetDateTime.now());
-        approved.setReviewNote(mergeReviewNote(request.getNote(), "AUTO_TRANSFERRED"));
-
-        invoice.setTransferReference(transferReference);
-        invoice.setStatus(InvoiceStatus.PAID);
-        invoice.setEmailSent(Boolean.TRUE);
-        invoice.setUiVisible(Boolean.TRUE);
-
-        payoutLedgerEntryRepository.save(PayoutLedgerEntry.builder()
-                .instructorId(approved.getInstructorId())
-                .entryType(PayoutLedgerEntryType.DEBIT_PAYOUT)
-                .amount(safeMoney(approved.getAmount()))
-                .referenceId(approved.getId())
-                .referenceType("PAYOUT_REQUEST")
-                .note("Auto transfer on approval: " + transferReference)
-                .build());
-
-        payoutInvoiceRepository.save(invoice);
-        PayoutRequest settled = payoutRequestRepository.save(approved);
-        return toResponse(settled, invoice);
+        return toResponse(approved, invoice);
     }
 
     @Transactional
@@ -398,7 +420,7 @@ public class PayoutService {
             throw new IllegalArgumentException("Invalid date range for manual batch");
         }
 
-        String periodKey = fromDate.getYear() + "-MANUAL";
+        String periodKey = fromDate.format(PERIOD_FORMAT);
         PayoutBatch batch = PayoutBatch.builder()
                 .batchName(batchName == null || batchName.isBlank() ? "Manual Batch" : batchName)
                 .periodKey(periodKey)
@@ -409,7 +431,7 @@ public class PayoutService {
                 .totalRequests(0)
                 .build();
 
-        PayoutBatch saved = payoutBatchRepository.save(batch);
+        PayoutBatch saved = populateBatch(payoutBatchRepository.save(batch));
         return toBatchResponse(saved);
     }
 
@@ -429,7 +451,7 @@ public class PayoutService {
         OffsetDateTime from = firstDay.atStartOfDay().atOffset(ZoneOffset.UTC);
         OffsetDateTime to = lastDay.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
 
-        PayoutBatch batch = payoutBatchRepository.save(PayoutBatch.builder()
+        PayoutBatch batch = populateBatch(payoutBatchRepository.save(PayoutBatch.builder()
                 .batchName(batchName)
                 .periodKey(periodKey)
                 .fromDate(from)
@@ -437,9 +459,25 @@ public class PayoutService {
                 .status(PayoutBatchStatus.DRAFT)
                 .totalAmount(BigDecimal.ZERO)
                 .totalRequests(0)
-                .build());
+                .build()));
 
         return toBatchResponse(batch);
+    }
+
+    private PayoutBatch populateBatch(PayoutBatch batch) {
+        List<PayoutRequest> requests = payoutRequestRepository.findUnbatchedRequestedInRange(
+                batch.getFromDate(), batch.getToDate());
+        requests.forEach(request -> request.setBatch(batch));
+        payoutRequestRepository.saveAll(requests);
+
+        BigDecimal totalAmount = requests.stream()
+                .map(PayoutRequest::getAmount)
+                .map(this::safeMoney)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        batch.setTotalRequests(requests.size());
+        batch.setTotalAmount(totalAmount);
+        return payoutBatchRepository.save(batch);
     }
 
     @Scheduled(cron = "0 10 1 1 * *")
@@ -572,36 +610,20 @@ public class PayoutService {
 
     private byte[] buildInvoicePdf(PayoutInvoice invoice) {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            Document document = new Document();
-            PdfWriter.getInstance(document, outputStream);
+            Document document = new Document(PageSize.A4, 34f, 34f, 24f, 32f);
+            PdfWriter writer = PdfWriter.getInstance(document, outputStream);
             document.open();
 
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-            Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
-            Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 11);
-
-            document.add(new Paragraph("TechHub Payout Invoice", titleFont));
-            document.add(new Paragraph(" "));
-
-            PdfPTable table = new PdfPTable(2);
-            table.setWidthPercentage(100f);
-            table.setWidths(new float[] { 3f, 5f });
-
-            addPdfRow(table, "Invoice Number", invoice.getInvoiceNumber(), sectionFont, bodyFont);
-            addPdfRow(table, "Invoice ID", invoice.getId(), sectionFont, bodyFont);
-            addPdfRow(table, "Payout Request ID", invoice.getPayoutRequestId(), sectionFont, bodyFont);
-            addPdfRow(table, "Instructor ID", invoice.getInstructorId(), sectionFont, bodyFont);
-            addPdfRow(table, "Amount", safeMoney(invoice.getAmount()).toPlainString(), sectionFont, bodyFont);
-            addPdfRow(table, "Transfer Reference", nullableText(invoice.getTransferReference()), sectionFont, bodyFont);
-            addPdfRow(table, "Status", invoice.getStatus() == null ? "N/A" : invoice.getStatus().name(), sectionFont,
-                    bodyFont);
-            addPdfRow(table, "Created", nullableText(invoice.getCreated()), sectionFont, bodyFont);
-            addPdfRow(table, "Updated", nullableText(invoice.getUpdated()), sectionFont, bodyFont);
-
-            document.add(table);
-            document.add(new Paragraph(" "));
-            document.add(
-                    new Paragraph("This document is generated automatically by TechHub payout service.", bodyFont));
+            PayoutRequest payoutRequest = payoutRequestRepository.findActiveById(invoice.getPayoutRequestId())
+                    .orElse(null);
+            addInvoiceHeader(document, invoice);
+            addInvoiceParties(document, invoice);
+            addAmountSummary(document, invoice);
+            addInvoiceDetails(document, invoice, payoutRequest);
+            addAuditTrail(document, payoutRequest);
+            addInvoiceNotes(document, payoutRequest);
+            drawPaidSeal(writer, invoice);
+            drawInvoiceFooter(writer, invoice);
 
             document.close();
             return outputStream.toByteArray();
@@ -612,13 +634,258 @@ public class PayoutService {
         }
     }
 
-    private void addPdfRow(PdfPTable table, String label, String value, Font labelFont, Font valueFont) {
+    private void addInvoiceHeader(Document document, PayoutInvoice invoice) throws Exception {
+        PdfPTable header = new PdfPTable(new float[] { 1.1f, 3.6f, 3.4f });
+        header.setWidthPercentage(100f);
+
+        PdfPCell logoCell = borderlessCell();
+        Image logo = loadTechHubLogo();
+        if (logo != null) {
+            logo.scaleToFit(58f, 58f);
+            logoCell.addElement(logo);
+        }
+        header.addCell(logoCell);
+
+        PdfPCell brandCell = borderlessCell();
+        brandCell.addElement(paragraph("TECHHUB", 18f, Font.BOLD, BRAND_NAVY, 0f));
+        brandCell.addElement(paragraph("LEARNING PLATFORM", 8f, Font.BOLD, BRAND_BLUE, 2f));
+        brandCell.addElement(paragraph(TECHHUB_CONTACT, 8f, Font.NORMAL, TEXT_MUTED, 5f));
+        header.addCell(brandCell);
+
+        PdfPCell titleCell = borderlessCell();
+        titleCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        Paragraph title = paragraph("PAYOUT INVOICE", 17f, Font.BOLD, BRAND_NAVY, 0f);
+        title.setAlignment(Element.ALIGN_RIGHT);
+        titleCell.addElement(title);
+        Paragraph number = paragraph(nullableText(invoice.getInvoiceNumber()), 9f, Font.BOLD, BRAND_BLUE, 5f);
+        number.setAlignment(Element.ALIGN_RIGHT);
+        titleCell.addElement(number);
+        Paragraph issued = paragraph("Issued: " + formatPdfDate(invoice.getCreated()), 8f, Font.NORMAL, TEXT_MUTED, 4f);
+        issued.setAlignment(Element.ALIGN_RIGHT);
+        titleCell.addElement(issued);
+        header.addCell(titleCell);
+        document.add(header);
+
+        PdfPTable rule = new PdfPTable(1);
+        rule.setWidthPercentage(100f);
+        PdfPCell ruleCell = new PdfPCell();
+        ruleCell.setFixedHeight(3f);
+        ruleCell.setBorder(Rectangle.NO_BORDER);
+        ruleCell.setBackgroundColor(BRAND_BLUE);
+        rule.addCell(ruleCell);
+        rule.setSpacingBefore(7f);
+        rule.setSpacingAfter(9f);
+        document.add(rule);
+    }
+
+    private void addInvoiceParties(Document document, PayoutInvoice invoice) throws DocumentException {
+        PdfPTable parties = new PdfPTable(new float[] { 1f, 1f });
+        parties.setWidthPercentage(100f);
+        parties.setSpacingAfter(8f);
+
+        parties.addCell(partyCard("PAID BY", TECHHUB_LEGAL_NAME,
+                "Platform payout operations",
+                TECHHUB_CONTACT,
+                "Settlement currency: VND"));
+        parties.addCell(partyCard("PAID TO", "TECHHUB INSTRUCTOR ACCOUNT",
+                "Instructor ID: " + nullableText(invoice.getInstructorId()),
+                "Recipient profile verified by TechHub",
+                "Account settlement beneficiary"));
+        document.add(parties);
+    }
+
+    private void addAmountSummary(Document document, PayoutInvoice invoice) throws DocumentException {
+        PdfPTable summary = new PdfPTable(new float[] { 3.6f, 2f });
+        summary.setWidthPercentage(100f);
+        summary.setSpacingAfter(9f);
+
+        PdfPCell amountCell = styledCell(SOFT_BLUE, BRAND_BLUE, 9f);
+        amountCell.addElement(paragraph("TOTAL PAYOUT", 9f, Font.BOLD, TEXT_MUTED, 0f));
+        amountCell.addElement(paragraph(formatVnd(invoice.getAmount()), 25f, Font.BOLD, BRAND_NAVY, 5f));
+        amountCell.addElement(paragraph("Net settlement amount transferred to the instructor account.",
+                8f, Font.NORMAL, TEXT_MUTED, 6f));
+        summary.addCell(amountCell);
+
+        PdfPCell statusCell = styledCell(SOFT_GRAY, new Color(219, 226, 232), 9f);
+        statusCell.addElement(paragraph("PAYMENT STATUS", 9f, Font.BOLD, TEXT_MUTED, 0f));
+        statusCell.addElement(paragraph(invoice.getStatus() == null ? "N/A" : invoice.getStatus().name(),
+                17f, Font.BOLD, PAID_GREEN, 7f));
+        statusCell.addElement(paragraph("Transfer ref: " + nullableText(invoice.getTransferReference()),
+                8f, Font.NORMAL, TEXT_MUTED, 7f));
+        summary.addCell(statusCell);
+        document.add(summary);
+    }
+
+    private void addInvoiceDetails(Document document, PayoutInvoice invoice, PayoutRequest payoutRequest)
+            throws DocumentException {
+        addSectionTitle(document, "SETTLEMENT DETAILS");
+        PdfPTable details = new PdfPTable(new float[] { 2.2f, 4.8f });
+        details.setWidthPercentage(100f);
+        addPdfRow(details, "Invoice number", invoice.getInvoiceNumber());
+        addPdfRow(details, "Invoice ID", invoice.getId());
+        addPdfRow(details, "Payout request ID", invoice.getPayoutRequestId());
+        addPdfRow(details, "Instructor ID", invoice.getInstructorId());
+        addPdfRow(details, "Batch ID", payoutRequest == null ? null : payoutRequest.getBatchIdRaw());
+        addPdfRow(details, "Transfer reference", invoice.getTransferReference());
+        addPdfRow(details, "Payment channel", "TechHub platform payout settlement");
+        addPdfRow(details, "Currency", "VND - Vietnamese Dong");
+        addPdfRow(details, "Created at", formatPdfDate(invoice.getCreated()));
+        addPdfRow(details, "Last updated", formatPdfDate(invoice.getUpdated()));
+        document.add(details);
+    }
+
+    private void addAuditTrail(Document document, PayoutRequest payoutRequest) throws DocumentException {
+        addSectionTitle(document, "PAYMENT AUDIT TRAIL");
+        PdfPTable audit = new PdfPTable(new float[] { 2.2f, 4.8f });
+        audit.setWidthPercentage(100f);
+        addPdfRow(audit, "Requested at", payoutRequest == null ? null : formatPdfDate(payoutRequest.getCreated()));
+        addPdfRow(audit, "Approved by", payoutRequest == null ? null : payoutRequest.getApprovedBy());
+        addPdfRow(audit, "Approved at", payoutRequest == null ? null : formatPdfDate(payoutRequest.getApprovedAt()));
+        addPdfRow(audit, "Marked paid by", payoutRequest == null ? null : payoutRequest.getMarkedPaidBy());
+        addPdfRow(audit, "Marked paid at",
+                payoutRequest == null ? null : formatPdfDate(payoutRequest.getMarkedPaidAt()));
+        addPdfRow(audit, "Verification key", buildVerificationKey(payoutRequest));
+        document.add(audit);
+    }
+
+    private void addInvoiceNotes(Document document, PayoutRequest payoutRequest) throws DocumentException {
+        addSectionTitle(document, "NOTES & DECLARATION");
+        PdfPTable notes = new PdfPTable(1);
+        notes.setWidthPercentage(100f);
+        PdfPCell notesCell = styledCell(SOFT_GRAY, new Color(219, 226, 232), 7f);
+        notesCell.addElement(paragraph("Request note: " + nullableText(payoutRequest == null ? null : payoutRequest.getNote()),
+                8f, Font.NORMAL, TEXT_MUTED, 0f));
+        notesCell.addElement(paragraph(
+                "Review note: " + nullableText(payoutRequest == null ? null : payoutRequest.getReviewNote()),
+                8f, Font.NORMAL, TEXT_MUTED, 5f));
+        notesCell.addElement(paragraph(
+                "This invoice confirms a TechHub platform payout. Recipient identity is reconciled against the instructor account before settlement. This document is generated electronically and is valid without a handwritten signature.",
+                8f, Font.NORMAL, TEXT_MUTED, 8f));
+        notes.addCell(notesCell);
+        document.add(notes);
+    }
+
+    private void addSectionTitle(Document document, String title) throws DocumentException {
+        Paragraph section = paragraph(title, 9f, Font.BOLD, BRAND_NAVY, 5f);
+        section.setSpacingAfter(3f);
+        document.add(section);
+    }
+
+    private PdfPCell partyCard(String label, String title, String... lines) {
+        PdfPCell cell = styledCell(SOFT_GRAY, new Color(219, 226, 232), 8f);
+        cell.addElement(paragraph(label, 8f, Font.BOLD, BRAND_BLUE, 0f));
+        cell.addElement(paragraph(title, 11f, Font.BOLD, BRAND_NAVY, 5f));
+        for (String line : lines) {
+            cell.addElement(paragraph(line, 8f, Font.NORMAL, TEXT_MUTED, 3f));
+        }
+        return cell;
+    }
+
+    private void addPdfRow(PdfPTable table, String label, Object value) {
+        Font labelFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8f, BRAND_NAVY);
+        Font valueFont = FontFactory.getFont(FontFactory.HELVETICA, 8f, TEXT_MUTED);
         PdfPCell labelCell = new PdfPCell(new Phrase(label, labelFont));
         PdfPCell valueCell = new PdfPCell(new Phrase(nullableText(value), valueFont));
-        labelCell.setPadding(6f);
-        valueCell.setPadding(6f);
+        labelCell.setPadding(3.5f);
+        valueCell.setPadding(3.5f);
+        labelCell.setBackgroundColor(SOFT_GRAY);
+        labelCell.setBorderColor(new Color(219, 226, 232));
+        valueCell.setBorderColor(new Color(219, 226, 232));
         table.addCell(labelCell);
         table.addCell(valueCell);
+    }
+
+    private PdfPCell borderlessCell() {
+        PdfPCell cell = new PdfPCell();
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setPadding(0f);
+        return cell;
+    }
+
+    private PdfPCell styledCell(Color background, Color border, float padding) {
+        PdfPCell cell = new PdfPCell();
+        cell.setBackgroundColor(background);
+        cell.setBorderColor(border);
+        cell.setPadding(padding);
+        return cell;
+    }
+
+    private Paragraph paragraph(String text, float size, int style,
+            Color color, float spacingBefore) {
+        Paragraph paragraph = new Paragraph(nullableText(text), FontFactory.getFont(FontFactory.HELVETICA, size, style, color));
+        paragraph.setSpacingBefore(spacingBefore);
+        return paragraph;
+    }
+
+    private Image loadTechHubLogo() {
+        try {
+            ClassPathResource logo = new ClassPathResource("branding/techhub-logo.png");
+            return Image.getInstance(logo.getInputStream().readAllBytes());
+        } catch (Exception ex) {
+            log.warn("Unable to load TechHub invoice logo", ex);
+            return null;
+        }
+    }
+
+    private void drawPaidSeal(PdfWriter writer, PayoutInvoice invoice) throws Exception {
+        if (invoice.getStatus() != InvoiceStatus.PAID) {
+            return;
+        }
+        PdfContentByte canvas = writer.getDirectContent();
+        PdfGState state = new PdfGState();
+        state.setFillOpacity(0.22f);
+        state.setStrokeOpacity(0.44f);
+        canvas.saveState();
+        canvas.setGState(state);
+        canvas.setColorStroke(STAMP_RED);
+        canvas.setColorFill(STAMP_RED);
+        canvas.setLineWidth(2f);
+        canvas.circle(474f, 118f, 49f);
+        canvas.stroke();
+        canvas.circle(474f, 118f, 42f);
+        canvas.stroke();
+        canvas.beginText();
+        canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.WINANSI, false), 15f);
+        canvas.showTextAligned(Element.ALIGN_CENTER, "TECHHUB", 474f, 131f, -8f);
+        canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.WINANSI, false), 18f);
+        canvas.showTextAligned(Element.ALIGN_CENTER, "PAID", 474f, 108f, -8f);
+        canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, false), 8f);
+        canvas.showTextAligned(Element.ALIGN_CENTER, "VERIFIED SETTLEMENT", 474f, 91f, -8f);
+        canvas.endText();
+        canvas.restoreState();
+    }
+
+    private void drawInvoiceFooter(PdfWriter writer, PayoutInvoice invoice) throws Exception {
+        PdfContentByte canvas = writer.getDirectContent();
+        canvas.saveState();
+        canvas.setColorStroke(new Color(219, 226, 232));
+        canvas.moveTo(38f, 28f);
+        canvas.lineTo(557f, 28f);
+        canvas.stroke();
+        canvas.beginText();
+        canvas.setColorFill(TEXT_MUTED);
+        canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, false), 7f);
+        canvas.showTextAligned(Element.ALIGN_LEFT, "TechHub payout service | Electronically generated document", 38f, 17f, 0f);
+        canvas.showTextAligned(Element.ALIGN_RIGHT, nullableText(invoice.getInvoiceNumber()), 557f, 17f, 0f);
+        canvas.endText();
+        canvas.restoreState();
+    }
+
+    private String formatVnd(BigDecimal amount) {
+        NumberFormat formatter = NumberFormat.getIntegerInstance(Locale.US);
+        return formatter.format(safeMoney(amount).setScale(0, RoundingMode.HALF_UP)) + " VND";
+    }
+
+    private String formatPdfDate(OffsetDateTime value) {
+        return value == null ? "N/A" : value.format(PDF_DATE_FORMAT);
+    }
+
+    private String buildVerificationKey(PayoutRequest payoutRequest) {
+        String source = payoutRequest == null ? null : payoutRequest.getPaymentReference();
+        if (source == null || source.isBlank()) {
+            source = payoutRequest == null ? null : payoutRequest.getId();
+        }
+        return source == null ? "N/A" : "TECHHUB-" + source.replace("-", "").toUpperCase(Locale.ROOT);
     }
 
     private String nullableText(Object value) {

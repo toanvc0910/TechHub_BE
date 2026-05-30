@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +27,13 @@ public interface PayoutRequestRepository extends JpaRepository<PayoutRequest, St
             @Param("isActive") String isActive);
 
     List<PayoutRequest> findByIsActiveOrderByCreatedDesc(String isActive);
+
+    @Query(value = "SELECT * FROM payout_requests pr WHERE pr.batch_id IS NULL " +
+            "AND pr.status = 'REQUESTED' AND pr.is_active = 'Y' " +
+            "AND pr.created >= :fromDate AND pr.created < :toDate ORDER BY pr.created " +
+            "FOR UPDATE SKIP LOCKED", nativeQuery = true)
+    List<PayoutRequest> findUnbatchedRequestedInRange(@Param("fromDate") OffsetDateTime fromDate,
+            @Param("toDate") OffsetDateTime toDate);
 
     @Query(value = "SELECT COALESCE(SUM(pr.amount), 0) FROM payout_requests pr " +
             "WHERE CAST(pr.instructor_id AS TEXT) = :instructorId " +

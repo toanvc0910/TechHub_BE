@@ -718,7 +718,8 @@ public class CourseServiceImpl implements CourseService {
                                         cs.getSkill().getId(),
                                         cs.getSkill().getName(),
                                         cs.getSkill().getThumbnail(),
-                                        cs.getSkill().getCategory());
+                                        cs.getSkill().getCategory(),
+                                        cs.getSkill().getCreatedBy());
                             }
                             return dto;
                         })
@@ -731,7 +732,8 @@ public class CourseServiceImpl implements CourseService {
                             if (ct.getTag() != null) {
                                 dto = new TagDTO(
                                         ct.getTag().getId(),
-                                        ct.getTag().getName());
+                                        ct.getTag().getName(),
+                                        ct.getTag().getCreatedBy());
                             }
                             return dto;
                         })
@@ -1183,6 +1185,9 @@ public class CourseServiceImpl implements CourseService {
                         log.info("mapSkillsToCourse: Skill '{}' not found, creating new", skillName);
                         Skill newSkill = new Skill();
                         newSkill.setName(skillName);
+                        UUID currentUserId = requireCurrentUser();
+                        newSkill.setCreatedBy(currentUserId);
+                        newSkill.setUpdatedBy(currentUserId);
                         Skill saved = skillRepository.save(newSkill);
                         log.info("mapSkillsToCourse: Created skill ID: {}, name: '{}'", saved.getId(), saved.getName());
                         return saved;
@@ -1248,6 +1253,9 @@ public class CourseServiceImpl implements CourseService {
                         OffsetDateTime now = OffsetDateTime.now();
                         newTag.setCreated(now);
                         newTag.setUpdated(now);
+                        UUID currentUserId = requireCurrentUser();
+                        newTag.setCreatedBy(currentUserId);
+                        newTag.setUpdatedBy(currentUserId);
                         Tag saved = tagRepository.save(newTag);
                         log.info("mapTagsToCourse: Created tag ID: {}, name: '{}'", saved.getId(), saved.getName());
                         return saved;
