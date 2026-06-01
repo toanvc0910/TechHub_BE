@@ -64,7 +64,8 @@ public class EndpointSecurityCacheService {
 
     private static final List<String> BOOTSTRAP_AUTHENTICATED_PATTERNS = Arrays.asList(
             "/api/users/profile",
-            "/api/users/change-password");
+            "/api/users/change-password",
+            "/api/courses/{courseId}/lessons/{lessonId}/leaderboard");
 
     @EventListener(ApplicationReadyEvent.class)
     public void loadOnStartup() {

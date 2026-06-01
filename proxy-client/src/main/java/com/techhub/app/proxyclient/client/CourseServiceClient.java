@@ -227,7 +227,8 @@ public interface CourseServiceClient {
         @GetMapping("/api/courses/{courseId}/lessons/{lessonId}/leaderboard")
         ResponseEntity<String> getLessonLeaderboard(@PathVariable String courseId,
                         @PathVariable String lessonId,
-                        @RequestParam(value = "limit", defaultValue = "10") int limit);
+                        @RequestParam(value = "limit", defaultValue = "10") int limit,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
 
         @PostMapping("/api/courses/{courseId}/lessons/{lessonId}/exercises")
         ResponseEntity<String> createExercises(@PathVariable String courseId,

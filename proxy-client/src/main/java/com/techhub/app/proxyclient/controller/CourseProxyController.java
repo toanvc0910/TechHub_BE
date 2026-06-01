@@ -308,8 +308,9 @@ public class CourseProxyController {
     @GetMapping("/{courseId}/lessons/{lessonId}/leaderboard")
     public ResponseEntity<String> getLessonLeaderboard(@PathVariable String courseId,
             @PathVariable String lessonId,
-            @RequestParam(value = "limit", defaultValue = "10") int limit) {
-        return courseServiceClient.getLessonLeaderboard(courseId, lessonId, limit);
+            @RequestParam(value = "limit", defaultValue = "10") int limit,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return courseServiceClient.getLessonLeaderboard(courseId, lessonId, limit, authHeader);
     }
 
     @PostMapping("/{courseId}/lessons/{lessonId}/exercises")
