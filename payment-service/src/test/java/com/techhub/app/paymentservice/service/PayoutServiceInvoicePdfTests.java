@@ -11,6 +11,7 @@ import com.techhub.app.paymentservice.repository.PayoutRequestRepository;
 import com.techhub.app.paymentservice.repository.TransactionItemRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -34,7 +35,8 @@ class PayoutServiceInvoicePdfTests {
                 mock(PayoutLedgerEntryRepository.class),
                 mock(TransactionItemRepository.class),
                 mock(CurrencyExchangeService.class),
-                mock(RevenueSplitPolicyService.class));
+                mock(RevenueSplitPolicyService.class),
+                mock(RestTemplate.class));
 
         PayoutRequest request = PayoutRequest.builder()
                 .id("dba671f5-c854-43f3-97c1-2f019aae923a")
