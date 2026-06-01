@@ -62,6 +62,13 @@ public class FeignConfig {
                         template.header("X-Forwarded-For", xForwardedFor);
                     }
 
+                    // Forward the security level resolved from the DB policy so
+                    // downstream services trust it instead of hardcoding public paths.
+                    Object securityLevel = request.getAttribute("securityLevel");
+                    if (securityLevel != null) {
+                        template.header("X-Security-Level", securityLevel.toString());
+                    }
+
                     // Add trace header for debugging
                     template.header("X-Request-Source", "proxy-client");
                 }

@@ -55,6 +55,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Resolve security level from cached DB policies
         SecurityLevel level = endpointSecurityCacheService.resolve(normalizedPath, method);
 
+        // Expose the resolved level so it is forwarded downstream (X-Security-Level).
+        // DB is the single source of truth; downstream services trust this instead
+        // of maintaining their own public/protected path lists.
+        request.setAttribute("securityLevel", level.name());
+
         // PUBLIC → no JWT, no permission
         if (level == SecurityLevel.PUBLIC) {
             filterChain.doFilter(request, response);

@@ -1,5 +1,6 @@
 package com.techhub.app.commonservice.interceptor;
 
+import com.techhub.app.commonservice.enums.SecurityLevel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -22,6 +23,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
     public static final String USER_EMAIL_HEADER = "X-User-Email";
     public static final String USER_ROLES_HEADER = "X-User-Roles";
     public static final String REQUEST_SOURCE_HEADER = "X-Request-Source";
+    public static final String SECURITY_LEVEL_HEADER = "X-Security-Level";
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -69,7 +71,16 @@ public class UserContextInterceptor implements HandlerInterceptor {
             }
         }
 
-        // No user context found - this should not happen for protected endpoints
+        // No user context. Trust the security level resolved by proxy-client from
+        // the DB policy (single source of truth). PUBLIC endpoints are served to
+        // anonymous visitors; anything else still requires authentication.
+        String securityLevel = request.getHeader(SECURITY_LEVEL_HEADER);
+        if (SecurityLevel.PUBLIC.name().equalsIgnoreCase(securityLevel)) {
+            log.debug("Anonymous access allowed for PUBLIC endpoint: {} {}", method, requestURI);
+            return true;
+        }
+
+        // Otherwise this is a protected endpoint that requires authentication.
         log.warn("No user context found in headers for protected endpoint: {} {}", method, requestURI);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         return false;
