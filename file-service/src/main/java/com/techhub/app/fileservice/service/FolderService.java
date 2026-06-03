@@ -39,8 +39,7 @@ public class FolderService {
 
         // Look for ANY folder (active or soft-deleted) with the same name+parent
         // to avoid hitting the DB unique index when an inactive duplicate exists.
-        Optional<FileFolderEntity> existingByName = folderRepository
-                .findByUserIdAndNameAndParent(userId, folderName, parentId);
+        Optional<FileFolderEntity> existingByName = findFolderByNameAndParent(userId, folderName, parentId);
         if (existingByName.isPresent()) {
             FileFolderEntity existing = existingByName.get();
             if ("Y".equals(existing.getIsActive())) {
@@ -217,6 +216,13 @@ public class FolderService {
         if (folderRepository.existsByUserIdAndPathAndIsActiveAndIdNot(userId, storagePath, "Y", currentFolderId)) {
             throw new ConflictException("Folder with this storage path already exists in the same location");
         }
+    }
+
+    private Optional<FileFolderEntity> findFolderByNameAndParent(UUID userId, String folderName, UUID parentId) {
+        if (parentId == null) {
+            return folderRepository.findByUserIdAndNameAndParentIdIsNull(userId, folderName);
+        }
+        return folderRepository.findByUserIdAndNameAndParentId(userId, folderName, parentId);
     }
 
     private String buildFolderPath(UUID userId, UUID parentId, String folderName) {
