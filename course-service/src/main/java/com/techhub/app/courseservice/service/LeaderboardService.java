@@ -11,6 +11,7 @@ import com.techhub.app.commonservice.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
@@ -31,6 +32,7 @@ public class LeaderboardService {
     private final LessonRepository lessonRepository;
     private final UserServiceClient userServiceClient;
 
+    @Transactional(readOnly = true)
     public List<LeaderboardEntryResponse> getLessonLeaderboard(UUID courseId, UUID lessonId, int limit) {
         validateLesson(courseId, lessonId);
         int safeLimit = Math.min(Math.max(limit, 1), 50);
@@ -39,7 +41,7 @@ public class LeaderboardService {
 
         List<UUID> userIds = new ArrayList<>();
         for (Object[] row : rows) {
-            userIds.add((UUID) row[0]);
+            userIds.add(toUuid(row[0]));
         }
 
         Map<UUID, Map<String, Object>> userInfo = fetchUserInfo(userIds);
@@ -47,7 +49,7 @@ public class LeaderboardService {
         List<LeaderboardEntryResponse> result = new ArrayList<>(rows.size());
         int rank = 1;
         for (Object[] row : rows) {
-            UUID userId = (UUID) row[0];
+            UUID userId = toUuid(row[0]);
             double score = ((Number) row[1]).doubleValue();
             long attempts = ((Number) row[2]).longValue();
             OffsetDateTime firstAt = toOffsetDateTime(row[3]);
@@ -122,5 +124,10 @@ public class LeaderboardService {
         if (value instanceof OffsetDateTime) return (OffsetDateTime) value;
         if (value instanceof Timestamp) return ((Timestamp) value).toInstant().atOffset(ZoneOffset.UTC);
         return null;
+    }
+
+    private UUID toUuid(Object value) {
+        if (value instanceof UUID) return (UUID) value;
+        return UUID.fromString(value.toString());
     }
 }

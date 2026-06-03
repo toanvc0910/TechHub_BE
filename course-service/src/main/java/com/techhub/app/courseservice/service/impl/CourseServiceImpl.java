@@ -7,6 +7,7 @@ import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
+import com.techhub.app.courseservice.client.FileServiceClient;
 import com.techhub.app.courseservice.dto.request.ChapterRequest;
 import com.techhub.app.courseservice.dto.request.CourseRequest;
 import com.techhub.app.courseservice.dto.request.LessonAssetRequest;
@@ -50,11 +51,13 @@ import com.techhub.app.courseservice.repository.TagRepository;
 import com.techhub.app.courseservice.service.CourseNotificationService;
 import com.techhub.app.courseservice.service.CourseService;
 import com.techhub.app.courseservice.service.LearningStreakService;
+import com.techhub.app.courseservice.service.LessonDurationCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,6 +67,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,6 +98,8 @@ public class CourseServiceImpl implements CourseService {
     private final TagRepository tagRepository;
     private final CourseNotificationService courseNotificationService;
     private final LearningStreakService learningStreakService;
+    private final LessonDurationCalculator lessonDurationCalculator;
+    private final FileServiceClient fileServiceClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -108,7 +114,7 @@ public class CourseServiceImpl implements CourseService {
                 buildCourseSearchSpecification(null, visibleStatus, normalized, normalizedLevel, language, minPrice,
                         maxPrice, normalizeIdList(skillIds), normalizeIdList(tagIds)),
                 pageable);
-        return courses.map(this::buildCourseSummary);
+        return mapCourseSummaries(courses);
     }
 
     @Override
@@ -131,7 +137,7 @@ public class CourseServiceImpl implements CourseService {
                 buildCourseSearchSpecification(instructorScope, status, normalized, normalizedLevel, language, minPrice,
                         maxPrice, normalizeIdList(skillIds), normalizeIdList(tagIds)),
                 pageable);
-        return courses.map(this::buildCourseSummary);
+        return mapCourseSummaries(courses);
     }
 
     @Override
@@ -479,6 +485,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         Lesson lesson = courseMapper.toLessonEntity(request, chapter, currentUserId, orderIndex);
+        lesson.setEstimatedDuration(lessonDurationCalculator.calculate(request));
         lessonRepository.save(lesson);
         log.info("Lesson {} created in chapter {}", lesson.getId(), chapterId);
 
@@ -523,7 +530,7 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new NotFoundException("Lesson not found"));
 
         courseMapper.updateLesson(lesson, request, currentUserId);
-        lessonRepository.save(lesson);
+        recalculateAndSaveLessonDuration(lesson, request.getVideoDuration());
         log.info("Lesson {} updated in chapter {}", lessonId, chapterId);
 
         // Publish lesson event for AI indexing
@@ -627,6 +634,7 @@ public class CourseServiceImpl implements CourseService {
 
         LessonAsset asset = courseMapper.toLessonAssetEntity(request, lesson, currentUserId, orderIndex);
         lessonAssetRepository.save(asset);
+        recalculateAndSaveLessonDuration(lesson, null);
         log.info("Asset {} created for lesson {}", asset.getId(), lessonId);
 
         // Send notification to enrolled students about new content
@@ -660,6 +668,7 @@ public class CourseServiceImpl implements CourseService {
 
         courseMapper.updateLessonAsset(asset, request, currentUserId);
         lessonAssetRepository.save(asset);
+        recalculateAndSaveLessonDuration(asset.getLesson(), null);
         log.info("Asset {} updated for lesson {}", assetId, lessonId);
         return buildAssetResponse(asset, course);
     }
@@ -678,7 +687,70 @@ public class CourseServiceImpl implements CourseService {
         asset.setUpdatedBy(currentUserId);
         asset.setUpdated(OffsetDateTime.now());
         lessonAssetRepository.save(asset);
+        recalculateAndSaveLessonDuration(asset.getLesson(), null);
         log.info("Asset {} soft-deleted for lesson {}", assetId, lessonId);
+    }
+
+    private void recalculateAndSaveLessonDuration(Lesson lesson, Integer requestVideoDuration) {
+        if (lesson == null) {
+            return;
+        }
+        List<LessonAsset> activeAssets = lessonAssetRepository
+                .findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId());
+        lesson.setEstimatedDuration(lessonDurationCalculator.calculate(
+                lesson,
+                activeAssets,
+                requestVideoDuration,
+                loadVideoFileDurations(activeAssets)));
+        lessonRepository.save(lesson);
+    }
+
+    private Map<UUID, Integer> loadVideoFileDurations(List<LessonAsset> assets) {
+        UUID currentUserId = UserContext.getCurrentUserId();
+        if (currentUserId == null || assets == null || assets.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<UUID, Integer> durations = new HashMap<>();
+        for (LessonAsset asset : assets) {
+            if (asset == null || asset.getAssetType() != LessonAssetType.VIDEO || asset.getFileId() == null) {
+                continue;
+            }
+            try {
+                ResponseEntity<Map<String, Object>> response = fileServiceClient.getFile(asset.getFileId(),
+                        currentUserId);
+                Integer duration = extractFileDuration(response != null ? response.getBody() : null);
+                if (duration != null && duration > 0) {
+                    durations.put(asset.getFileId(), duration);
+                }
+            } catch (Exception e) {
+                log.warn("Could not load video duration for file {}", asset.getFileId(), e);
+            }
+        }
+        return durations;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Integer extractFileDuration(Map<String, Object> responseBody) {
+        if (responseBody == null) {
+            return null;
+        }
+        Object data = responseBody.get("data");
+        if (!(data instanceof Map<?, ?> dataMap)) {
+            return null;
+        }
+        Object duration = ((Map<String, Object>) dataMap).get("duration");
+        if (duration instanceof Number number) {
+            return Math.max(0, (int) Math.round(number.doubleValue()));
+        }
+        if (duration == null) {
+            return null;
+        }
+        try {
+            return Math.max(0, (int) Math.round(Double.parseDouble(String.valueOf(duration))));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private Lesson resolveLesson(UUID courseId, UUID chapterId, UUID lessonId) {
@@ -692,13 +764,57 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new NotFoundException("Chapter not found"));
     }
 
+    /**
+     * Maps a page of courses to summaries without the per-course N+1 query storm.
+     * Collections (skills/tags) are initialized in two batch queries and the
+     * enrollment/rating aggregates are fetched in two more batch queries, so the
+     * whole page costs a constant number of queries instead of ~5 per course.
+     */
+    private Page<CourseSummaryResponse> mapCourseSummaries(Page<Course> courses) {
+        List<Course> content = courses.getContent();
+        if (content.isEmpty()) {
+            return courses.map(c -> buildCourseSummary(c, 0L, null, 0L));
+        }
+
+        List<UUID> courseIds = content.stream().map(Course::getId).collect(Collectors.toList());
+
+        // Initialize lazy collections on the already-loaded entities (one query each).
+        courseRepository.fetchWithSkills(courseIds);
+        courseRepository.fetchWithTags(courseIds);
+
+        // Batch enrollment counts.
+        Map<UUID, Long> enrollmentByCourse = new java.util.HashMap<>();
+        for (Object[] row : enrollmentRepository.countActiveByCourseIds(courseIds)) {
+            enrollmentByCourse.put((UUID) row[0], ((Number) row[1]).longValue());
+        }
+
+        // Batch rating average + count.
+        Map<UUID, Double> avgByCourse = new java.util.HashMap<>();
+        Map<UUID, Long> ratingCountByCourse = new java.util.HashMap<>();
+        for (Object[] row : ratingRepository.getRatingStatsByTargetIds(courseIds, RatingTarget.COURSE.name())) {
+            UUID id = UUID.fromString(row[0].toString());
+            avgByCourse.put(id, row[1] != null ? ((Number) row[1]).doubleValue() : null);
+            ratingCountByCourse.put(id, row[2] != null ? ((Number) row[2]).longValue() : 0L);
+        }
+
+        return courses.map(course -> buildCourseSummary(course,
+                enrollmentByCourse.getOrDefault(course.getId(), 0L),
+                avgByCourse.get(course.getId()),
+                ratingCountByCourse.getOrDefault(course.getId(), 0L)));
+    }
+
     private CourseSummaryResponse buildCourseSummary(Course course) {
-        CourseFileResource thumbnail = buildFileResourceFromUrl(course.getThumbnail());
-        CourseFileResource intro = buildFileResourceFromUrl(course.getIntroVideoFile());
         long totalEnrollments = enrollmentRepository.countByCourseAndIsActiveTrue(course);
         Double averageRating = ratingRepository.getAverageScore(course.getId(), RatingTarget.COURSE.name());
         long ratingCount = ratingRepository.countByTargetIdAndTargetTypeAndIsActiveTrue(course.getId(),
                 RatingTarget.COURSE);
+        return buildCourseSummary(course, totalEnrollments, averageRating, ratingCount);
+    }
+
+    private CourseSummaryResponse buildCourseSummary(Course course, long totalEnrollments, Double averageRating,
+            long ratingCount) {
+        CourseFileResource thumbnail = buildFileResourceFromUrl(course.getThumbnail());
+        CourseFileResource intro = buildFileResourceFromUrl(course.getIntroVideoFile());
         return CourseSummaryResponse.builder()
                 .id(course.getId())
                 .title(course.getTitle())
@@ -763,6 +879,24 @@ public class CourseServiceImpl implements CourseService {
 
         List<Chapter> chapterEntities = chapterRepository
                 .findByCourse_IdAndIsActiveTrueOrderByOrderIndexAsc(course.getId());
+
+        // Batch-load lessons for all chapters (avoid N+1: one query instead of one per chapter)
+        List<UUID> chapterIds = chapterEntities.stream().map(Chapter::getId).collect(Collectors.toList());
+        Map<UUID, List<Lesson>> lessonsByChapter = chapterIds.isEmpty()
+                ? Collections.emptyMap()
+                : lessonRepository.findByChapter_IdInAndIsActiveTrueOrderByOrderIndexAsc(chapterIds).stream()
+                        .collect(Collectors.groupingBy(lesson -> lesson.getChapter().getId(),
+                                LinkedHashMap::new, Collectors.toList()));
+
+        // Batch-load assets for all lessons (avoid N+1: one query instead of one per lesson)
+        List<UUID> lessonIds = lessonsByChapter.values().stream()
+                .flatMap(List::stream).map(Lesson::getId).collect(Collectors.toList());
+        Map<UUID, List<LessonAsset>> assetsByLesson = lessonIds.isEmpty()
+                ? Collections.emptyMap()
+                : lessonAssetRepository.findByLesson_IdInAndIsActiveTrueOrderByOrderIndexAsc(lessonIds).stream()
+                        .collect(Collectors.groupingBy(asset -> asset.getLesson().getId(),
+                                LinkedHashMap::new, Collectors.toList()));
+
         List<ChapterResponse> chapterResponses = new ArrayList<>();
         List<UUID> unlockedChapters = new ArrayList<>();
         List<UUID> lockedChapters = new ArrayList<>();
@@ -779,8 +913,7 @@ public class CourseServiceImpl implements CourseService {
 
         for (int index = 0; index < chapterEntities.size(); index++) {
             Chapter chapter = chapterEntities.get(index);
-            List<Lesson> lessonEntities = lessonRepository
-                    .findByChapter_IdAndIsActiveTrueOrderByOrderIndexAsc(chapter.getId());
+            List<Lesson> lessonEntities = lessonsByChapter.getOrDefault(chapter.getId(), Collections.emptyList());
 
             List<LessonResponse> lessonResponses = new ArrayList<>();
             double chapterMandatoryWeight = 0;
@@ -788,7 +921,8 @@ public class CourseServiceImpl implements CourseService {
 
             for (Lesson lesson : lessonEntities) {
                 Progress progress = progressByLesson.get(lesson.getId());
-                LessonResponse lessonResponse = buildLessonResponse(lesson, course, progress);
+                List<LessonAsset> lessonAssets = assetsByLesson.getOrDefault(lesson.getId(), Collections.emptyList());
+                LessonResponse lessonResponse = buildLessonResponse(lesson, course, progress, lessonAssets);
                 lessonResponses.add(lessonResponse);
 
                 boolean mandatory = lesson.getMandatory() == null || lesson.getMandatory();
@@ -916,11 +1050,16 @@ public class CourseServiceImpl implements CourseService {
     }
 
     private LessonResponse buildLessonResponse(Lesson lesson, Course course, Progress progress) {
+        return buildLessonResponse(lesson, course, progress,
+                lessonAssetRepository.findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId()));
+    }
+
+    private LessonResponse buildLessonResponse(Lesson lesson, Course course, Progress progress,
+            List<LessonAsset> lessonAssets) {
         Map<String, LessonAssetResponse> uniqueAssets = new LinkedHashMap<>();
-        lessonAssetRepository.findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId())
-                .forEach(asset -> uniqueAssets.putIfAbsent(
-                        buildLessonAssetIdentity(asset),
-                        buildAssetResponse(asset, course)));
+        lessonAssets.forEach(asset -> uniqueAssets.putIfAbsent(
+                buildLessonAssetIdentity(asset),
+                buildAssetResponse(asset, course)));
         List<LessonAssetResponse> assets = new ArrayList<>(uniqueAssets.values());
 
         Float completion = progress != null && progress.getCompletion() != null

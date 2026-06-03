@@ -14,6 +14,8 @@ public interface LessonAssetRepository extends JpaRepository<LessonAsset, UUID> 
 
     List<LessonAsset> findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(UUID lessonId);
 
+    List<LessonAsset> findByLesson_IdInAndIsActiveTrueOrderByOrderIndexAsc(List<UUID> lessonIds);
+
     Optional<LessonAsset> findByIdAndLesson_IdAndIsActiveTrue(UUID id, UUID lessonId);
 
     Optional<LessonAsset> findFirstByLesson_IdAndAssetTypeAndFileIdAndIsActiveTrueOrderByCreatedAsc(

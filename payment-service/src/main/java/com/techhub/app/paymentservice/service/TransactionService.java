@@ -19,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -63,8 +65,11 @@ public class TransactionService {
         Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "created"));
 
         if (adminView) {
+            // Resolve the split rate per course (admin sees transactions across many courses),
+            // cached within the page so repeated courses are not looked up more than once.
+            Map<UUID, BigDecimal> rateCache = new HashMap<>();
             return paymentRepository.findPaymentHistoryForAdmin(pageable)
-                    .map(row -> toHistoryItem(row, null));
+                    .map(row -> toHistoryItem(row, resolveInstructorRateForCourse(row.getCourseId(), rateCache)));
         }
 
         RevenueSplitPolicyService.ResolvedPolicy resolvedPolicy = revenueSplitPolicyService.resolvePolicy(
@@ -95,6 +100,25 @@ public class TransactionService {
                     return toHistoryItem(row, rate);
                 })
                 .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+    }
+
+    // Resolves the instructor split rate for a course, falling back to the default rate.
+    // Results are memoized in the supplied cache to avoid repeated policy lookups within a page.
+    private BigDecimal resolveInstructorRateForCourse(UUID courseId, Map<UUID, BigDecimal> cache) {
+        if (cache.containsKey(courseId)) {
+            return cache.get(courseId);
+        }
+        BigDecimal rate;
+        try {
+            RevenueSplitPolicyService.ResolvedPolicy policy = revenueSplitPolicyService.resolvePolicy(
+                    null, courseId, OffsetDateTime.now());
+            rate = normalizeRate(policy.getInstructorRate());
+        } catch (Exception e) {
+            log.warn("Failed to resolve revenue split policy for course {}, using default rate", courseId, e);
+            rate = normalizeRate(null);
+        }
+        cache.put(courseId, rate);
+        return rate;
     }
 
     private PaymentHistoryItemResponse toHistoryItem(Payment payment) {

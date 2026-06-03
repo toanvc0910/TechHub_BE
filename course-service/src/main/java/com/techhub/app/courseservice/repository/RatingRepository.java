@@ -38,4 +38,15 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
                         @Param("targetType") String targetType);
 
         long countByTargetIdAndTargetTypeAndIsActiveTrue(UUID targetId, RatingTarget targetType);
+
+        // Batch average score + count for many targets at once (avoids N+1).
+        // Returns rows: [targetId (uuid as text), avgScore (double), ratingCount (long)].
+        @Query(value = "SELECT CAST(r.target_id AS varchar) AS targetId, " +
+                        "AVG(r.score) AS avgScore, COUNT(*) AS ratingCount FROM ratings r " +
+                        "WHERE r.target_id IN (:targetIds) " +
+                        "AND r.target_type = CAST(:targetType AS rating_target) " +
+                        "AND r.is_active = 'Y' " +
+                        "GROUP BY r.target_id", nativeQuery = true)
+        List<Object[]> getRatingStatsByTargetIds(@Param("targetIds") List<UUID> targetIds,
+                        @Param("targetType") String targetType);
 }

@@ -157,7 +157,7 @@ public class RevenueProjectionService {
                         return getInstructorTrend(instructorId, effectiveFromDate, effectiveToDate);
                 }
 
-                return revenueRepository.findAdminTrendRows(null, effectiveFromDate, effectiveToDate)
+                return revenueRepository.findAdminTrendRows(effectiveFromDate, effectiveToDate)
                                 .stream()
                                 .collect(Collectors.groupingBy(RevenueDailyAggregate::getMetricDate))
                                 .entrySet().stream()

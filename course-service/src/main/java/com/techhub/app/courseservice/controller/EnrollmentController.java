@@ -64,7 +64,7 @@ public class EnrollmentController {
     @GetMapping("/my-enrollments")
     public ResponseEntity<GlobalResponse<List<EnrollmentResponse>>> getMyEnrollments(
             HttpServletRequest request,
-            @RequestParam(required = false) String status) {
+            @RequestParam(value = "status", required = false) String status) {
 
         // Lấy userId từ header (được set bởi proxy-client) hoặc từ JWT token
         String userIdHeader = request.getHeader("X-User-Id");

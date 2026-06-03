@@ -203,7 +203,10 @@ class ExercisePublisher:
         trusted_user_email: str | None,
         trusted_roles: list[str] | None,
     ) -> dict[str, str]:
-        headers: dict[str, str] = {"Content-Type": "application/json"}
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "X-Request-Source": "ai-service",
+        }
         if trusted_user_id:
             headers["X-User-Id"] = trusted_user_id
         if trusted_user_email:

@@ -141,7 +141,7 @@ public class CourseMapper {
         log.info("  - isFree: {}", request.getIsFree());
         log.info("  - contentType: {}", request.getContentType());
         log.info("  - videoUrl: {}", request.getVideoUrl());
-        log.info("  - estimatedDuration: {}", request.getEstimatedDuration());
+        log.info("  - videoDuration: {}", request.getVideoDuration());
         log.info("  - orderIndex: {}", request.getOrderIndex());
 
         Lesson lesson = new Lesson();
@@ -163,7 +163,6 @@ public class CourseMapper {
         if (request.getCompletionWeight() != null) {
             lesson.setCompletionWeight(request.getCompletionWeight());
         }
-        lesson.setEstimatedDuration(request.getEstimatedDuration());
         if (request.getWorkspaceEnabled() != null) {
             lesson.setWorkspaceEnabled(request.getWorkspaceEnabled());
         }
@@ -184,7 +183,7 @@ public class CourseMapper {
         log.info("  - isFree: {}", request.getIsFree());
         log.info("  - contentType: {}", request.getContentType());
         log.info("  - videoUrl: {}", request.getVideoUrl());
-        log.info("  - estimatedDuration: {}", request.getEstimatedDuration());
+        log.info("  - videoDuration: {}", request.getVideoDuration());
         log.info("  - orderIndex: {}", request.getOrderIndex());
 
         if (request.getTitle() != null) {
@@ -213,9 +212,6 @@ public class CourseMapper {
         }
         if (request.getCompletionWeight() != null) {
             lesson.setCompletionWeight(request.getCompletionWeight());
-        }
-        if (request.getEstimatedDuration() != null) {
-            lesson.setEstimatedDuration(request.getEstimatedDuration());
         }
         if (request.getWorkspaceEnabled() != null) {
             lesson.setWorkspaceEnabled(request.getWorkspaceEnabled());

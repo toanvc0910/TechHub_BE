@@ -67,7 +67,7 @@ public class EnrollmentProxyController {
      */
     @GetMapping("/my-enrollments")
     public ResponseEntity<String> getMyEnrollments(
-            @RequestParam(required = false) String status,
+            @RequestParam(value = "status", required = false) String status,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         log.info("📚 Proxying request to get user enrollments with status: {}", status);

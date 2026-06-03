@@ -23,7 +23,7 @@ public interface CourseServiceClient {
         ResponseEntity<String> getMyCourses(@RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
                         @RequestParam(required = false) String search,
-                        @RequestParam(required = false) String status,
+                        @RequestParam(value = "status", required = false) String status,
                         @RequestParam(required = false) String level,
                         @RequestParam(required = false) String language,
                         @RequestParam(required = false) BigDecimal minPrice,
@@ -312,6 +312,6 @@ public interface CourseServiceClient {
         // Get current user's enrollments (My Learning)
         @GetMapping("/api/enrollments/my-enrollments")
         ResponseEntity<String> getMyEnrollments(
-                        @RequestParam(required = false) String status,
+                        @RequestParam(value = "status", required = false) String status,
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 }

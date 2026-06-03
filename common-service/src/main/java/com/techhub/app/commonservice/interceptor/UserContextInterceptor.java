@@ -123,6 +123,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 requestSource.equals("notification-service") ||
                 requestSource.equals("learning-path-service") ||
                 requestSource.equals("blog-service") ||
+                requestSource.equals("ai-service") ||
                 requestSource.equals("file-service"));
     }
 }
