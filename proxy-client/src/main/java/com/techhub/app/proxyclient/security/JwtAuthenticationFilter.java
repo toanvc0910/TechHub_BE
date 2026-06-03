@@ -59,16 +59,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // DB is the single source of truth; downstream services trust this instead
         // of maintaining their own public/protected path lists.
         request.setAttribute("securityLevel", level.name());
+        String authHeader = request.getHeader("Authorization");
 
         // PUBLIC → no JWT, no permission
         if (level == SecurityLevel.PUBLIC) {
+            populateOptionalUserContext(request, authHeader);
             filterChain.doFilter(request, response);
             return;
         }
 
         // AUTHENTICATED or AUTHORIZED → JWT required
-        String authHeader = request.getHeader("Authorization");
-
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
@@ -92,21 +92,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String email = jwtUtil.getEmailFromToken(jwt);
             List<String> roles = jwtUtil.getRolesFromToken(jwt);
 
-            // Set authentication context
-            List<SimpleGrantedAuthority> authorities = roles.stream()
-                    .map(SimpleGrantedAuthority::new)
-                    .collect(Collectors.toList());
-
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userId, null,
-                    authorities);
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
-
-            // Add user info to request for Feign clients to forward
-            request.setAttribute("userId", userId);
-            request.setAttribute("userEmail", email);
-            request.setAttribute("userRoles", roles);
-            request.setAttribute("jwt", jwt);
+            attachUserContext(request, userId, email, roles, jwt);
 
             // AUTHENTICATED → JWT valid, skip permission check
             if (level == SecurityLevel.AUTHENTICATED) {
@@ -150,6 +136,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return uri.replaceFirst("/api/proxy", "/api");
         }
         return uri;
+    }
+
+    private void populateOptionalUserContext(HttpServletRequest request, String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return;
+        }
+
+        String jwt = authHeader.substring(7);
+        try {
+            if (!jwtUtil.validateToken(jwt)) {
+                return;
+            }
+            UUID userId = jwtUtil.getUserIdFromToken(jwt);
+            String email = jwtUtil.getEmailFromToken(jwt);
+            List<String> roles = jwtUtil.getRolesFromToken(jwt);
+            attachUserContext(request, userId, email, roles, jwt);
+        } catch (Exception e) {
+            log.debug("Ignoring invalid optional JWT for public endpoint: {}", e.getMessage());
+        }
+    }
+
+    private void attachUserContext(HttpServletRequest request, UUID userId, String email, List<String> roles,
+            String jwt) {
+        List<SimpleGrantedAuthority> authorities = roles.stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userId, null,
+                authorities);
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+
+        request.setAttribute("userId", userId);
+        request.setAttribute("userEmail", email);
+        request.setAttribute("userRoles", roles);
+        request.setAttribute("jwt", jwt);
     }
 
     private boolean hasBypassRole(List<String> roles) {
