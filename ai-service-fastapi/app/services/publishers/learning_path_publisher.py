@@ -1,10 +1,9 @@
 """
 Publishes a validated AI learning-path draft to Learning Path Service.
 
-Two-step HTTP flow against the Java service:
-
-  1. POST {base}/api/v1/learning-paths      (LearningPathRequestDTO)
-  2. POST {base}/api/v1/learning-paths/{id}/courses  (AddCoursesToPathRequestDTO)
+The Java service now accepts courses in the create payload, so the normal flow is
+one HTTP call. A fallback call to /courses remains for older service versions
+that create the path but do not attach courses in the create response.
 
 The publisher records the outcome on the draft so callers can distinguish
 APPROVED (no publish attempted) from PUBLISHED / PUBLISH_FAILED, including
@@ -148,24 +147,27 @@ class LearningPathPublisher:
                     response_payload={"create": create_body},
                 )
 
-            add_courses_payload = {"courses": self._courses_for_add(validated)}
-            add_url = f"{create_url}/{learning_path_id}/courses"
-            add_response = await client.post(add_url, headers=headers, json=add_courses_payload)
-            if add_response.status_code >= 400:
-                return await self._failure(
-                    started_at=started,
-                    error=(
-                        f"addCourses failed: HTTP {add_response.status_code} {add_response.text[:300]}; "
-                        "path was created but courses were not attached"
-                    ),
-                    learning_path_id=learning_path_id,
-                    request_payload={"create": request_payload, "addCourses": add_courses_payload},
-                    response_payload={
-                        "create": create_body,
-                        "addCourses": add_response.text,
-                    },
-                )
-            add_body = self._parse_json(add_response)
+            add_courses_payload: dict[str, Any] | None = None
+            add_body: dict[str, Any] | None = None
+            if not self._create_response_has_courses(create_body, expected_count=len(validated.courses)):
+                add_courses_payload = {"courses": self._courses_for_add(validated)}
+                add_url = f"{create_url}/{learning_path_id}/courses"
+                add_response = await client.post(add_url, headers=headers, json=add_courses_payload)
+                if add_response.status_code >= 400:
+                    return await self._failure(
+                        started_at=started,
+                        error=(
+                            f"addCourses failed: HTTP {add_response.status_code} {add_response.text[:300]}; "
+                            "path was created but courses were not attached"
+                        ),
+                        learning_path_id=learning_path_id,
+                        request_payload={"create": request_payload, "addCourses": add_courses_payload},
+                        response_payload={
+                            "create": create_body,
+                            "addCourses": add_response.text,
+                        },
+                    )
+                add_body = self._parse_json(add_response)
             finished = datetime.now(timezone.utc).isoformat()
             await runtime_observability_service.record_vector_operation(
                 operation="publish_learning_path",
@@ -183,8 +185,16 @@ class LearningPathPublisher:
                 status=LearningPathPublishStatus.PUBLISHED,
                 learning_path_id=learning_path_id,
                 error=None,
-                request_payload={"create": request_payload, "addCourses": add_courses_payload},
-                response_payload={"create": create_body, "addCourses": add_body},
+                request_payload=(
+                    {"create": request_payload, "addCourses": add_courses_payload}
+                    if add_courses_payload
+                    else request_payload
+                ),
+                response_payload=(
+                    {"create": create_body, "addCourses": add_body}
+                    if add_courses_payload
+                    else create_body
+                ),
                 started_at=started,
                 finished_at=finished,
             )
@@ -211,6 +221,7 @@ class LearningPathPublisher:
                 {"source": edge["source"], "target": edge["target"]}
                 for edge in validated.layout_edges
             ],
+            "courses": LearningPathPublisher._courses_for_add(validated),
             "createdBy": trusted_user_id,
             "updatedBy": trusted_user_id,
         }
@@ -268,6 +279,16 @@ class LearningPathPublisher:
                 if value:
                     return str(value)
         return None
+
+    @staticmethod
+    def _create_response_has_courses(body: dict[str, Any] | None, *, expected_count: int) -> bool:
+        if expected_count <= 0:
+            return True
+        if not isinstance(body, dict):
+            return False
+        data = body.get("data") if isinstance(body.get("data"), dict) else body
+        courses = data.get("courses") if isinstance(data, dict) else None
+        return isinstance(courses, list) and len(courses) >= expected_count
 
     async def _failure(
         self,

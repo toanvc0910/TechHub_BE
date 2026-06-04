@@ -27,12 +27,16 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    show-sql: true
+    show-sql: ${LEARNING_PATH_SHOW_SQL:false}
     properties:
       hibernate:
         dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
-        format_sql: true
+        format_sql: ${LEARNING_PATH_FORMAT_SQL:false}
+        order_inserts: true
+        order_updates: true
+        default_batch_fetch_size: 50
         jdbc:
+          batch_size: 50
           time_zone: UTC
 
 eureka:

@@ -21,9 +21,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +48,9 @@ public class LearningPathServiceImpl implements LearningPathService {
     private final LearningPathSkillRepository learningPathSkillRepository;
     private final CourseEventPublisher courseEventPublisher;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Override
     public LearningPathResponseDTO createLearningPath(LearningPathRequestDTO requestDTO) {
         log.info("Creating new learning path with title: {}", requestDTO.getTitle());
@@ -50,7 +62,21 @@ public class LearningPathServiceImpl implements LearningPathService {
             mapSkillsToPath(learningPath, requestDTO.getSkills());
         }
 
-        learningPath = learningPathRepository.save(learningPath);
+        boolean hasCourses = requestDTO.getCourses() != null && !requestDTO.getCourses().isEmpty();
+        learningPath = hasCourses
+                ? learningPathRepository.saveAndFlush(learningPath)
+                : learningPathRepository.save(learningPath);
+
+        if (hasCourses) {
+            List<LearningPathCourse> createdCourses = persistNewPathCourses(
+                    learningPath.getId(),
+                    requestDTO.getCourses(),
+                    new HashSet<>());
+            learningPath.getCourses().addAll(createdCourses);
+            entityManager.flush();
+            log.info("Created learning path {} with {} courses in the same transaction",
+                    learningPath.getId(), createdCourses.size());
+        }
 
         publishPathEvent(learningPath, "CREATED");
         log.info("Learning path created successfully with ID: {}", learningPath.getId());
@@ -82,20 +108,20 @@ public class LearningPathServiceImpl implements LearningPathService {
     @Transactional(readOnly = true)
     public LearningPathResponseDTO getLearningPathById(UUID id) {
         log.info("=".repeat(80));
-        log.info("🔍 GET LEARNING PATH BY ID - START");
+        log.info("GET LEARNING PATH BY ID - START");
         log.info("Fetching learning path with ID: {}", id);
 
         LearningPath learningPath = learningPathRepository.findByIdAndIsActive(id, Boolean.TRUE)
                 .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + id));
 
-        log.info("📊 Learning path found: title={}, courses count={}",
+        log.info("Learning path found: title={}, courses count={}",
                 learningPath.getTitle(),
                 learningPath.getCourses() != null ? learningPath.getCourses().size() : 0);
 
         if (learningPath.getCourses() != null) {
-            log.info("\n📋 Courses from database:");
+            log.info("\nCourses from database:");
             for (LearningPathCourse course : learningPath.getCourses()) {
-                log.info("   📌 Course: courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
+                log.info("   Course: courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
                         course.getCourseId(), course.getOrder(),
                         course.getPositionX(), course.getPositionY(),
                         course.getIsOptional());
@@ -104,17 +130,17 @@ public class LearningPathServiceImpl implements LearningPathService {
 
         LearningPathResponseDTO response = learningPathMapper.toDTO(learningPath);
 
-        log.info("\n📤 Response DTO:");
+        log.info("\nResponse DTO:");
         if (response.getCourses() != null) {
             for (CourseInPathDTO courseDTO : response.getCourses()) {
-                log.info("   📦 Course DTO: courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
+                log.info("   Course DTO: courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
                         courseDTO.getCourseId(), courseDTO.getOrder(),
                         courseDTO.getPositionX(), courseDTO.getPositionY(),
                         courseDTO.getIsOptional());
             }
         }
 
-        log.info("🔍 GET LEARNING PATH BY ID - END");
+        log.info("GET LEARNING PATH BY ID - END");
         log.info("=".repeat(80));
 
         return response;
@@ -162,47 +188,20 @@ public class LearningPathServiceImpl implements LearningPathService {
 
     @Override
     public LearningPathResponseDTO addCoursesToPath(UUID pathId, AddCoursesToPathRequestDTO requestDTO) {
-        log.info("Adding courses to learning path ID: {}", pathId);
+        log.info("Adding {} courses to learning path ID: {}", requestDTO.getCourses().size(), pathId);
 
-        LearningPath learningPath = learningPathRepository.findByIdAndIsActive(pathId, Boolean.TRUE)
+        learningPathRepository.findByIdAndIsActive(pathId, Boolean.TRUE)
                 .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + pathId));
 
-        int successCount = 0;
-        int skippedCount = 0;
+        Set<UUID> existingCourseIds = new HashSet<>(learningPathCourseRepository.findCourseIdsByPathId(pathId));
+        List<LearningPathCourse> createdCourses = persistNewPathCourses(pathId, requestDTO.getCourses(), existingCourseIds);
+        entityManager.flush();
+        entityManager.clear();
 
-        for (CourseInPathDTO courseDTO : requestDTO.getCourses()) {
-            try {
-                // Check if course already exists in path
-                if (learningPathCourseRepository.existsByPathIdAndCourseId(pathId, courseDTO.getCourseId())) {
-                    log.warn("Course {} already exists in path {}", courseDTO.getCourseId(), pathId);
-                    skippedCount++;
-                    continue;
-                }
+        LearningPath learningPath = learningPathRepository.findById(pathId).orElseThrow();
 
-                LearningPathCourse pathCourse = new LearningPathCourse();
-                pathCourse.setPathId(pathId);
-                pathCourse.setCourseId(courseDTO.getCourseId());
-                pathCourse.setOrder(courseDTO.getOrder());
-                pathCourse.setPositionX(courseDTO.getPositionX());
-                pathCourse.setPositionY(courseDTO.getPositionY());
-                pathCourse.setIsOptional(courseDTO.getIsOptional() != null ? courseDTO.getIsOptional() : "N");
-
-                learningPathCourseRepository.save(pathCourse);
-                successCount++;
-                log.info("✅ Successfully added course {} to path {}", courseDTO.getCourseId(), pathId);
-            } catch (Exception e) {
-                log.error("❌ Failed to add course {} to path {}: {}",
-                        courseDTO.getCourseId(), pathId, e.getMessage());
-                skippedCount++;
-                // Continue processing other courses instead of failing the entire operation
-            }
-        }
-
-        // Refresh to get updated courses
-        learningPath = learningPathRepository.findById(pathId).orElseThrow();
-
-        log.info("Courses operation completed for learning path ID: {} - Success: {}, Skipped: {}",
-                pathId, successCount, skippedCount);
+        log.info("Courses operation completed for learning path ID: {} - Added: {}, Skipped: {}",
+                pathId, createdCourses.size(), requestDTO.getCourses().size() - createdCourses.size());
         return learningPathMapper.toDTO(learningPath);
     }
 
@@ -224,88 +223,23 @@ public class LearningPathServiceImpl implements LearningPathService {
 
     @Override
     public LearningPathResponseDTO reorderCourses(UUID pathId, List<CourseInPathDTO> courses) {
-        log.info("=".repeat(80));
-        log.info("🔄 REORDER COURSES - START");
-        log.info("Reordering courses in learning path ID: {}", pathId);
-        log.info("📥 Received {} courses to save", courses.size());
+        log.info("Reordering {} courses in learning path ID: {}", courses.size(), pathId);
 
-        LearningPath learningPath = learningPathRepository.findByIdAndIsActive(pathId, Boolean.TRUE)
+        learningPathRepository.findByIdAndIsActive(pathId, Boolean.TRUE)
                 .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + pathId));
 
-        // Delete existing courses
-        log.info("🗑️ Deleting existing courses for pathId: {}", pathId);
         learningPathCourseRepository.deleteByPathId(pathId);
-        log.info("✅ Existing courses deleted");
+        entityManager.flush();
 
-        // Add courses with new order
-        log.info("➕ Adding {} courses with new positions", courses.size());
-        for (int i = 0; i < courses.size(); i++) {
-            CourseInPathDTO courseDTO = courses.get(i);
-            log.info("\n📋 Processing course {}/{}: courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
-                    (i + 1), courses.size(),
-                    courseDTO.getCourseId(), courseDTO.getOrder(), courseDTO.getPositionX(),
-                    courseDTO.getPositionY(), courseDTO.getIsOptional());
+        List<LearningPathCourse> savedCourses = persistNewPathCourses(pathId, courses, new HashSet<>());
+        entityManager.flush();
+        entityManager.clear();
 
-            LearningPathCourse pathCourse = new LearningPathCourse();
-            pathCourse.setPathId(pathId);
-            pathCourse.setCourseId(courseDTO.getCourseId());
-            pathCourse.setOrder(courseDTO.getOrder());
-            pathCourse.setPositionX(courseDTO.getPositionX());
-            pathCourse.setPositionY(courseDTO.getPositionY());
-            pathCourse.setIsOptional(courseDTO.getIsOptional() != null ? courseDTO.getIsOptional() : "N");
+        LearningPath learningPath = learningPathRepository.findById(pathId).orElseThrow();
 
-            log.info(
-                    "   ⚙️ Before save - Entity values: pathId={}, courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
-                    pathCourse.getPathId(), pathCourse.getCourseId(), pathCourse.getOrder(),
-                    pathCourse.getPositionX(), pathCourse.getPositionY(), pathCourse.getIsOptional());
-
-            LearningPathCourse saved = learningPathCourseRepository.save(pathCourse);
-
-            log.info(
-                    "   💾 After save - DB values: pathId={}, courseId={}, order={}, positionX={}, positionY={}, isOptional={}",
-                    saved.getPathId(), saved.getCourseId(), saved.getOrder(),
-                    saved.getPositionX(), saved.getPositionY(), saved.getIsOptional());
-
-            if (saved.getPositionX() == null || saved.getPositionY() == null) {
-                log.error("   ❌ WARNING: Position values are NULL after save!");
-                log.error("      Original DTO had: positionX={}, positionY={}",
-                        courseDTO.getPositionX(), courseDTO.getPositionY());
-            } else {
-                log.info("   ✅ Position values saved successfully");
-            }
-        }
-
-        // Refresh to get updated courses
-        log.info("\n🔄 Refreshing learning path to get updated courses...");
-        learningPath = learningPathRepository.findById(pathId).orElseThrow();
-
-        log.info("📊 Verifying courses after refresh:");
-        if (learningPath.getCourses() != null) {
-            for (LearningPathCourse course : learningPath.getCourses()) {
-                log.info("   📌 Course from DB: courseId={}, order={}, positionX={}, positionY={}",
-                        course.getCourseId(), course.getOrder(),
-                        course.getPositionX(), course.getPositionY());
-            }
-        } else {
-            log.warn("   ⚠️ Courses list is NULL after refresh!");
-        }
-
-        log.info("✅ Courses reordered successfully in learning path ID: {}", pathId);
-        log.info("🔄 REORDER COURSES - END");
-        log.info("=".repeat(80));
-
-        LearningPathResponseDTO response = learningPathMapper.toDTO(learningPath);
-
-        log.info("\n📤 Response DTO courses:");
-        if (response.getCourses() != null) {
-            for (CourseInPathDTO courseDTO : response.getCourses()) {
-                log.info("   📦 Course DTO: courseId={}, order={}, positionX={}, positionY={}",
-                        courseDTO.getCourseId(), courseDTO.getOrder(),
-                        courseDTO.getPositionX(), courseDTO.getPositionY());
-            }
-        }
-
-        return response;
+        log.info("Courses reordered successfully in learning path ID: {} - Saved: {}, Skipped: {}",
+                pathId, savedCourses.size(), courses.size() - savedCourses.size());
+        return learningPathMapper.toDTO(learningPath);
     }
 
     @Override
@@ -323,68 +257,103 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     private void mapSkillsToPath(LearningPath learningPath, List<String> skillNames) {
-        log.info("========== mapSkillsToPath START ==========");
-        log.info("mapSkillsToPath - Input skillNames: {}", skillNames);
-        log.info("mapSkillsToPath - LearningPath ID: {}", learningPath.getId());
-        log.info("mapSkillsToPath - Initial path skills count: {}", learningPath.getPathSkills().size());
+        Set<String> requestedSkillNames = skillNames == null
+                ? new LinkedHashSet<>()
+                : skillNames.stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(name -> !name.isEmpty())
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        // Build a set of skill names to add (normalized)
-        java.util.Set<String> requestedSkillNames = new java.util.HashSet<>();
-        if (skillNames != null && !skillNames.isEmpty()) {
-            for (String name : skillNames) {
-                if (name != null && !name.trim().isEmpty()) {
-                    requestedSkillNames.add(name.trim());
-                }
-            }
+        if (requestedSkillNames.isEmpty()) {
+            learningPath.getPathSkills().clear();
+            log.info("mapSkillsToPath completed for path {} - requested=0, final=0", learningPath.getId());
+            return;
         }
-        log.info("mapSkillsToPath: Requested skill names (normalized): {}", requestedSkillNames);
 
-        // Remove skills that are not in the requested list
-        java.util.Iterator<LearningPathSkill> iterator = learningPath.getPathSkills().iterator();
-        while (iterator.hasNext()) {
-            LearningPathSkill ps = iterator.next();
-            String existingSkillName = ps.getSkill() != null ? ps.getSkill().getName() : null;
-            if (existingSkillName == null || !requestedSkillNames.contains(existingSkillName)) {
-                log.info("mapSkillsToPath: Removing skill: {}", existingSkillName);
-                iterator.remove();
-            } else {
-                // Skill already exists, remove from requested set to avoid duplicate
-                log.info("mapSkillsToPath: Skill '{}' already exists, skipping", existingSkillName);
-                requestedSkillNames.remove(existingSkillName);
-            }
+        Set<String> existingSkillNames = learningPath.getPathSkills().stream()
+                .map(pathSkill -> pathSkill.getSkill() != null ? pathSkill.getSkill().getName() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        learningPath.getPathSkills().removeIf(pathSkill -> {
+            String existingSkillName = pathSkill.getSkill() != null ? pathSkill.getSkill().getName() : null;
+            return existingSkillName == null || !requestedSkillNames.contains(existingSkillName);
+        });
+
+        requestedSkillNames.removeAll(existingSkillNames);
+        if (requestedSkillNames.isEmpty()) {
+            log.info("mapSkillsToPath completed for path {} - no new skills, final={}",
+                    learningPath.getId(), learningPath.getPathSkills().size());
+            return;
         }
-        log.info("mapSkillsToPath: After cleanup, path skills count: {}", learningPath.getPathSkills().size());
-        log.info("mapSkillsToPath: Skills to add: {}", requestedSkillNames);
 
-        // Add new skills that don't exist yet
+        Map<String, Skill> skillsByName = skillRepository.findByNameIn(requestedSkillNames).stream()
+                .collect(Collectors.toMap(Skill::getName, Function.identity()));
+
+        UUID currentUserId = UserContext.getCurrentUserId();
+        List<Skill> missingSkills = requestedSkillNames.stream()
+                .filter(skillName -> !skillsByName.containsKey(skillName))
+                .map(skillName -> {
+                    Skill skill = new Skill();
+                    skill.setName(skillName);
+                    skill.setCreatedBy(currentUserId);
+                    skill.setUpdatedBy(currentUserId);
+                    return skill;
+                })
+                .collect(Collectors.toList());
+
+        if (!missingSkills.isEmpty()) {
+            skillRepository.saveAll(missingSkills).forEach(skill -> skillsByName.put(skill.getName(), skill));
+        }
+
+        OffsetDateTime assignedAt = OffsetDateTime.now();
         for (String skillName : requestedSkillNames) {
-            log.info("mapSkillsToPath: Processing new skill: '{}'", skillName);
-
-            Skill skill = skillRepository.findByName(skillName)
-                    .orElseGet(() -> {
-                        log.info("mapSkillsToPath: Skill '{}' not found, creating new", skillName);
-                        Skill newSkill = new Skill();
-                        newSkill.setName(skillName);
-                        UUID currentUserId = UserContext.getCurrentUserId();
-                        newSkill.setCreatedBy(currentUserId);
-                        newSkill.setUpdatedBy(currentUserId);
-                        Skill saved = skillRepository.save(newSkill);
-                        log.info("mapSkillsToPath: Created skill ID: {}, name: '{}'", saved.getId(), saved.getName());
-                        return saved;
-                    });
-
-            log.info("mapSkillsToPath: Adding skill {} (ID: {}) to path", skill.getName(), skill.getId());
+            Skill skill = skillsByName.get(skillName);
+            if (skill == null) {
+                continue;
+            }
 
             LearningPathSkill pathSkill = new LearningPathSkill();
             pathSkill.setLearningPath(learningPath);
             pathSkill.setSkill(skill);
-            pathSkill.setAssignedAt(OffsetDateTime.now());
+            pathSkill.setAssignedAt(assignedAt);
             learningPath.getPathSkills().add(pathSkill);
-            log.info("mapSkillsToPath: Added LearningPathSkill for skill: {}", skill.getName());
         }
 
-        log.info("mapSkillsToPath: Final path skills count: {}", learningPath.getPathSkills().size());
-        log.info("========== mapSkillsToPath END ==========");
+        log.info("mapSkillsToPath completed for path {} - added={}, final={}",
+                learningPath.getId(), requestedSkillNames.size(), learningPath.getPathSkills().size());
+    }
+
+    private List<LearningPathCourse> persistNewPathCourses(
+            UUID pathId,
+            List<CourseInPathDTO> courses,
+            Set<UUID> existingCourseIds) {
+        List<LearningPathCourse> createdCourses = new ArrayList<>();
+        if (courses == null || courses.isEmpty()) {
+            return createdCourses;
+        }
+
+        LearningPath pathRef = entityManager.getReference(LearningPath.class, pathId);
+        for (CourseInPathDTO courseDTO : courses) {
+            UUID courseId = courseDTO.getCourseId();
+            if (courseId == null || !existingCourseIds.add(courseId)) {
+                continue;
+            }
+
+            LearningPathCourse pathCourse = new LearningPathCourse();
+            pathCourse.setPathId(pathId);
+            pathCourse.setCourseId(courseId);
+            pathCourse.setOrder(courseDTO.getOrder());
+            pathCourse.setPositionX(courseDTO.getPositionX());
+            pathCourse.setPositionY(courseDTO.getPositionY());
+            pathCourse.setIsOptional(courseDTO.getIsOptional() != null ? courseDTO.getIsOptional() : "N");
+            pathCourse.setLearningPath(pathRef);
+
+            entityManager.persist(pathCourse);
+            createdCourses.add(pathCourse);
+        }
+        return createdCourses;
     }
 
     private void publishPathEvent(LearningPath path, String eventType) {
@@ -402,3 +371,4 @@ public class LearningPathServiceImpl implements LearningPathService {
         }
     }
 }
+
