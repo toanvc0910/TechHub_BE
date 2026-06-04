@@ -107,6 +107,15 @@ class Settings:
     legacy_fallback_enabled: bool = field(default_factory=lambda: _bool_env("AI_LEGACY_FALLBACK_ENABLED", True))
     business_safe_mode_enabled: bool = field(default_factory=lambda: _bool_env("AI_BUSINESS_SAFE_MODE_ENABLED", False))
     intent_semantic_threshold: float = field(default_factory=lambda: _float_env("AI_INTENT_SEMANTIC_THRESHOLD", 0.6))
+    learning_path_vector_score_threshold: float = field(
+        default_factory=lambda: _float_env("AI_LEARNING_PATH_VECTOR_SCORE_THRESHOLD", 0.55)
+    )
+    learning_path_require_topic_overlap: bool = field(
+        default_factory=lambda: _bool_env("AI_LEARNING_PATH_REQUIRE_TOPIC_OVERLAP", True)
+    )
+    learning_path_limit_to_user_courses: bool = field(
+        default_factory=lambda: _bool_env("AI_LEARNING_PATH_LIMIT_TO_USER_COURSES", False)
+    )
     hitl_enabled: bool = field(default_factory=lambda: _bool_env("AI_HITL_ENABLED", True))
     hitl_confidence_threshold: float = field(default_factory=lambda: _float_env("AI_HITL_CONFIDENCE_THRESHOLD", 0.55))
     hitl_risk_threshold: float = field(default_factory=lambda: _float_env("AI_HITL_RISK_THRESHOLD", 0.5))

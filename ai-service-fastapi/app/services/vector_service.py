@@ -44,6 +44,7 @@ class VectorService:
         language: str | None = None,
         exclude_course_ids: Iterable[str] | None = None,
         instructor_id: str | None = None,
+        score_threshold: float | None = None,
     ) -> list[dict[str, Any]]:
         started = perf_counter()
         sanitized_query = query.strip()
@@ -75,6 +76,8 @@ class VectorService:
                         "limit": limit,
                         "with_payload": True,
                     }
+                    if score_threshold is not None:
+                        payload["score_threshold"] = score_threshold
                     if must_filters or must_not_filters:
                         payload["filter"] = {}
                         if must_filters:
@@ -90,6 +93,24 @@ class VectorService:
                     response.raise_for_status()
                     results = response.json().get("result", [])
                     normalized = [self._normalize_scored_point(item) for item in results]
+                    raw_count = len(normalized)
+                    if score_threshold is not None:
+                        normalized = [
+                            item
+                            for item in normalized
+                            if float(item.get("score") or 0.0) >= score_threshold
+                        ]
+                    logger.info(
+                        "Vector course search qdrant results query=%r instructor_id=%s language=%s raw_count=%s "
+                        "filtered_count=%s threshold=%s scores=%s",
+                        sanitized_query,
+                        instructor_id,
+                        language,
+                        raw_count,
+                        len(normalized),
+                        score_threshold,
+                        [round(float(item.get("score") or 0.0), 4) for item in normalized[:12]],
+                    )
                     if normalized:
                         for item in normalized:
                             item["retrievalMode"] = "vector"
@@ -102,8 +123,15 @@ class VectorService:
                             mode="vector",
                         )
                         return normalized
-            except Exception:
-                pass
+                    logger.info(
+                        "Vector course search qdrant produced no usable results after filtering; "
+                        "falling back to lexical query=%r instructor_id=%s threshold=%s",
+                        sanitized_query,
+                        instructor_id,
+                        score_threshold,
+                    )
+            except Exception as exc:
+                logger.warning("Vector course search failed; falling back to lexical search: %s", exc)
 
         results = await self._lexical_search_courses(
             query=sanitized_query,
@@ -115,6 +143,14 @@ class VectorService:
         )
         for item in results:
             item["retrievalMode"] = "lexical_fallback"
+        logger.info(
+            "Vector course lexical fallback results query=%r instructor_id=%s language=%s count=%s scores=%s",
+            sanitized_query,
+            instructor_id,
+            language,
+            len(results),
+            [round(float(item.get("score") or 0.0), 4) for item in results[:12]],
+        )
         await runtime_observability_service.record_vector_operation(
             operation="search_courses",
             duration_ms=(perf_counter() - started) * 1000,

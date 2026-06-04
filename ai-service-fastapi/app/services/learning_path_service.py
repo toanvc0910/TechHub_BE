@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import re
+import unicodedata
 from typing import Any
 
 from app.core.config import get_settings
@@ -8,18 +11,33 @@ from app.db.models import AiGenerationTaskModel
 from app.db.session import get_db_session
 from app.schemas.learning_path import LearningPathDraftResponse, LearningPathGenerateRequest
 from app.services.catalog_service import catalog_service
+from app.services.llm_gateway import switchable_ai_gateway
 from app.services.provider_config import provider_config_service
 from app.services.runtime_request_context import runtime_request_context_service
 from app.services.vector_service import vector_service
+
+logger = logging.getLogger(__name__)
 
 
 class LearningPathService:
     def __init__(self) -> None:
         self._settings = get_settings()
 
-    async def generate(self, request: LearningPathGenerateRequest) -> LearningPathDraftResponse:
+    async def generate(
+        self,
+        request: LearningPathGenerateRequest,
+        *,
+        course_owner_id: str | None = None,
+        limit_to_user_courses: bool | None = None,
+    ) -> LearningPathDraftResponse:
         with runtime_request_context_service.begin(scope="learning_path_generate") as runtime_state:
-            instructor_id = str(request.userId)
+            user_id = str(request.userId)
+            should_limit_to_user_courses = (
+                self._settings.learning_path_limit_to_user_courses
+                if limit_to_user_courses is None
+                else limit_to_user_courses
+            )
+            course_owner_id = (course_owner_id or user_id) if should_limit_to_user_courses else None
             user_profile = await catalog_service.fetch_user_profile(str(request.userId))
             course_history = await catalog_service.fetch_user_course_history(str(request.userId))
             active_paths = await catalog_service.fetch_user_learning_paths(str(request.userId))
@@ -29,59 +47,225 @@ class LearningPathService:
                 if item.get("course_id")
                 and (item.get("status") == "COMPLETED" or float(item.get("progress") or 0.0) >= 0.95)
             }
+            logger.info(
+                "Learning path generation started user=%s goal=%r language=%s completed_count=%s safe_mode=%s "
+                "course_scope=%s course_owner_id=%s",
+                user_id,
+                request.goal,
+                request.language,
+                len(completed_ids),
+                self._settings.business_safe_mode_enabled,
+                "instructor_owned" if course_owner_id else "platform",
+                course_owner_id,
+            )
             pipeline = "live"
             if self._settings.business_safe_mode_enabled:
                 relevant_courses = []
                 pipeline = "fallback"
             else:
                 try:
+                    search_query = self._build_query(request, user_profile, course_history, active_paths)
+                    logger.info(
+                        "Learning path vector search user=%s goal=%r threshold=%s course_scope=%s query=%r",
+                        user_id,
+                        request.goal,
+                        self._settings.learning_path_vector_score_threshold,
+                        "instructor_owned" if course_owner_id else "platform",
+                        search_query,
+                    )
                     relevant_courses = await vector_service.search_courses(
-                        query=self._build_query(request, user_profile, course_history, active_paths),
+                        query=search_query,
                         limit=12,
                         language=request.language,
                         exclude_course_ids=completed_ids,
-                        instructor_id=instructor_id,
+                        instructor_id=course_owner_id,
+                        score_threshold=self._settings.learning_path_vector_score_threshold,
+                    )
+                    logger.info(
+                        "Learning path vector raw results user=%s goal=%r count=%s results=%s",
+                        user_id,
+                        request.goal,
+                        len(relevant_courses),
+                        self._candidate_log_rows(relevant_courses),
                     )
                     relevant_courses = await self._hydrate_vector_courses(
                         relevant_courses,
-                        instructor_id=instructor_id,
+                        instructor_id=course_owner_id,
                         completed_ids=completed_ids,
                     )
-                except Exception:
-                    relevant_courses = []
-                    pipeline = "fallback"
+                    logger.info(
+                        "Learning path hydrated vector results user=%s goal=%r count=%s results=%s",
+                        user_id,
+                        request.goal,
+                        len(relevant_courses),
+                        self._candidate_log_rows(relevant_courses),
+                    )
+                    relevant_courses = self._filter_goal_relevant_courses(request, relevant_courses)
+                    logger.info(
+                        "Learning path topic-filtered results user=%s goal=%r count=%s results=%s",
+                        user_id,
+                        request.goal,
+                        len(relevant_courses),
+                        self._candidate_log_rows(relevant_courses),
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        "Learning path course retrieval failed for user=%s goal=%r",
+                        user_id,
+                        request.goal,
+                    )
+                    raise ValueError(f"Learning path course retrieval failed: {exc}") from exc
             preferred_courses = [
                 course
                 for course in await catalog_service.fetch_courses_by_ids(
                     [str(item) for item in request.preferredCourseIds or []],
-                    instructor_id=instructor_id,
+                    instructor_id=course_owner_id,
                 )
                 if course.get("id") not in completed_ids
             ]
+            logger.info(
+                "Learning path preferred courses user=%s goal=%r requested=%s usable=%s results=%s",
+                user_id,
+                request.goal,
+                [str(item) for item in request.preferredCourseIds or []],
+                len(preferred_courses),
+                self._course_log_rows(preferred_courses),
+            )
             candidates = self._merge_candidates(relevant_courses, preferred_courses)
+            logger.info(
+                "Learning path final candidates user=%s goal=%r count=%s candidates=%s",
+                user_id,
+                request.goal,
+                len(candidates),
+                self._merged_candidate_log_rows(candidates),
+            )
 
             if not candidates:
-                catalog_courses = await catalog_service.fetch_published_courses(limit=12, instructor_id=instructor_id)
-                candidates = self._merge_candidates([], [course for course in catalog_courses if course.get("id") not in completed_ids])
-                pipeline = "fallback"
+                if self._settings.business_safe_mode_enabled:
+                    catalog_courses = await catalog_service.fetch_published_courses(
+                        limit=12,
+                        instructor_id=course_owner_id,
+                    )
+                    logger.info(
+                        "Learning path safe-mode catalog fallback user=%s goal=%r count=%s results=%s",
+                        user_id,
+                        request.goal,
+                        len(catalog_courses),
+                        self._course_log_rows(catalog_courses),
+                    )
+                    candidates = self._merge_candidates(
+                        [],
+                        [course for course in catalog_courses if course.get("id") not in completed_ids],
+                    )
+                    pipeline = "fallback"
+                else:
+                    logger.error(
+                        "No relevant learning path courses found for user=%s goal=%r threshold=%s completed=%s "
+                        "course_scope=%s course_owner_id=%s",
+                        user_id,
+                        request.goal,
+                        self._settings.learning_path_vector_score_threshold,
+                        sorted(completed_ids),
+                        "instructor_owned" if course_owner_id else "platform",
+                        course_owner_id,
+                    )
+                    if course_owner_id:
+                        raise ValueError(
+                            "No relevant published courses were found in your instructor catalog for this learning path goal. "
+                            "Publish and index matching courses, or choose a goal that matches your courses."
+                        )
+                    raise ValueError(
+                        "No relevant published courses were found for this learning path goal. "
+                        "Publish and index matching courses, or choose preferred courses explicitly."
+                    )
             if not candidates:
-                raise ValueError("No published courses owned by this instructor are available to build a learning path.")
+                raise ValueError("No published courses are available to build a learning path.")
 
             prompt = self._build_prompt(request, candidates, user_profile, course_history, active_paths)
             fallback_path = self._fallback_path(request, candidates, user_profile, course_history)
-            path = fallback_path
+
+            llm_course_selection = False
+            if self._settings.business_safe_mode_enabled:
+                logger.info(
+                    "Learning path generated via deterministic fallback (business_safe_mode enabled) for user=%s",
+                    user_id,
+                )
+                path = fallback_path
+            else:
+                try:
+                    llm_payload = await switchable_ai_gateway.generate_structured_json(
+                        prompt=prompt,
+                        fallback_payload=fallback_path,
+                    )
+                    logger.info(
+                        "Learning path AI returned payload user=%s goal=%r type=%s",
+                        user_id,
+                        request.goal,
+                        type(llm_payload).__name__,
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        "Learning path AI generation failed for user=%s goal=%r: %s",
+                        user_id,
+                        request.goal,
+                        exc,
+                    )
+                    raise ValueError(
+                        f"AI learning path generation failed: {exc}"
+                    ) from exc
+
+                if llm_payload is fallback_path:
+                    # generate_structured_json returns the fallback object verbatim
+                    # only when the LLM produced no parseable JSON.
+                    logger.error(
+                        "Learning path AI returned no parseable JSON for user=%s goal=%r; "
+                        "using deterministic fallback from filtered candidates",
+                        user_id,
+                        request.goal,
+                    )
+                    path = fallback_path
+                    llm_course_selection = False
+                else:
+                    normalized = self._normalize_payload(llm_payload, fallback_path, candidates)
+                    if normalized is fallback_path:
+                        logger.error(
+                            "Learning path AI output rejected (invalid/empty courseIds) for user=%s goal=%r; "
+                            "using deterministic fallback from filtered candidates; candidates=%s payload=%s",
+                            user_id,
+                            request.goal,
+                            [
+                                str(c["payload"].get("id") or c["payload"].get("course_id"))
+                                for c in candidates
+                            ],
+                            self._compact_log_payload(llm_payload),
+                        )
+                        path = fallback_path
+                        llm_course_selection = False
+                    else:
+                        path = normalized
+                        llm_course_selection = True
+
+                logger.info(
+                    "Learning path AI normalized selection user=%s goal=%r selected_course_ids=%s",
+                    user_id,
+                    request.goal,
+                    [str(course.get("courseId") or "") for course in path.get("courses", [])],
+                )
+
             path.setdefault("metadata", {})
             path["metadata"].update(
                 {
-                    "courseSource": "instructor_db_only",
-                    "llmCourseSelection": False,
+                    "courseSource": "instructor_owned_courses" if course_owner_id else "platform_published_courses",
+                    "courseScope": "instructor_owned" if course_owner_id else "platform",
+                    "llmCourseSelection": llm_course_selection,
                     "candidateCourseIds": [
                         str(candidate["payload"].get("id") or candidate["payload"].get("course_id"))
                         for candidate in candidates
                     ],
+                    "relevanceThreshold": self._settings.learning_path_vector_score_threshold,
                 }
             )
-            path = await self._ensure_path_courses_active(path, instructor_id=instructor_id)
+            path = await self._ensure_path_courses_active(path, instructor_id=course_owner_id)
 
             async with get_db_session() as session:
                 task = AiGenerationTaskModel(
@@ -125,7 +309,7 @@ class LearningPathService:
         self,
         vector_candidates: list[dict[str, Any]],
         *,
-        instructor_id: str,
+        instructor_id: str | None,
         completed_ids: set[str],
     ) -> list[dict[str, Any]]:
         score_by_id: dict[str, float] = {}
@@ -156,7 +340,106 @@ class LearningPathService:
         hydrated.sort(key=lambda item: rank_by_id.get(item["payload"]["id"], 9999))
         return hydrated
 
-    async def _ensure_path_courses_active(self, path: dict[str, Any], *, instructor_id: str) -> dict[str, Any]:
+    @staticmethod
+    def _candidate_log_rows(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for candidate in candidates[:12]:
+            payload = candidate.get("payload", {}) if isinstance(candidate, dict) else {}
+            rows.append(
+                {
+                    "id": str(payload.get("id") or payload.get("course_id") or candidate.get("id") or ""),
+                    "title": str(payload.get("title") or "")[:80],
+                    "score": round(float(candidate.get("score") or 0.0), 4),
+                    "mode": candidate.get("retrievalMode"),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _course_log_rows(courses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": str(course.get("id") or ""),
+                "title": str(course.get("title") or "")[:80],
+                "level": course.get("level"),
+                "language": course.get("language"),
+                "skills": course.get("skills", [])[:8] if isinstance(course.get("skills"), list) else course.get("skills"),
+            }
+            for course in courses[:12]
+        ]
+
+    @staticmethod
+    def _merged_candidate_log_rows(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for candidate in candidates[:12]:
+            payload = candidate.get("payload", {}) if isinstance(candidate, dict) else {}
+            rows.append(
+                {
+                    "id": str(payload.get("id") or payload.get("course_id") or ""),
+                    "title": str(payload.get("title") or "")[:80],
+                    "score": round(float(candidate.get("score") or 0.0), 4),
+                    "source": candidate.get("source"),
+                    "rank": candidate.get("rank"),
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _compact_log_payload(payload: Any) -> Any:
+        if isinstance(payload, dict):
+            compact = dict(payload)
+            if isinstance(compact.get("courses"), list):
+                compact["courses"] = compact["courses"][:8]
+            if isinstance(compact.get("nodes"), list):
+                compact["nodes"] = compact["nodes"][:8]
+            if isinstance(compact.get("edges"), list):
+                compact["edges"] = compact["edges"][:8]
+            return compact
+        return str(payload)[:1000]
+
+    def _filter_goal_relevant_courses(
+        self,
+        request: LearningPathGenerateRequest,
+        candidates: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not self._settings.learning_path_require_topic_overlap:
+            return candidates
+
+        goal_terms = self._topic_terms(request.goal)
+        required_terms = self._required_goal_topic_terms(request.goal)
+        if not goal_terms:
+            return candidates
+
+        filtered: list[dict[str, Any]] = []
+        rejected: list[str] = []
+        for candidate in candidates:
+            payload = candidate.get("payload", {}) if isinstance(candidate, dict) else {}
+            course_terms = self._course_topic_terms(payload)
+            match_terms = required_terms or goal_terms
+            if match_terms.intersection(course_terms):
+                filtered.append(candidate)
+            else:
+                rejected.append(str(payload.get("id") or payload.get("course_id") or candidate.get("id") or ""))
+
+        if rejected:
+            logger.warning(
+                "Filtered unrelated learning path course candidates for goal=%r rejected=%s goal_terms=%s required_terms=%s",
+                request.goal,
+                [course_id for course_id in rejected if course_id],
+                sorted(goal_terms),
+                sorted(required_terms),
+            )
+        logger.info(
+            "Learning path topic filter detail goal=%r goal_terms=%s required_terms=%s kept=%s rejected=%s",
+            request.goal,
+            sorted(goal_terms),
+            sorted(required_terms),
+            [str(item.get("payload", {}).get("id") or item.get("payload", {}).get("course_id") or "") for item in filtered],
+            [course_id for course_id in rejected if course_id],
+        )
+        return filtered
+
+    async def _ensure_path_courses_active(self, path: dict[str, Any], *, instructor_id: str | None) -> dict[str, Any]:
         courses = path.get("courses")
         if not isinstance(courses, list) or not courses:
             raise ValueError("Learning path must contain at least one active published course.")
@@ -177,7 +460,7 @@ class LearningPathService:
         missing_ids = [course_id for course_id in ordered_ids if course_id not in active_by_id]
         if missing_ids:
             raise ValueError(
-                "Learning path contains courses that are inactive, unpublished, deleted, or not owned by this instructor: "
+                "Learning path contains courses that are inactive, unpublished, deleted, or unavailable in the selected catalog scope: "
                 + ", ".join(missing_ids)
             )
 
@@ -499,7 +782,7 @@ class LearningPathService:
         for index, item in enumerate(courses, start=1):
             if not isinstance(item, dict):
                 continue
-            course_id = str(item.get("courseId") or "")
+            course_id = str(item.get("courseId") or item.get("course_id") or item.get("id") or "")
             if course_id not in allowed_ids:
                 continue
             source_course = candidate_by_id.get(course_id, {})
@@ -603,6 +886,148 @@ class LearningPathService:
             for skill in skill_map.get(course["courseId"], [])
         }
         return sorted(skills)[:8]
+
+    @classmethod
+    def _topic_terms(cls, value: Any) -> set[str]:
+        text = cls._ascii_text(value)
+        text = re.sub(r"\bjava[\s_-]*scrip(?:t)?\b", " javascript ", text)
+        terms = {
+            token
+            for token in re.split(r"[^a-z0-9]+", text)
+            if cls._is_topic_token(token)
+        }
+        if terms.intersection({"javascript", "js", "typescript", "react", "next", "nextjs", "vue", "angular", "html", "css"}):
+            terms.update({"javascript", "js", "typescript", "react", "nextjs", "vue", "node", "frontend", "html", "css"})
+            terms.discard("java")
+        if "python" in terms:
+            terms.update({"python", "django", "flask", "fastapi"})
+        return terms
+
+    @staticmethod
+    def _ascii_text(value: Any) -> str:
+        normalized = unicodedata.normalize("NFKD", str(value or "").lower())
+        return normalized.encode("ascii", "ignore").decode("ascii")
+
+    @classmethod
+    def _is_topic_token(cls, token: str) -> bool:
+        if not token or token in cls._topic_stopwords():
+            return False
+        if token in {"c", "r", "js"}:
+            return True
+        return len(token) >= 3
+
+    @classmethod
+    def _course_topic_terms(cls, payload: dict[str, Any]) -> set[str]:
+        chunks: list[str] = []
+        for key in ("title", "description", "level", "language"):
+            chunks.append(str(payload.get(key) or ""))
+        for key in ("skills", "tags", "objectives", "requirements"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                chunks.extend(str(item) for item in value)
+            elif value:
+                chunks.append(str(value))
+        return cls._topic_terms(" ".join(chunks))
+
+    @classmethod
+    def _required_goal_topic_terms(cls, value: Any) -> set[str]:
+        text = cls._ascii_text(value)
+        text = re.sub(r"\bjava[\s_-]*scrip(?:t)?\b", " javascript ", text)
+        raw_terms = {
+            token
+            for token in re.split(r"[^a-z0-9]+", text)
+            if cls._is_topic_token(token)
+        }
+        required: set[str] = set()
+        if raw_terms.intersection({"html", "css"}):
+            required.update(raw_terms.intersection({"html", "css"}))
+        if raw_terms.intersection({"react", "next", "nextjs", "vue", "angular"}):
+            required.update(raw_terms.intersection({"react", "nextjs", "vue", "angular"}))
+            if "next" in raw_terms:
+                required.add("nextjs")
+            required.update({"javascript", "js", "typescript"})
+        if raw_terms.intersection({"javascript", "js", "typescript"}):
+            required.update(raw_terms.intersection({"javascript", "js", "typescript"}))
+        if "python" in raw_terms:
+            required.add("python")
+        if raw_terms.intersection({"java", "spring", "springboot"}):
+            required.update(raw_terms.intersection({"java", "spring", "springboot"}))
+            if "springboot" in required:
+                required.add("spring")
+        return required
+
+    @staticmethod
+    def _topic_stopwords() -> set[str]:
+        return {
+            "a",
+            "an",
+            "and",
+            "ban",
+            "basic",
+            "beginner",
+            "biet",
+            "buoc",
+            "can",
+            "cach",
+            "cho",
+            "co",
+            "cua",
+            "course",
+            "den",
+            "danh",
+            "dau",
+            "duoc",
+            "duong",
+            "dung",
+            "giup",
+            "ham",
+            "hieu",
+            "hoc",
+            "khong",
+            "khoa",
+            "ket",
+            "kiem",
+            "lap",
+            "learning",
+            "lieu",
+            "lo",
+            "minh",
+            "muon",
+            "moi",
+            "mot",
+            "nen",
+            "nguoi",
+            "qua",
+            "path",
+            "phut",
+            "practice",
+            "ra",
+            "roadmap",
+            "sua",
+            "script",
+            "scrip",
+            "tang",
+            "tap",
+            "thanh",
+            "the",
+            "thong",
+            "tinh",
+            "toan",
+            "the",
+            "to",
+            "trinh",
+            "trong",
+            "tu",
+            "tung",
+            "tu",
+            "ve",
+            "vi",
+            "vietnamese",
+            "voi",
+            "vong",
+            "xac",
+            "xu",
+        }
 
     @staticmethod
     def _level_order(level: Any) -> int:

@@ -19,6 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -74,10 +76,8 @@ public class BlogCommentServiceImpl implements BlogCommentService {
         // Build response
         CommentResponse response = toResponse(saved, new ArrayList<>());
 
-        // Broadcast to all subscribers via WebSocket
-        String destination = "/topic/blog/" + blogId + "/comments";
-        log.info(">>> Broadcasting new comment to WebSocket: {}", destination);
-        messagingTemplate.convertAndSend(destination, response);
+        String destination = getCommentDestination(blog.getId());
+        broadcastAfterCommit(destination, buildCreatedPayload(blog.getId(), saved, response));
 
         return response;
     }
@@ -99,6 +99,9 @@ public class BlogCommentServiceImpl implements BlogCommentService {
         comment.setUpdated(OffsetDateTime.now());
         blogCommentRepository.save(comment);
         log.info("Comment {} soft deleted by {}", commentId, currentUserId);
+
+        String destination = getCommentDestination(blog.getId());
+        broadcastAfterCommit(destination, buildDeletedPayload(blog.getId(), comment, currentUserId));
     }
 
     private Blog resolveReadableBlog(UUID blogId) {
@@ -163,6 +166,61 @@ public class BlogCommentServiceImpl implements BlogCommentService {
                 .created(comment.getCreated())
                 .replies(replies)
                 .build();
+    }
+
+    private Map<String, Object> buildCreatedPayload(UUID blogId, BlogComment comment, CommentResponse response) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("eventType", comment.getParentId() == null ? "CREATED" : "REPLIED");
+        payload.put("commentId", comment.getId());
+        payload.put("id", response.getId());
+        payload.put("targetId", blogId);
+        payload.put("targetType", "BLOG");
+        payload.put("parentId", response.getParentId());
+        payload.put("userId", response.getUserId());
+        payload.put("content", response.getContent());
+        payload.put("createdAt", response.getCreated());
+        payload.put("created", response.getCreated());
+        payload.put("replies", response.getReplies());
+        payload.put("comment", response);
+        payload.put("timestamp", OffsetDateTime.now());
+        return payload;
+    }
+
+    private Map<String, Object> buildDeletedPayload(UUID blogId, BlogComment comment, UUID deletedBy) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("eventType", "DELETED");
+        payload.put("commentId", comment.getId());
+        payload.put("id", comment.getId());
+        payload.put("targetId", blogId);
+        payload.put("targetType", "BLOG");
+        payload.put("parentId", comment.getParentId());
+        payload.put("userId", deletedBy);
+        payload.put("timestamp", OffsetDateTime.now());
+        return payload;
+    }
+
+    private String getCommentDestination(UUID blogId) {
+        return "/topic/blog/" + blogId + "/comments";
+    }
+
+    private void broadcastAfterCommit(String destination, Map<String, Object> payload) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    broadcast(destination, payload);
+                }
+            });
+            return;
+        }
+
+        broadcast(destination, payload);
+    }
+
+    private void broadcast(String destination, Map<String, Object> payload) {
+        log.info(">>> Broadcasting comment event {} to WebSocket: {}",
+                payload.get("eventType"), destination);
+        messagingTemplate.convertAndSend(destination, payload);
     }
 
     private boolean canDeleteComment(BlogComment comment, Blog blog, UUID currentUserId) {

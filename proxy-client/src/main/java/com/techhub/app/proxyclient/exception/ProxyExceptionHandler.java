@@ -64,7 +64,7 @@ public class ProxyExceptionHandler {
 
     @ExceptionHandler(RetryableException.class)
     public ResponseEntity<String> handleRetryableException(RetryableException exception, HttpServletRequest request) {
-        log.error("Upstream unavailable at {}: {}", request.getRequestURI(), exception.getMessage());
+        log.error("Upstream unavailable at {}: {}", request.getRequestURI(), exception.getMessage(), exception);
 
         String body = String.format(
                 "{\"success\":false,\"status\":\"SERVICE_UNAVAILABLE\",\"code\":503,\"message\":\"Upstream service is unavailable\",\"path\":\"%s\"}",

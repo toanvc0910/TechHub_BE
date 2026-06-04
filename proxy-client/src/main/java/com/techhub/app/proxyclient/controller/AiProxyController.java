@@ -2,6 +2,7 @@ package com.techhub.app.proxyclient.controller;
 
 import com.techhub.app.proxyclient.client.AiServiceClient;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -24,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/proxy/ai")
 @RequiredArgsConstructor
+@Slf4j
 public class AiProxyController {
 
     private final AiServiceClient aiServiceClient;
@@ -42,11 +44,17 @@ public class AiProxyController {
     public ResponseEntity<String> generateLearningPaths(@RequestBody Object request,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             HttpServletRequest httpRequest) {
+        log.info("Proxy AI learning-path generate directUrlConfigured={} path={} userIdAttr={}",
+                StringUtils.hasText(aiServiceDirectUrl),
+                httpRequest.getRequestURI(),
+                httpRequest.getAttribute("userId"));
         if (!StringUtils.hasText(aiServiceDirectUrl)) {
+            log.info("Proxy AI learning-path generate using Feign/Eureka target=AI-SERVICE");
             return aiServiceClient.generateLearningPath(request, authHeader);
         }
 
         HttpHeaders headers = buildAiHeaders(authHeader, httpRequest);
+        log.info("Proxy AI learning-path generate using direct URL target={}", aiServiceDirectUrl);
         return restTemplate.postForEntity(
                 aiServiceDirectUrl + "/api/ai/learning-paths/generate",
                 new HttpEntity<>(request, headers),
