@@ -259,6 +259,7 @@ class VectorService:
         "session_file_chat": ("sessionFiles",),
         "user_file_chat": ("userFiles",),
         "course_rag": ("courses",),
+        "integrated_blog": ("blogs",),
     }
 
     async def get_feature_readiness(self) -> dict[str, Any]:
@@ -312,6 +313,7 @@ class VectorService:
         collections = {
             "courses": self._settings.qdrant_course_collection,
             "lessons": self._settings.qdrant_lesson_collection,
+            "blogs": self._settings.qdrant_blog_collection,
             "profiles": self._settings.qdrant_profile_collection,
             "sessionFiles": self._settings.qdrant_session_file_collection,
             "userFiles": self._settings.qdrant_user_file_collection,
@@ -418,6 +420,39 @@ class VectorService:
             },
         }
 
+    async def reindex_blogs(self) -> dict[str, Any]:
+        started = perf_counter()
+        blogs = await catalog_service.fetch_published_blogs(limit=None)
+        indexed = 0
+        failed = 0
+
+        if blogs:
+            texts = [catalog_service.build_blog_search_document(blog) for blog in blogs]
+            embeddings = await switchable_ai_gateway.generate_embeddings(texts, task_type="RETRIEVAL_DOCUMENT")
+            indexed, failed = await self._recreate_and_upsert(
+                collection=self._settings.qdrant_blog_collection,
+                records=blogs,
+                embeddings=embeddings,
+                payload_builder=self._blog_payload,
+            )
+        await runtime_observability_service.record_vector_operation(
+            operation="reindex_blogs",
+            duration_ms=(perf_counter() - started) * 1000,
+            success=failed == 0,
+            collection=self._settings.qdrant_blog_collection,
+            count=indexed,
+        )
+
+        return {
+            "success": failed == 0,
+            "message": "Blog reindex completed from PostgreSQL to Qdrant.",
+            "stats": {
+                "indexed": indexed,
+                "failed": failed,
+                "duration": f"{perf_counter() - started:.2f}s",
+            },
+        }
+
     async def reindex_single_course(self, course_id: str) -> dict[str, Any]:
         """Incrementally reindex a single course by ID instead of full reindex.
 
@@ -501,21 +536,24 @@ class VectorService:
         started = perf_counter()
         course_result = await self.reindex_courses()
         lesson_result = await self.reindex_lessons()
+        blog_result = await self.reindex_blogs()
         profile_result = await self._reindex_behavior_profiles()
 
         counts = {
             "courses": course_result["stats"]["indexed"],
             "lessons": lesson_result["stats"]["indexed"],
+            "blogs": blog_result["stats"]["indexed"],
             "enrollments": profile_result["stats"]["indexed"],
         }
         failed = (
             course_result["stats"]["failed"]
             + lesson_result["stats"]["failed"]
+            + blog_result["stats"]["failed"]
             + profile_result["stats"]["failed"]
         )
         return {
             "success": failed == 0,
-            "message": "Full system reindex completed using PostgreSQL, Qdrant and profile behavior aggregation.",
+            "message": "Full system reindex completed using PostgreSQL, Qdrant, blogs and profile behavior aggregation.",
             "stats": {
                 "indexed": sum(counts.values()),
                 "failed": failed,
@@ -1178,6 +1216,26 @@ class VectorService:
             "course_title": lesson.get("course_title"),
             "course_level": lesson.get("course_level"),
             "course_language": lesson.get("course_language"),
+        }
+
+    @staticmethod
+    def _blog_payload(blog: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": blog.get("id"),
+            "blog_id": blog.get("id"),
+            "title": blog.get("title"),
+            "content": blog.get("content"),
+            "thumbnail": blog.get("thumbnail"),
+            "author_id": blog.get("author_id"),
+            "author_username": blog.get("author_username"),
+            "author_full_name": blog.get("author_full_name"),
+            "status": blog.get("status"),
+            "tags": blog.get("tags") or [],
+            "attachments": blog.get("attachments") or [],
+            "related_course_ids": blog.get("related_course_ids") or [],
+            "related_lesson_ids": blog.get("related_lesson_ids") or [],
+            "created": blog.get("created"),
+            "updated": blog.get("updated"),
         }
 
     @staticmethod

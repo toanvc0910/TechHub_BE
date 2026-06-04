@@ -26,6 +26,7 @@ JOINS: tuple[JoinContract, ...] = (
     JoinContract("progress", "lesson_id", "lessons", "id", "Progress is measured per lesson."),
     JoinContract("ratings", "user_id", "users", "id", "Rating author."),
     JoinContract("ratings", "target_id", "courses", "id", "Course rating when target_type = 'COURSE'."),
+    JoinContract("blogs", "author_id", "users", "id", "Blog author user."),
     JoinContract("submissions", "user_id", "users", "id", "Submission author."),
     JoinContract("submissions", "exercise_id", "exercises", "id", "Submission target exercise."),
     JoinContract("learning_path_courses", "path_id", "learning_paths", "id", "Learning path contains courses."),

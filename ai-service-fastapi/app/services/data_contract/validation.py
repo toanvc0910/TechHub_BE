@@ -60,6 +60,7 @@ FEATURE_TABLES = {
         "transaction_items",
         "payments",
     ),
+    "integrated_blog": ("blogs", "users", "courses", "chapters", "lessons"),
     "chat_history": ("chat_sessions", "chat_messages"),
     "draft_approval": ("ai_generation_tasks",),
 }

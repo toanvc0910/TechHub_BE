@@ -50,6 +50,10 @@ public interface AiServiceClient {
         ResponseEntity<String> reindexLessons(
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 
+        @PostMapping("/api/ai/admin/reindex-blogs")
+        ResponseEntity<String> reindexBlogs(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
         @PostMapping("/api/ai/admin/reindex-all")
         ResponseEntity<String> reindexAll(@RequestHeader(value = "Authorization", required = false) String authHeader);
 

@@ -152,6 +152,12 @@ public class AiProxyController {
         return aiServiceClient.reindexLessons(authHeader);
     }
 
+    @PostMapping("/admin/reindex-blogs")
+    public ResponseEntity<String> reindexBlogs(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.reindexBlogs(authHeader);
+    }
+
     @PostMapping("/admin/reindex-all")
     public ResponseEntity<String> reindexAll(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {

@@ -589,6 +589,9 @@ CREATE TABLE blogs (
     thumbnail VARCHAR(500),
     author_id UUID NOT NULL REFERENCES users(id),
     status blog_status DEFAULT 'DRAFT',
+    tags TEXT[] DEFAULT ARRAY[]::TEXT[],
+    related_course_ids UUID[] NOT NULL DEFAULT ARRAY[]::UUID[],
+    related_lesson_ids UUID[] NOT NULL DEFAULT ARRAY[]::UUID[],
     attachments JSONB DEFAULT '[]'::JSONB,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -600,6 +603,9 @@ CREATE INDEX idx_blogs_author_id ON blogs(author_id);
 CREATE INDEX idx_blogs_status ON blogs(status);
 CREATE INDEX idx_blogs_title_trgm ON blogs USING GIN (title gin_trgm_ops);
 CREATE INDEX idx_blogs_is_active ON blogs(is_active);
+CREATE INDEX idx_blogs_tags_gin ON blogs USING GIN (tags);
+CREATE INDEX idx_blogs_related_course_ids ON blogs USING GIN (related_course_ids);
+CREATE INDEX idx_blogs_related_lesson_ids ON blogs USING GIN (related_lesson_ids);
 -- Forums
 CREATE TABLE forums (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1462,6 +1468,7 @@ WITH seed(name, description, url, method, resource) AS (
         ('AI_DRAFTS_REJECT', 'Reject Draft', '/api/ai/drafts/{taskId}/reject', 'POST'::permission_method, 'AI'),
         ('AI_REINDEX_COURSES', 'Reindex courses', '/api/ai/admin/reindex-courses', 'POST'::permission_method, 'AI'),
         ('AI_REINDEX_LESSONS', 'Reindex lessons', '/api/ai/admin/reindex-lessons', 'POST'::permission_method, 'AI'),
+        ('AI_REINDEX_BLOGS', 'Reindex blogs', '/api/ai/admin/reindex-blogs', 'POST'::permission_method, 'AI'),
         ('AI_REINDEX_ALL', 'Reindex all', '/api/ai/admin/reindex-all', 'POST'::permission_method, 'AI'),
         ('AI_QDRANT_STATS', 'Qdrant stats', '/api/ai/admin/qdrant-stats', 'POST'::permission_method, 'AI'),
         ('NOTIFICATION_READ_ALL', 'Get all notifications', '/api/notifications', 'GET'::permission_method, 'NOTIFICATIONS'),

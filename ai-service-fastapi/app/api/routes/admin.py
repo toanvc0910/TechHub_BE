@@ -34,6 +34,12 @@ async def reindex_lessons(request: Request) -> dict:
     return success_response(message="Reindexed lessons", data=data, path=request.url.path, status="REINDEX_COMPLETED")
 
 
+@router.post("/reindex-blogs")
+async def reindex_blogs(request: Request) -> dict:
+    data = await vector_service.reindex_blogs()
+    return success_response(message="Reindexed blogs", data=data, path=request.url.path, status="REINDEX_COMPLETED")
+
+
 @router.post("/reindex-all")
 async def reindex_all(request: Request) -> dict:
     data = await vector_service.reindex_all()

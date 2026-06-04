@@ -176,6 +176,23 @@ TABLES: dict[str, TableContract] = {
         owner="course-service",
         columns=("id", "user_id", "target_id", "target_type", "score", *AUDIT_COLUMNS),
     ),
+    "blogs": TableContract(
+        name="blogs",
+        owner="blog-service",
+        columns=(
+            "id",
+            "title",
+            "content",
+            "thumbnail",
+            "author_id",
+            "status",
+            "tags",
+            "attachments",
+            "related_course_ids",
+            "related_lesson_ids",
+            *AUDIT_COLUMNS,
+        ),
+    ),
     "submissions": TableContract(
         name="submissions",
         owner="course-service",

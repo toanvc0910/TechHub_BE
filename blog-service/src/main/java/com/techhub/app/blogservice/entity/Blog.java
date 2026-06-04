@@ -58,6 +58,14 @@ public class Blog {
     @Column(name = "tags", columnDefinition = "text[]")
     private List<String> tags;
 
+    @Type(type = "list-array")
+    @Column(name = "related_course_ids", columnDefinition = "uuid[]")
+    private List<UUID> relatedCourseIds;
+
+    @Type(type = "list-array")
+    @Column(name = "related_lesson_ids", columnDefinition = "uuid[]")
+    private List<UUID> relatedLessonIds;
+
     @Type(type = "json")
     @Column(name = "attachments", columnDefinition = "jsonb")
     private List<BlogAttachment> attachments;
