@@ -20,4 +20,7 @@ public class FileUploadedEvent {
     private String fileType;
     private String mimeType;
     private String publicUrl;
+    private String secureUrl;
+    private String name;
+    private String originalName;
 }

@@ -17,6 +17,13 @@ import java.util.List;
 
 @Configuration
 public class FeignConfig {
+    private static final List<String> ROLE_PRIORITY = List.of(
+            "SUPER_ADMIN",
+            "ADMIN",
+            "STAFF",
+            "INSTRUCTOR",
+            "LEARNER",
+            "USER");
 
     @Bean
     public Encoder feignFormEncoder(ObjectFactory<HttpMessageConverters> messageConverters) {
@@ -48,7 +55,10 @@ public class FeignConfig {
                     if (userRoles != null) {
                         @SuppressWarnings("unchecked")
                         List<String> roles = (List<String>) userRoles;
-                        template.header("X-User-Roles", String.join(",", roles));
+                        String forwardedRole = selectForwardedRole(roles);
+                        if (forwardedRole != null) {
+                            template.header("X-User-Roles", forwardedRole);
+                        }
                     }
 
                     // Forward other important headers for tracing
@@ -74,5 +84,19 @@ public class FeignConfig {
                 }
             }
         };
+    }
+
+    private static String selectForwardedRole(List<String> roles) {
+        if (roles == null || roles.isEmpty()) {
+            return null;
+        }
+        for (String priorityRole : ROLE_PRIORITY) {
+            for (String role : roles) {
+                if (priorityRole.equalsIgnoreCase(role)) {
+                    return priorityRole;
+                }
+            }
+        }
+        return roles.get(0);
     }
 }

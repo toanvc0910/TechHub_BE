@@ -242,6 +242,7 @@ services:
       - QDRANT_PROFILE_COLLECTION=${QDRANT_PROFILE_COLLECTION:-user_embeddings}
       - QDRANT_SESSION_FILE_COLLECTION=session_file_embeddings
       - QDRANT_USER_FILE_COLLECTION=user_file_embeddings
+      - FILE_SERVICE_BASE_URL=http://file-service-container:8086
       - AI_ORCHESTRATION_V2_ENABLED=true
       - AI_LEGACY_FALLBACK_ENABLED=true
       - AI_HITL_ENABLED=true

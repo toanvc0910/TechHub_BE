@@ -464,10 +464,6 @@ public class FileManagementServiceImpl implements FileManagementService {
     }
 
     private void publishProcessingEventIfNeeded(FileEntity saved) {
-        if (saved.getFileType() != FileTypeEnum.VIDEO) {
-            return;
-        }
-
         FileUploadedEvent event = FileUploadedEvent.builder()
                 .fileId(saved.getId())
                 .userId(saved.getUserId())
@@ -476,11 +472,14 @@ public class FileManagementServiceImpl implements FileManagementService {
                 .fileType(saved.getFileType().name())
                 .mimeType(saved.getMimeType())
                 .publicUrl(saved.getPublicUrl())
+                .secureUrl(saved.getSecureUrl())
+                .name(saved.getName())
+                .originalName(saved.getOriginalName())
                 .build();
 
         boolean enqueued = fileEventPublisher.publishFileUploaded(event);
 
-        if (enqueued) {
+        if (enqueued || saved.getFileType() != FileTypeEnum.VIDEO) {
             return;
         }
 
