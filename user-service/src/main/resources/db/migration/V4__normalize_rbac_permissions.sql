@@ -217,6 +217,7 @@ WITH seed(name, description, url, method, resource) AS (
         ('AI_DRAFTS_REJECT', 'Reject Draft', '/api/ai/drafts/{taskId}/reject', 'POST'::permission_method, 'AI'),
         ('AI_REINDEX_COURSES', 'Reindex courses', '/api/ai/admin/reindex-courses', 'POST'::permission_method, 'AI'),
         ('AI_REINDEX_LESSONS', 'Reindex lessons', '/api/ai/admin/reindex-lessons', 'POST'::permission_method, 'AI'),
+        ('AI_REINDEX_BLOGS', 'Reindex blogs', '/api/ai/admin/reindex-blogs', 'POST'::permission_method, 'AI'),
         ('AI_REINDEX_ALL', 'Reindex all', '/api/ai/admin/reindex-all', 'POST'::permission_method, 'AI'),
         ('AI_QDRANT_STATS', 'Qdrant stats', '/api/ai/admin/qdrant-stats', 'POST'::permission_method, 'AI'),
         ('NOTIFICATION_READ_ALL', 'Get all notifications', '/api/notifications', 'GET'::permission_method, 'NOTIFICATIONS'),

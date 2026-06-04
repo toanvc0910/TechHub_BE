@@ -11,6 +11,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -31,6 +32,10 @@ public class BlogRequest {
     private BlogStatus status;
 
     private List<String> tags;
+
+    private List<UUID> relatedCourseIds;
+
+    private List<UUID> relatedLessonIds;
 
     @Valid
     private List<BlogAttachmentDto> attachments;

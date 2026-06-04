@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
@@ -14,6 +15,8 @@ from app.services.observability_service import runtime_observability_service
 logger = logging.getLogger(__name__)
 
 ACTIVE_COURSE_SQL = "UPPER(COALESCE(c.is_active::text, 'N')) IN ('Y', 'TRUE', 'T', '1')"
+ACTIVE_BLOG_SQL = "UPPER(COALESCE(b.is_active::text, 'N')) IN ('Y', 'TRUE', 'T', '1')"
+HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def _normalize_uuidish(value: Any) -> str | None:
@@ -242,6 +245,43 @@ class CatalogService:
             result = await session.execute(text(sql), {"lesson_id": lesson_id})
             row = result.mappings().first()
             return self._normalize_lesson_row(dict(row)) if row else None
+
+    async def fetch_published_blogs(self, limit: int | None = None) -> list[dict[str, Any]]:
+        sql = f"""
+            SELECT
+                b.id,
+                b.title,
+                b.content,
+                b.thumbnail,
+                b.author_id,
+                b.status,
+                b.tags,
+                b.attachments,
+                b.related_course_ids,
+                b.related_lesson_ids,
+                b.created,
+                b.updated,
+                u.username AS author_username,
+                p.full_name AS author_full_name
+            FROM blogs b
+            LEFT JOIN users u
+                ON u.id = b.author_id
+               AND u.is_active = 'Y'
+            LEFT JOIN profiles p
+                ON p.user_id = b.author_id
+               AND p.is_active = 'Y'
+            WHERE {ACTIVE_BLOG_SQL}
+              AND b.status = 'PUBLISHED'
+            ORDER BY b.created DESC
+        """
+        params: dict[str, Any] = {}
+        if limit:
+            sql += "\nLIMIT :limit"
+            params["limit"] = limit
+
+        async with get_db_session() as session:
+            result = await session.execute(text(sql), params)
+            return [self._normalize_blog_row(dict(row)) for row in result.mappings().all()]
 
     async def fetch_user_profile(self, user_id: str) -> dict[str, Any] | None:
         sql = """
@@ -624,6 +664,21 @@ class CatalogService:
         return "\n".join(part for part in parts if part).strip()
 
     @staticmethod
+    def build_blog_search_document(blog: dict[str, Any]) -> str:
+        content = str(blog.get("content") or "")
+        plain_content = HTML_TAG_RE.sub(" ", content)
+        plain_content = re.sub(r"\s+", " ", plain_content).strip()
+        parts: list[str] = [
+            str(blog.get("title") or ""),
+            plain_content,
+            " ".join(blog.get("tags") or []),
+            str(blog.get("author_full_name") or blog.get("author_username") or ""),
+            "related_courses=" + ", ".join(blog.get("related_course_ids") or []),
+            "related_lessons=" + ", ".join(blog.get("related_lesson_ids") or []),
+        ]
+        return "\n".join(part for part in parts if part).strip()
+
+    @staticmethod
     def summarize_user_profile(profile: dict[str, Any], course_history: list[dict[str, Any]]) -> str:
         completed = [
             item["title"]
@@ -675,6 +730,22 @@ class CatalogService:
         row["document_urls"] = _normalize_jsonish(row.get("document_urls"), [])
         row["workspace_languages"] = _normalize_jsonish(row.get("workspace_languages"), [])
         row["workspace_template"] = _normalize_jsonish(row.get("workspace_template"), {})
+        return row
+
+    @staticmethod
+    def _normalize_blog_row(row: dict[str, Any]) -> dict[str, Any]:
+        row["id"] = _normalize_uuidish(row.get("id"))
+        row["author_id"] = _normalize_uuidish(row.get("author_id"))
+        row["tags"] = _normalize_jsonish(row.get("tags"), [])
+        row["attachments"] = _normalize_jsonish(row.get("attachments"), [])
+        row["related_course_ids"] = [
+            value for value in (_normalize_uuidish(item) for item in _normalize_jsonish(row.get("related_course_ids"), []))
+            if value
+        ]
+        row["related_lesson_ids"] = [
+            value for value in (_normalize_uuidish(item) for item in _normalize_jsonish(row.get("related_lesson_ids"), []))
+            if value
+        ]
         return row
 
     @staticmethod

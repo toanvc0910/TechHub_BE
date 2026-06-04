@@ -28,6 +28,7 @@ DATA_OWNERS = {
         "learning_path_skills",
         "path_progress",
     ),
+    "blog-service": ("blogs",),
     "analytics-service": ("analytics",),
     "payment-service": ("transactions", "transaction_items", "payments"),
     "file-service": ("files", "file_usage"),

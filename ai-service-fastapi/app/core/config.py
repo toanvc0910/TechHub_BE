@@ -135,6 +135,9 @@ class Settings:
     qdrant_lesson_collection: str = field(
         default_factory=lambda: os.getenv("QDRANT_LESSON_COLLECTION", "lesson_embeddings")
     )
+    qdrant_blog_collection: str = field(
+        default_factory=lambda: os.getenv("QDRANT_BLOG_COLLECTION", "blog_embeddings")
+    )
     qdrant_profile_collection: str = field(
         default_factory=lambda: os.getenv("QDRANT_PROFILE_COLLECTION", "user_embeddings")
     )

@@ -22,6 +22,8 @@ public class BlogResponse {
     private String thumbnail;
     private BlogStatus status;
     private List<String> tags;
+    private List<UUID> relatedCourseIds;
+    private List<UUID> relatedLessonIds;
     private List<BlogAttachmentDto> attachments;
     private UUID authorId;
     private OffsetDateTime created;
