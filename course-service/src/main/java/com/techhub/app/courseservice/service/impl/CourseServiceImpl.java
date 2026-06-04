@@ -103,16 +103,19 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CourseSummaryResponse> getCourses(String search, CourseLevel level, Language language,
-            BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds, Pageable pageable) {
+    public Page<CourseSummaryResponse> getCourses(UUID instructorId, CourseStatus status, String search,
+            CourseLevel level, Language language, BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds,
+            List<UUID> tagIds, Pageable pageable) {
         String normalized = normalizeSearch(search);
         boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN);
-        CourseStatus visibleStatus = isAdmin ? null : CourseStatus.PUBLISHED;
+        CourseStatus visibleStatus = isAdmin ? status : CourseStatus.PUBLISHED;
         CourseLevel normalizedLevel = level == CourseLevel.ALL_LEVELS ? null : level;
+        log.info("Search courses: instructorId={}, requestedStatus={}, effectiveStatus={}, search={}, page={}, size={}",
+                instructorId, status, visibleStatus, normalized, pageable.getPageNumber(), pageable.getPageSize());
 
         Page<Course> courses = courseRepository.findAll(
-                buildCourseSearchSpecification(null, visibleStatus, normalized, normalizedLevel, language, minPrice,
-                        maxPrice, normalizeIdList(skillIds), normalizeIdList(tagIds)),
+                buildCourseSearchSpecification(instructorId, visibleStatus, normalized, normalizedLevel, language,
+                        minPrice, maxPrice, normalizeIdList(skillIds), normalizeIdList(tagIds)),
                 pageable);
         return mapCourseSummaries(courses);
     }

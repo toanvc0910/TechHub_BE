@@ -53,6 +53,8 @@ public class CourseController {
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
                         @RequestParam(required = false) String search,
+                        @RequestParam(required = false) UUID instructorId,
+                        @RequestParam(required = false) CourseStatus status,
                         @RequestParam(required = false) CourseLevel level,
                         @RequestParam(required = false) Language language,
                         @RequestParam(required = false) BigDecimal minPrice,
@@ -61,8 +63,10 @@ public class CourseController {
                         @RequestParam(required = false) List<UUID> tagIds,
                         HttpServletRequest request) {
                 Pageable pageable = PageRequest.of(page, size);
-                Page<CourseSummaryResponse> coursePage = courseService.getCourses(search, level, language, minPrice,
-                                maxPrice, skillIds, tagIds, pageable);
+                log.info("Get courses request: instructorId={}, status={}, search={}, page={}, size={}",
+                                instructorId, status, search, page, size);
+                Page<CourseSummaryResponse> coursePage = courseService.getCourses(instructorId, status, search, level,
+                                language, minPrice, maxPrice, skillIds, tagIds, pageable);
 
                 PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
                                 .page(coursePage.getNumber())

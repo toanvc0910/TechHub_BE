@@ -1910,6 +1910,8 @@ WITH seed(url_pattern, method, security_level, description) AS (
         ('/api/v1/instructor-applications/**', '*', 'AUTHORIZED'::security_level, 'Direct instructor application APIs require DB permissions'),
         ('/api/users/resend-reset-code/**', '*', 'PUBLIC'::security_level, 'Resend reset code'),
         ('/api/v1/instructor-applications', '*', 'AUTHORIZED'::security_level, 'Direct instructor application APIs require DB permissions'),
+        ('/api/v1/instructor-profiles/me', 'GET', 'AUTHENTICATED'::security_level, 'Any logged-in user can read their own instructor profile'),
+        ('/api/users/instructor-profiles/me', 'GET', 'AUTHENTICATED'::security_level, 'Any logged-in user can read their own instructor profile'),
         ('/api/v1/instructor-profiles/**', '*', 'AUTHORIZED'::security_level, 'Instructor profile APIs require DB permissions'),
         ('/api/users/instructor-profiles/{userId}', 'GET', 'PUBLIC'::security_level, 'Public instructor profile by user id'),
         ('/api/users/instructor-profiles/**', '*', 'AUTHORIZED'::security_level, 'Proxied instructor profile APIs require DB permissions'),

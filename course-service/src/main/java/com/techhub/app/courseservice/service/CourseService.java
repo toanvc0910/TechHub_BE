@@ -21,8 +21,9 @@ import java.util.UUID;
 
 public interface CourseService {
 
-    Page<CourseSummaryResponse> getCourses(String search, CourseLevel level, Language language, BigDecimal minPrice,
-            BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds, Pageable pageable);
+    Page<CourseSummaryResponse> getCourses(UUID instructorId, CourseStatus status, String search, CourseLevel level,
+            Language language, BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds,
+            Pageable pageable);
 
     Page<CourseSummaryResponse> getMyCourses(String search, CourseStatus status, CourseLevel level, Language language,
             BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds, Pageable pageable);
