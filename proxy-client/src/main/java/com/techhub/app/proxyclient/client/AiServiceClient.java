@@ -54,6 +54,10 @@ public interface AiServiceClient {
         ResponseEntity<String> reindexBlogs(
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 
+        @PostMapping("/api/ai/admin/reindex-data-contract")
+        ResponseEntity<String> reindexDataContract(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
         @PostMapping("/api/ai/admin/reindex-all")
         ResponseEntity<String> reindexAll(@RequestHeader(value = "Authorization", required = false) String authHeader);
 
@@ -71,6 +75,10 @@ public interface AiServiceClient {
 
         @GetMapping("/api/ai/admin/data-contract/validate")
         ResponseEntity<String> validateDataContract(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @PostMapping("/api/ai/admin/data-contract/sync")
+        ResponseEntity<String> syncDataContract(
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 
         @GetMapping("/api/ai/admin/langfuse-traces")

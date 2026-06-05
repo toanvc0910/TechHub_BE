@@ -147,6 +147,9 @@ class Settings:
     qdrant_blog_collection: str = field(
         default_factory=lambda: os.getenv("QDRANT_BLOG_COLLECTION", "blog_embeddings")
     )
+    qdrant_data_contract_collection: str = field(
+        default_factory=lambda: os.getenv("QDRANT_DATA_CONTRACT_COLLECTION", "data_contract_embeddings")
+    )
     qdrant_profile_collection: str = field(
         default_factory=lambda: os.getenv("QDRANT_PROFILE_COLLECTION", "user_embeddings")
     )
@@ -179,6 +182,10 @@ class Settings:
     stream_emit_delay_ms: int = field(default_factory=lambda: _int_env("AI_STREAM_EMIT_DELAY_MS", 8))
     runtime_metrics_window: int = field(default_factory=lambda: _int_env("AI_RUNTIME_METRICS_WINDOW", 200))
     runtime_recent_request_window: int = field(default_factory=lambda: _int_env("AI_RUNTIME_RECENT_REQUEST_WINDOW", 100))
+    data_contract_version: str = field(default_factory=lambda: os.getenv("AI_DATA_CONTRACT_VERSION", "techhub_v1"))
+    data_contract_cache_ttl_seconds: int = field(
+        default_factory=lambda: _int_env("AI_DATA_CONTRACT_CACHE_TTL_SECONDS", 60)
+    )
     token_estimation_chars_per_token: float = field(
         default_factory=lambda: _float_env("AI_TOKEN_ESTIMATION_CHARS_PER_TOKEN", 3.8)
     )

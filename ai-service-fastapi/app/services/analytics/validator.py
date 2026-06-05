@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 from app.services.analytics.metric_registry import get_metric
-from app.services.data_contract import TABLES
+from app.services.data_contract import TABLES, TableContract
 
 
 def validate_metric_plan(
@@ -14,6 +14,7 @@ def validate_metric_plan(
     tables: set[str],
     policy: dict[str, Any],
     scope: str,
+    table_contracts: dict[str, TableContract] | None = None,
 ) -> None:
     definition = get_metric(metric_key)
     if definition is None:
@@ -45,12 +46,12 @@ def validate_metric_plan(
         raise ValueError("Analytics metric SQL cannot use SELECT *.")
 
     if not policy.get("piiAccess", False):
-        blocked = _collect_pii_selected_columns(sql)
+        blocked = _collect_pii_selected_columns(sql, table_contracts=table_contracts or TABLES)
         if blocked:
             raise ValueError(f"Metric SQL selects restricted columns without PII access: {sorted(blocked)}")
 
 
-def _collect_pii_selected_columns(sql: str) -> set[str]:
+def _collect_pii_selected_columns(sql: str, *, table_contracts: dict[str, TableContract]) -> set[str]:
     select_match = re.search(r"select\s+(.*?)\s+from\s", sql, flags=re.I | re.S)
     if not select_match:
         return set()
@@ -59,7 +60,7 @@ def _collect_pii_selected_columns(sql: str) -> set[str]:
     blocked: set[str] = set()
     for alias, column in re.findall(r"\b([a-z_][a-z0-9_]*)\.\"?([a-z_][a-z0-9_]*)\"?", select_clause, flags=re.I):
         table_name = alias_to_table.get(alias.lower(), alias.lower())
-        contract = TABLES.get(table_name)
+        contract = table_contracts.get(table_name)
         if contract and column.lower() in {item.lower() for item in contract.pii_columns}:
             blocked.add(column.lower())
     return blocked

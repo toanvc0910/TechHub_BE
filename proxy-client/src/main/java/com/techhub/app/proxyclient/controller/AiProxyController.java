@@ -158,6 +158,12 @@ public class AiProxyController {
         return aiServiceClient.reindexBlogs(authHeader);
     }
 
+    @PostMapping("/admin/reindex-data-contract")
+    public ResponseEntity<String> reindexDataContract(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.reindexDataContract(authHeader);
+    }
+
     @PostMapping("/admin/reindex-all")
     public ResponseEntity<String> reindexAll(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
@@ -186,6 +192,12 @@ public class AiProxyController {
     public ResponseEntity<String> validateDataContract(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         return aiServiceClient.validateDataContract(authHeader);
+    }
+
+    @PostMapping("/admin/data-contract/sync")
+    public ResponseEntity<String> syncDataContract(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return aiServiceClient.syncDataContract(authHeader);
     }
 
     @PostMapping("/admin/ingest-file-uploaded")

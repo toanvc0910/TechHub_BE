@@ -10,7 +10,7 @@ from app.api.dependencies.trusted_context import require_admin_context
 from app.core.config import get_settings
 from app.core.responses import success_response
 from app.schemas.admin import FileUploadedEventRequest, ProviderConfigRequest
-from app.services.data_contract import summarize_data_contract, validate_data_contract
+from app.services.data_contract import data_contract_registry, summarize_data_contract, validate_data_contract
 from app.services.draft_service import draft_service
 from app.services.file_context_service import file_context_service
 from app.services.langfuse_service import langfuse_service
@@ -38,6 +38,17 @@ async def reindex_lessons(request: Request) -> dict:
 async def reindex_blogs(request: Request) -> dict:
     data = await vector_service.reindex_blogs()
     return success_response(message="Reindexed blogs", data=data, path=request.url.path, status="REINDEX_COMPLETED")
+
+
+@router.post("/reindex-data-contract")
+async def reindex_data_contract(request: Request) -> dict:
+    data = await vector_service.reindex_data_contract()
+    return success_response(
+        message="Reindexed AI data contract",
+        data=data,
+        path=request.url.path,
+        status="REINDEX_COMPLETED",
+    )
 
 
 @router.post("/reindex-all")
@@ -91,7 +102,7 @@ async def get_release_readiness(request: Request) -> dict:
 
 @router.get("/data-contract")
 async def get_data_contract(request: Request) -> dict:
-    data = summarize_data_contract()
+    data = await summarize_data_contract()
     return success_response(message="AI data contract retrieved", data=data, path=request.url.path)
 
 
@@ -103,6 +114,17 @@ async def validate_current_data_contract(request: Request) -> dict:
         data=data,
         path=request.url.path,
         status=data.get("status", "DATA_CONTRACT_VALIDATED"),
+    )
+
+
+@router.post("/data-contract/sync")
+async def sync_data_contract(request: Request) -> dict:
+    data = await data_contract_registry.sync_static_contract()
+    return success_response(
+        message="AI data contract synced into PostgreSQL",
+        data=data,
+        path=request.url.path,
+        status=data.get("status", "DATA_CONTRACT_SYNCED"),
     )
 
 
