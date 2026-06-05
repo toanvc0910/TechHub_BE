@@ -81,9 +81,43 @@ class ConversationAgentNode:
     @staticmethod
     def _build_conversation_prompt(state: OrchestratorState) -> str:
         profile_context = ConversationAgentNode._build_profile_context(state)
-        if not profile_context:
+        history_block = ConversationAgentNode._build_history_block(state)
+        sections = [part for part in (profile_context, history_block) if part]
+        if not sections:
             return state["user_input"]
-        return f"{profile_context}\n\nCurrent user message: {state['user_input']}"
+        sections.append(f"Current user message: {state['user_input']}")
+        return "\n\n".join(sections)
+
+    @staticmethod
+    def _build_history_block(state: OrchestratorState, max_turns: int = 8) -> str:
+        conversation_context = state.get("conversation_context")
+        if not isinstance(conversation_context, dict):
+            return ""
+        recent = conversation_context.get("recentMessages")
+        if not isinstance(recent, list) or not recent:
+            return ""
+
+        lines: list[str] = []
+        for message in recent[-max_turns:]:
+            if not isinstance(message, dict):
+                continue
+            role = str(message.get("role") or message.get("sender") or "user").lower()
+            raw_content = message.get("content") or message.get("text")
+            content = str(raw_content).strip()[:400] if raw_content is not None else ""
+            if not content:
+                continue
+            speaker = "Assistant" if role in {"assistant", "ai", "bot", "model"} else "User"
+            lines.append(f"{speaker}: {content}")
+        if not lines:
+            return ""
+
+        return (
+            "Earlier messages in this same conversation (oldest first). "
+            "Use them to stay consistent and to recall facts the user stated earlier "
+            "(their name, preferences, project names, numbers, etc.). "
+            "Prefer what the user said here over generic assumptions:\n"
+            + "\n".join(lines)
+        )
 
     @staticmethod
     def _build_profile_context(state: OrchestratorState) -> str:
@@ -101,8 +135,9 @@ class ConversationAgentNode:
         if username:
             lines.append(f"- Username: {username}")
         lines.append(
-            "If the user asks for their name, answer from this profile context. "
-            "Do not call it a legal identity."
+            "If the user asks for their name, answer from this profile context "
+            "unless they gave a preferred name or nickname earlier in this "
+            "conversation, in which case prefer that. Do not call it a legal identity."
         )
         return "\n".join(lines)
 

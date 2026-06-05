@@ -34,6 +34,7 @@ default:
         - course-service/pom.xml
         - learning-path-service/pom.xml
         - payment-service/pom.xml
+        - analytics-service/pom.xml
         - file-service/pom.xml
         - notification-service/pom.xml
         - ai-service/pom.xml
@@ -48,8 +49,7 @@ build_backend:
     - set -e
     - java -version
     - mvn -version
-    - chmod +x mvnw
-    - ./mvnw $MAVEN_CLI_OPTS clean package
+    - mvn $MAVEN_CLI_OPTS clean package
   artifacts:
     when: on_success
     expire_in: 1 day
@@ -63,6 +63,7 @@ build_backend:
       - course-service/target/*.jar
       - learning-path-service/target/*.jar
       - payment-service/target/*.jar
+      - analytics-service/target/*.jar
       - file-service/target/*.jar
       - notification-service/target/*.jar
       - ai-service/target/*.jar
@@ -86,7 +87,7 @@ build_and_push_images:
     - set -e
     - export SHA_TAG="$CI_COMMIT_SHA"
     - |
-      for service in service-discovery api-gateway proxy-client user-service blog-service course-service learning-path-service payment-service file-service notification-service ai-service; do
+      for service in service-discovery api-gateway proxy-client user-service blog-service course-service learning-path-service payment-service analytics-service file-service notification-service ai-service; do
         echo "Building and pushing ${service}"
         build_dir="${service}"
         if [ "${service}" = "ai-service" ]; then
