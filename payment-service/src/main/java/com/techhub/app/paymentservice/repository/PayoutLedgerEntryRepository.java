@@ -27,6 +27,14 @@ public interface PayoutLedgerEntryRepository extends JpaRepository<PayoutLedgerE
     BigDecimal sumAmountByInstructorAndTypes(@Param("instructorId") String instructorId,
             @Param("types") Collection<String> types);
 
+    @Query(value = "SELECT COALESCE(SUM(le.amount), 0) FROM payout_ledger_entries le " +
+            "WHERE CAST(le.instructor_id AS TEXT) = :instructorId " +
+            "AND le.entry_type IN (:types) AND le.is_active = 'Y' " +
+            "AND (le.reference_type IS NULL OR le.reference_type <> :excludedReferenceType)", nativeQuery = true)
+    BigDecimal sumAmountByInstructorAndTypesExcludingReferenceType(@Param("instructorId") String instructorId,
+            @Param("types") Collection<String> types,
+            @Param("excludedReferenceType") String excludedReferenceType);
+
     @Query(value = "SELECT CASE WHEN COUNT(1) > 0 THEN TRUE ELSE FALSE END FROM payout_ledger_entries le " +
             "WHERE CAST(le.instructor_id AS TEXT) = :instructorId " +
             "AND le.reference_type = :referenceType AND le.is_active = :isActive", nativeQuery = true)

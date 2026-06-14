@@ -1,6 +1,7 @@
 package com.techhub.app.paymentservice.service;
 
 import com.lowagie.text.pdf.PdfReader;
+import com.techhub.app.paymentservice.dto.response.PayoutBalanceResponse;
 import com.techhub.app.paymentservice.entity.PayoutInvoice;
 import com.techhub.app.paymentservice.entity.PayoutRequest;
 import com.techhub.app.paymentservice.entity.enums.InvoiceStatus;
@@ -9,6 +10,7 @@ import com.techhub.app.paymentservice.repository.PayoutInvoiceRepository;
 import com.techhub.app.paymentservice.repository.PayoutLedgerEntryRepository;
 import com.techhub.app.paymentservice.repository.PayoutRequestRepository;
 import com.techhub.app.paymentservice.repository.TransactionItemRepository;
+import com.techhub.app.paymentservice.repository.projection.RevenueByCurrencyProjection;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
@@ -18,12 +20,100 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class PayoutServiceInvoicePdfTests {
+
+    @Test
+    void shouldExposeCompletedCourseRevenueAsPayoutBalance() {
+        UUID instructorId = UUID.fromString("9a54a992-5fe9-4a6b-af7e-4a9c92d68fe5");
+
+        PayoutRequestRepository payoutRequestRepository = mock(PayoutRequestRepository.class);
+        PayoutLedgerEntryRepository payoutLedgerEntryRepository = mock(PayoutLedgerEntryRepository.class);
+        TransactionItemRepository transactionItemRepository = mock(TransactionItemRepository.class);
+        CurrencyExchangeService currencyExchangeService = mock(CurrencyExchangeService.class);
+        RevenueSplitPolicyService revenueSplitPolicyService = mock(RevenueSplitPolicyService.class);
+
+        PayoutService payoutService = new PayoutService(
+                payoutRequestRepository,
+                mock(PayoutBatchRepository.class),
+                mock(PayoutInvoiceRepository.class),
+                payoutLedgerEntryRepository,
+                transactionItemRepository,
+                currencyExchangeService,
+                revenueSplitPolicyService,
+                mock(RestTemplate.class));
+
+        when(transactionItemRepository.getInstructorRevenueByCurrency(eq(instructorId), eq(null), eq(null)))
+                .thenReturn(java.util.List.of(revenueByCurrency(new BigDecimal("1000.00"), "VND")));
+        when(revenueSplitPolicyService.resolvePolicy(eq(instructorId), eq(null), any(OffsetDateTime.class)))
+                .thenReturn(RevenueSplitPolicyService.ResolvedPolicy.builder()
+                        .instructorRate(new BigDecimal("0.7000"))
+                        .build());
+        when(payoutLedgerEntryRepository.sumAmountByInstructorAndTypesExcludingReferenceType(
+                eq(instructorId.toString()), anyCollection(), eq("REVENUE_BOOTSTRAP")))
+                .thenReturn(BigDecimal.ZERO);
+        when(payoutRequestRepository.sumAmountByInstructorAndStatuses(eq(instructorId.toString()), anyCollection()))
+                .thenReturn(BigDecimal.ZERO);
+        when(payoutRequestRepository.sumAmountByInstructorAndStatusesMarkedPaidFrom(
+                eq(instructorId.toString()), anyCollection(), any(OffsetDateTime.class)))
+                .thenReturn(BigDecimal.ZERO);
+        when(currencyExchangeService.getRate("VND", "USD")).thenReturn(BigDecimal.ZERO);
+
+        PayoutBalanceResponse balance = payoutService.getBalance(instructorId);
+
+        assertThat(balance.getTotalEarned()).isEqualByComparingTo("700.00");
+        assertThat(balance.getAvailableAmount()).isEqualByComparingTo("700.00");
+    }
+
+    @Test
+    void shouldSubtractMarkedPaidRequestsFromAvailableBalance() {
+        UUID instructorId = UUID.fromString("9a54a992-5fe9-4a6b-af7e-4a9c92d68fe5");
+
+        PayoutRequestRepository payoutRequestRepository = mock(PayoutRequestRepository.class);
+        PayoutLedgerEntryRepository payoutLedgerEntryRepository = mock(PayoutLedgerEntryRepository.class);
+        TransactionItemRepository transactionItemRepository = mock(TransactionItemRepository.class);
+        CurrencyExchangeService currencyExchangeService = mock(CurrencyExchangeService.class);
+        RevenueSplitPolicyService revenueSplitPolicyService = mock(RevenueSplitPolicyService.class);
+
+        PayoutService payoutService = new PayoutService(
+                payoutRequestRepository,
+                mock(PayoutBatchRepository.class),
+                mock(PayoutInvoiceRepository.class),
+                payoutLedgerEntryRepository,
+                transactionItemRepository,
+                currencyExchangeService,
+                revenueSplitPolicyService,
+                mock(RestTemplate.class));
+
+        when(transactionItemRepository.getInstructorRevenueByCurrency(eq(instructorId), eq(null), eq(null)))
+                .thenReturn(java.util.List.of(revenueByCurrency(new BigDecimal("1000.00"), "VND")));
+        when(revenueSplitPolicyService.resolvePolicy(eq(instructorId), eq(null), any(OffsetDateTime.class)))
+                .thenReturn(RevenueSplitPolicyService.ResolvedPolicy.builder()
+                        .instructorRate(new BigDecimal("0.7000"))
+                        .build());
+        when(payoutLedgerEntryRepository.sumAmountByInstructorAndTypesExcludingReferenceType(
+                eq(instructorId.toString()), anyCollection(), eq("REVENUE_BOOTSTRAP")))
+                .thenReturn(BigDecimal.ZERO);
+        when(payoutRequestRepository.sumAmountByInstructorAndStatuses(eq(instructorId.toString()), anyCollection()))
+                .thenReturn(BigDecimal.ZERO);
+        when(payoutRequestRepository.sumAmountByInstructorAndStatusesMarkedPaidFrom(
+                eq(instructorId.toString()), anyCollection(), any(OffsetDateTime.class)))
+                .thenReturn(new BigDecimal("300.00"));
+        when(currencyExchangeService.getRate("VND", "USD")).thenReturn(BigDecimal.ZERO);
+
+        PayoutBalanceResponse balance = payoutService.getBalance(instructorId);
+
+        assertThat(balance.getTotalEarned()).isEqualByComparingTo("700.00");
+        assertThat(balance.getAvailableAmount()).isEqualByComparingTo("400.00");
+    }
 
     @Test
     void shouldRenderBrandedPaidInvoicePdf() throws Exception {
@@ -78,5 +168,19 @@ class PayoutServiceInvoicePdfTests {
         Path preview = Path.of("target", "payout-invoice-preview.pdf");
         Files.createDirectories(preview.getParent());
         Files.write(preview, pdf);
+    }
+
+    private static RevenueByCurrencyProjection revenueByCurrency(BigDecimal grossRevenue, String currency) {
+        return new RevenueByCurrencyProjection() {
+            @Override
+            public String getCurrency() {
+                return currency;
+            }
+
+            @Override
+            public BigDecimal getGrossRevenue() {
+                return grossRevenue;
+            }
+        };
     }
 }

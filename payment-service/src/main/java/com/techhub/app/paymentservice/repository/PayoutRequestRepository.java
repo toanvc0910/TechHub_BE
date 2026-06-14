@@ -40,4 +40,12 @@ public interface PayoutRequestRepository extends JpaRepository<PayoutRequest, St
             "AND pr.status IN (:statuses) AND pr.is_active = 'Y'", nativeQuery = true)
     BigDecimal sumAmountByInstructorAndStatuses(@Param("instructorId") String instructorId,
             @Param("statuses") Collection<String> statuses);
+
+    @Query(value = "SELECT COALESCE(SUM(pr.amount), 0) FROM payout_requests pr " +
+            "WHERE CAST(pr.instructor_id AS TEXT) = :instructorId " +
+            "AND pr.status IN (:statuses) AND pr.is_active = 'Y' " +
+            "AND pr.marked_paid_at >= :fromDate", nativeQuery = true)
+    BigDecimal sumAmountByInstructorAndStatusesMarkedPaidFrom(@Param("instructorId") String instructorId,
+            @Param("statuses") Collection<String> statuses,
+            @Param("fromDate") OffsetDateTime fromDate);
 }

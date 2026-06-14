@@ -65,6 +65,8 @@ payment:
   frontend-vnpay-return-url: ${PAYMENT_FRONTEND_VNPAY_RETURN_URL}
   revenue:
     instructor-rate: ${INSTRUCTOR_REVENUE_RATE:0.7}
+  payout:
+    paid-deduction-cutoff: ${PAYOUT_PAID_DEDUCTION_CUTOFF:2026-06-05T00:00:00+07:00}
   events:
     topic: ${PAYMENT_EVENTS_TOPIC:payment.revenue.events}
     dispatch-delay-ms: ${OUTBOX_DISPATCH_DELAY_MS:3000}
