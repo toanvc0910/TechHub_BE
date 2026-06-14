@@ -1116,6 +1116,116 @@ CREATE INDEX idx_ai_generation_tasks_created ON ai_generation_tasks(created);
 CREATE INDEX idx_ai_generation_tasks_is_active ON ai_generation_tasks(is_active);
 CREATE INDEX idx_ai_generation_tasks_target_status ON ai_generation_tasks(target_reference, status, task_type);
 CREATE TRIGGER trg_update_ai_generation_tasks BEFORE UPDATE ON ai_generation_tasks FOR EACH ROW EXECUTE PROCEDURE update_updated();
+-- AI Data Contract Registry
+-- Stores the production contract AI uses to reason about schema, joins,
+-- metrics, and Qdrant contract-index freshness. Domain data remains owned by
+-- the Java services; these are AI-service-owned metadata tables.
+CREATE TABLE IF NOT EXISTS ai_data_contract_versions (
+    version_key VARCHAR(64) PRIMARY KEY,
+    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('DRAFT', 'ACTIVE', 'RETIRED')),
+    description TEXT,
+    source VARCHAR(64) NOT NULL DEFAULT 'AI_SERVICE',
+    activated_at TIMESTAMP WITH TIME ZONE,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
+);
+CREATE TABLE IF NOT EXISTS ai_data_contract_tables (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version_key VARCHAR(64) NOT NULL REFERENCES ai_data_contract_versions(version_key) ON DELETE CASCADE,
+    table_name VARCHAR(128) NOT NULL,
+    owner_service VARCHAR(128) NOT NULL,
+    columns TEXT[] NOT NULL DEFAULT '{}',
+    pii_columns TEXT[] NOT NULL DEFAULT '{}',
+    analytics_safe BOOLEAN NOT NULL DEFAULT TRUE,
+    ai_readable BOOLEAN NOT NULL DEFAULT TRUE,
+    ai_writable BOOLEAN NOT NULL DEFAULT FALSE,
+    description TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
+    CONSTRAINT uniq_ai_contract_table UNIQUE (version_key, table_name)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_tables_version ON ai_data_contract_tables(version_key);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_tables_name ON ai_data_contract_tables(table_name);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_tables_flags ON ai_data_contract_tables(analytics_safe, ai_readable, ai_writable);
+CREATE TABLE IF NOT EXISTS ai_data_contract_relations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version_key VARCHAR(64) NOT NULL REFERENCES ai_data_contract_versions(version_key) ON DELETE CASCADE,
+    left_table VARCHAR(128) NOT NULL,
+    left_column VARCHAR(128) NOT NULL,
+    right_table VARCHAR(128) NOT NULL,
+    right_column VARCHAR(128) NOT NULL,
+    relation_type VARCHAR(64) NOT NULL DEFAULT 'foreign_key',
+    predicate TEXT,
+    purpose TEXT NOT NULL,
+    analytics_hint BOOLEAN NOT NULL DEFAULT FALSE,
+    metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_relations_version ON ai_data_contract_relations(version_key);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_relations_left ON ai_data_contract_relations(left_table, left_column);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_relations_right ON ai_data_contract_relations(right_table, right_column);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_ai_contract_relation
+    ON ai_data_contract_relations(version_key, left_table, left_column, right_table, right_column);
+CREATE TABLE IF NOT EXISTS ai_data_contract_metrics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version_key VARCHAR(64) NOT NULL REFERENCES ai_data_contract_versions(version_key) ON DELETE CASCADE,
+    metric_name VARCHAR(128) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    grain VARCHAR(128) NOT NULL,
+    tables TEXT[] NOT NULL DEFAULT '{}',
+    allowed_scopes TEXT[] NOT NULL DEFAULT '{}',
+    required_roles TEXT[] NOT NULL DEFAULT '{}',
+    required_params TEXT[] NOT NULL DEFAULT '{}',
+    owner_filtered_for_roles TEXT[] NOT NULL DEFAULT '{}',
+    default_chart VARCHAR(32) NOT NULL DEFAULT 'bar',
+    metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
+    CONSTRAINT uniq_ai_contract_metric UNIQUE (version_key, metric_name)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_metrics_version ON ai_data_contract_metrics(version_key);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_metrics_name ON ai_data_contract_metrics(metric_name);
+CREATE TABLE IF NOT EXISTS ai_data_contract_vector_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version_key VARCHAR(64) NOT NULL REFERENCES ai_data_contract_versions(version_key) ON DELETE CASCADE,
+    item_key VARCHAR(255) NOT NULL,
+    item_type VARCHAR(64) NOT NULL,
+    source_table VARCHAR(128),
+    source_name VARCHAR(255),
+    qdrant_collection VARCHAR(128) NOT NULL,
+    qdrant_point_id VARCHAR(128) NOT NULL,
+    content_hash VARCHAR(64) NOT NULL,
+    indexed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    is_active VARCHAR(1) NOT NULL DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
+    CONSTRAINT uniq_ai_contract_vector_item UNIQUE (version_key, item_key)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_vector_items_version ON ai_data_contract_vector_items(version_key);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_vector_items_type ON ai_data_contract_vector_items(item_type);
+CREATE TRIGGER trg_update_ai_data_contract_versions BEFORE UPDATE ON ai_data_contract_versions FOR EACH ROW EXECUTE PROCEDURE update_updated();
+CREATE TRIGGER trg_update_ai_data_contract_tables BEFORE UPDATE ON ai_data_contract_tables FOR EACH ROW EXECUTE PROCEDURE update_updated();
+CREATE TRIGGER trg_update_ai_data_contract_relations BEFORE UPDATE ON ai_data_contract_relations FOR EACH ROW EXECUTE PROCEDURE update_updated();
+CREATE TRIGGER trg_update_ai_data_contract_metrics BEFORE UPDATE ON ai_data_contract_metrics FOR EACH ROW EXECUTE PROCEDURE update_updated();
+CREATE TRIGGER trg_update_ai_data_contract_vector_items BEFORE UPDATE ON ai_data_contract_vector_items FOR EACH ROW EXECUTE PROCEDURE update_updated();
 CREATE TRIGGER trg_update_file_folders
 BEFORE UPDATE ON file_folders
 FOR EACH ROW EXECUTE PROCEDURE update_updated();
@@ -1469,6 +1579,7 @@ WITH seed(name, description, url, method, resource) AS (
         ('AI_REINDEX_COURSES', 'Reindex courses', '/api/ai/admin/reindex-courses', 'POST'::permission_method, 'AI'),
         ('AI_REINDEX_LESSONS', 'Reindex lessons', '/api/ai/admin/reindex-lessons', 'POST'::permission_method, 'AI'),
         ('AI_REINDEX_BLOGS', 'Reindex blogs', '/api/ai/admin/reindex-blogs', 'POST'::permission_method, 'AI'),
+        ('AI_REINDEX_DATA_CONTRACT', 'Reindex AI data contract', '/api/ai/admin/reindex-data-contract', 'POST'::permission_method, 'AI'),
         ('AI_REINDEX_ALL', 'Reindex all', '/api/ai/admin/reindex-all', 'POST'::permission_method, 'AI'),
         ('AI_QDRANT_STATS', 'Qdrant stats', '/api/ai/admin/qdrant-stats', 'POST'::permission_method, 'AI'),
         ('NOTIFICATION_READ_ALL', 'Get all notifications', '/api/notifications', 'GET'::permission_method, 'NOTIFICATIONS'),
@@ -1507,6 +1618,7 @@ WITH seed(name, description, url, method, resource) AS (
         ('AI_RUNTIME_STATS_READ', 'Read AI runtime statistics', '/api/ai/admin/runtime-stats', 'GET'::permission_method, 'AI'),
         ('AI_DATA_CONTRACT_READ', 'Read AI data contract', '/api/ai/admin/data-contract', 'GET'::permission_method, 'AI'),
         ('AI_DATA_CONTRACT_VALIDATE', 'Validate AI data contract against database schema', '/api/ai/admin/data-contract/validate', 'GET'::permission_method, 'AI'),
+        ('AI_DATA_CONTRACT_SYNC', 'Sync AI data contract registry', '/api/ai/admin/data-contract/sync', 'POST'::permission_method, 'AI'),
         ('AI_PROVIDER_CONFIG_READ', 'Read AI provider config', '/api/ai/admin/provider-config', 'GET'::permission_method, 'AI'),
         ('AI_PROVIDER_CONFIG_UPDATE', 'Update AI provider config', '/api/ai/admin/provider-config', 'POST'::permission_method, 'AI'),
         ('AI_LANGFUSE_TRACES_READ', 'Read Langfuse traces', '/api/ai/admin/langfuse-traces', 'GET'::permission_method, 'AI'),

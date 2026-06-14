@@ -6,16 +6,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.db.session import get_db_session
-from app.services.data_contract.joins import MISSING_RELATIONS
-from app.services.data_contract.metrics import METRICS
-from app.services.data_contract.owners import AI_DIRECT_WRITE_TABLES, DATA_OWNERS
-from app.services.data_contract.tables import (
-    ANALYTICS_ALLOWED_TABLES,
-    ANALYTICS_SENSITIVE_COLUMNS,
-    SENSITIVE_COLUMNS,
-    TABLES,
-    TABLES_WITH_IS_ACTIVE,
-)
+from app.services.data_contract.runtime import data_contract_registry
 
 
 FEATURE_TABLES = {
@@ -72,39 +63,15 @@ def _quote_identifier(name: str) -> str:
     return f'"{name}"'
 
 
-def summarize_data_contract() -> dict[str, Any]:
-    return {
-        "tables": {
-            name: {
-                "owner": contract.owner,
-                "columns": list(contract.columns),
-                "piiColumns": list(contract.pii_columns),
-                "analyticsSafe": contract.analytics_safe,
-                "aiReadable": contract.ai_readable,
-                "aiWritable": contract.ai_writable,
-            }
-            for name, contract in TABLES.items()
-        },
-        "dataOwners": {owner: list(tables) for owner, tables in DATA_OWNERS.items()},
-        "analyticsAllowedTables": list(ANALYTICS_ALLOWED_TABLES),
-        "analyticsSensitiveColumns": list(ANALYTICS_SENSITIVE_COLUMNS),
-        "sensitiveColumns": list(SENSITIVE_COLUMNS),
-        "aiDirectWriteTables": list(AI_DIRECT_WRITE_TABLES),
-        "metrics": {
-            name: {
-                "tables": list(metric.tables),
-                "grain": metric.grain,
-                "description": metric.description,
-            }
-            for name, metric in METRICS.items()
-        },
-        "knownMissingRelations": MISSING_RELATIONS,
-    }
+async def summarize_data_contract() -> dict[str, Any]:
+    contract = await data_contract_registry.get_contract()
+    return contract.summary()
 
 
 async def validate_data_contract() -> dict[str, Any]:
-    expected_tables = set(TABLES)
-    expected_columns = {name: set(contract.columns) for name, contract in TABLES.items()}
+    contract = await data_contract_registry.get_contract()
+    expected_tables = set(contract.tables)
+    expected_columns = {name: set(table_contract.columns) for name, table_contract in contract.tables.items()}
 
     async with get_db_session() as session:
         result = await session.execute(
@@ -130,7 +97,7 @@ async def validate_data_contract() -> dict[str, Any]:
         row_counts: dict[str, int | None] = {}
         for table in sorted(expected_tables.intersection(actual_columns)):
             try:
-                where = " WHERE is_active = 'Y'" if table in TABLES_WITH_IS_ACTIVE else ""
+                where = " WHERE is_active = 'Y'" if table in contract.tables_with_is_active else ""
                 count_result = await session.execute(text(f"SELECT COUNT(*) AS total FROM {_quote_identifier(table)}{where}"))
                 row_counts[table] = int(count_result.scalar_one() or 0)
             except Exception:
@@ -153,9 +120,13 @@ async def validate_data_contract() -> dict[str, Any]:
     return {
         "success": success,
         "status": "DATA_CONTRACT_OK" if success else "DATA_CONTRACT_MISMATCH",
+        "versionKey": contract.version_key,
+        "source": contract.source,
+        "loadedFromDb": contract.loaded_from_db,
+        "loadErrors": list(contract.load_errors),
         "missingTables": missing_tables,
         "missingColumns": missing_columns,
         "rowCounts": row_counts,
         "featureReadiness": feature_readiness,
-        **summarize_data_contract(),
+        **contract.summary(),
     }

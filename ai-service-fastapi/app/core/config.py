@@ -97,9 +97,9 @@ class Settings:
         default_factory=lambda: os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta")
     )
     gemini_api_key: str | None = field(default_factory=lambda: os.getenv("GEMINI_API_KEY"))
-    gemini_chat_model: str = field(default_factory=lambda: os.getenv("GEMINI_CHAT_MODEL", "gemini-2.5-flash"))
+    gemini_chat_model: str = field(default_factory=lambda: os.getenv("GEMINI_CHAT_MODEL", "gemini-3.5-flash"))
     gemini_embedding_model: str = field(
-        default_factory=lambda: os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+        default_factory=lambda: os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2")
     )
 
     ai_provider: str = field(default_factory=lambda: os.getenv("AI_PROVIDER", "openai").lower())
@@ -147,6 +147,9 @@ class Settings:
     qdrant_blog_collection: str = field(
         default_factory=lambda: os.getenv("QDRANT_BLOG_COLLECTION", "blog_embeddings")
     )
+    qdrant_data_contract_collection: str = field(
+        default_factory=lambda: os.getenv("QDRANT_DATA_CONTRACT_COLLECTION", "data_contract_embeddings")
+    )
     qdrant_profile_collection: str = field(
         default_factory=lambda: os.getenv("QDRANT_PROFILE_COLLECTION", "user_embeddings")
     )
@@ -179,6 +182,10 @@ class Settings:
     stream_emit_delay_ms: int = field(default_factory=lambda: _int_env("AI_STREAM_EMIT_DELAY_MS", 8))
     runtime_metrics_window: int = field(default_factory=lambda: _int_env("AI_RUNTIME_METRICS_WINDOW", 200))
     runtime_recent_request_window: int = field(default_factory=lambda: _int_env("AI_RUNTIME_RECENT_REQUEST_WINDOW", 100))
+    data_contract_version: str = field(default_factory=lambda: os.getenv("AI_DATA_CONTRACT_VERSION", "techhub_v1"))
+    data_contract_cache_ttl_seconds: int = field(
+        default_factory=lambda: _int_env("AI_DATA_CONTRACT_CACHE_TTL_SECONDS", 60)
+    )
     token_estimation_chars_per_token: float = field(
         default_factory=lambda: _float_env("AI_TOKEN_ESTIMATION_CHARS_PER_TOKEN", 3.8)
     )
@@ -207,7 +214,14 @@ class Settings:
     supported_chat_models: dict[str, list[str]] = field(
         default_factory=lambda: {
             "openai": ["qwen-35b", "gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"],
-            "gemini": ["gemini-2.5-flash-lite-preview-06-17", "gemini-2.5-flash", "gemini-2.5-pro"],
+            "gemini": [
+                "gemini-3.5-flash",
+                "gemini-3-flash-preview",
+                "gemini-3.1-flash-lite",
+                "gemini-2.5-flash-lite-preview-06-17",
+                "gemini-2.5-flash",
+                "gemini-2.5-pro",
+            ],
         }
     )
 

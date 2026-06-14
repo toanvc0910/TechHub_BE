@@ -26,6 +26,8 @@ from app.services.analytics.sql_ast_guard import (
 from app.services.data_contract import (
     ANALYTICS_ALLOWED_TABLES,
     ANALYTICS_SENSITIVE_COLUMNS,
+    TABLES,
+    data_contract_registry,
     render_analytics_schema_context,
 )
 from app.services.llm_gateway import switchable_ai_gateway
@@ -39,6 +41,7 @@ class AnalyticsService:
 
     _allowed_tables = set(ANALYTICS_ALLOWED_TABLES)
     _sensitive_columns = set(ANALYTICS_SENSITIVE_COLUMNS)
+    _runtime_tables = TABLES
     _schema_context = render_analytics_schema_context()
 
     async def execute(
@@ -50,6 +53,7 @@ class AnalyticsService:
         user_id: str | None = None,
         prior_analysis: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        await self._refresh_contract_context()
         policy = await runtime_policy_service.resolve(request_context)
         # Enrich the incoming entities/scope with prior-analysis context so a
         # short follow-up like "đổi sang biểu đồ đường" inherits scope/metric
@@ -363,19 +367,21 @@ class AnalyticsService:
                 break
         if not requested:
             return None
-        prior_chart = str(prior_analysis.get("chartType") or "").lower()
-        if requested == prior_chart:
-            return None
         # Look for swap verbs so we don't accidentally match "phân tích bằng
         # biểu đồ cột" as a full new request.
         swap_verbs = (
             "doi sang",
             "chuyen sang",
             "ve lai",
+            "ve bieu do",
+            "tao bieu do",
             "chuyen qua",
             "doi thanh",
+            "render",
             "switch to",
             "change to",
+            "draw",
+            "create",
         )
         if not any(verb in normalized for verb in swap_verbs):
             # Also accept very short messages like "line chart" / "pie"
@@ -411,7 +417,7 @@ class AnalyticsService:
 
     @staticmethod
     def _static_normalize(text: str) -> str:
-        lowered = (text or "").lower().replace("đ", "d")
+        lowered = (text or "").lower().replace("\u0111", "d").replace("Ä‘", "d")
         normalized = unicodedata.normalize("NFD", lowered)
         without_marks = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
         without_punctuation = re.sub(r"[^\w\s]", " ", without_marks)
@@ -986,10 +992,24 @@ class AnalyticsService:
         except SqlAstGuardError as exc:
             raise ValueError(str(exc)) from exc
 
-        validate_metric_plan(metric, sql=normalized, tables=tables, policy=policy, scope=scope)
+        validate_metric_plan(
+            metric,
+            sql=normalized,
+            tables=tables,
+            policy=policy,
+            scope=scope,
+            table_contracts=self._runtime_tables,
+        )
 
         limited = self._apply_limit(normalized.rstrip(";"), max_rows=int(policy.get("sqlMaxRows") or self._settings.sql_default_limit))
         return limited
+
+    async def _refresh_contract_context(self) -> None:
+        contract = await data_contract_registry.get_contract()
+        self._allowed_tables = set(contract.analytics_allowed_tables)
+        self._sensitive_columns = set(contract.analytics_sensitive_columns)
+        self._runtime_tables = contract.tables
+        self._schema_context = contract.render_analytics_schema_context()
 
     @staticmethod
     def _enforce_analytics_access(

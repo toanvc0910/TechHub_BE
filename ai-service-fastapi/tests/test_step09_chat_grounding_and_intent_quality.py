@@ -48,11 +48,13 @@ SERVICE_ROOT = Path(__file__).resolve().parent.parent
 if str(SERVICE_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVICE_ROOT))
 
+from app.orchestration.nodes.agents.conversation_agent_node import conversation_agent_node  # noqa: E402
 from app.orchestration.nodes.entity_extraction_node import entity_extraction_node  # noqa: E402
 from app.orchestration.nodes.hitl_gate_node import hitl_gate_node  # noqa: E402
 from app.orchestration.nodes.response_compose_node import compute_quality_flags  # noqa: E402
 from app.orchestration.router.intent_router import intent_router  # noqa: E402
 from app.orchestration.state.orchestrator_state import make_initial_state  # noqa: E402
+from app.services.analytics_service import analytics_service  # noqa: E402
 
 
 @dataclass
@@ -76,6 +78,9 @@ INTENT_PROMPTS: list[tuple[str, str]] = [
     ("Chào bạn, hello!", "conversation"),
     ("Ten toi la gi?", "conversation"),
     ("What is my name?", "conversation"),
+    ("Toi thich mau xanh, ban thich mau gi?", "conversation"),
+    ("Toi thich mau gi?", "conversation"),
+    ("Toi thich mau gi tu context?", "conversation"),
     # ----- recommendation -----
     ("Gợi ý khóa học phù hợp cho người mới bắt đầu", "recommendation"),
     ("Tôi nên học khóa nào tiếp theo?", "recommendation"),
@@ -167,6 +172,23 @@ async def case_intent_router_active_analysis_refine_chart() -> CaseResult:
     return CaseResult(name, True, f"rule={outcome.matched_rule}")
 
 
+async def case_intent_router_active_analysis_create_line_chart() -> CaseResult:
+    name = "I-tier0 - active analysis + create line chart utterance -> visualization"
+    state = make_initial_state(
+        user_id="user-1",
+        session_id="sess-1",
+        user_input="t\u1ea1o bi\u1ec3u \u0111\u1ed3 \u0111\u01b0\u1eddng",
+        mode="AUTO",
+        request_context={"activeAnalysis": {"metric": "enrollments", "chartType": "bar"}},
+    )
+    outcome = await intent_router.classify(state)
+    if outcome.intent != "visualization":
+        return CaseResult(name, False, f"got {outcome.intent}")
+    if "active-analysis-refine" not in (outcome.matched_rule or ""):
+        return CaseResult(name, False, f"expected tier0 active-analysis-refine, got {outcome.matched_rule}")
+    return CaseResult(name, True, f"rule={outcome.matched_rule}")
+
+
 async def case_intent_router_active_analysis_refine_filter() -> CaseResult:
     name = "I-tier0 - active analysis + filter utterance -> data_query"
     state = make_initial_state(
@@ -182,6 +204,30 @@ async def case_intent_router_active_analysis_refine_filter() -> CaseResult:
     if "active-analysis-refine" not in (outcome.matched_rule or ""):
         return CaseResult(name, False, f"expected tier0 active-analysis-refine, got {outcome.matched_rule}")
     return CaseResult(name, True, f"rule={outcome.matched_rule}")
+
+
+async def case_conversation_agent_personal_context_recall() -> CaseResult:
+    name = "C1 - personal context recall answers from recent user history"
+    state = make_initial_state(
+        user_id="user-1",
+        session_id="sess-1",
+        user_input="Toi thich mau gi tu context?",
+        mode="AUTO",
+    )
+    state["intent"] = "conversation"
+    state["conversation_context"] = {
+        "recentMessages": [
+            {"role": "user", "content": "Toi thich mau xanh, ban thich mau gi?"},
+            {"role": "assistant", "content": "Toi khong co so thich ca nhan."},
+        ],
+    }
+    updates = await conversation_agent_node.execute(state)
+    response = str(updates.get("final_response") or "")
+    if "xanh" not in response.lower():
+        return CaseResult(name, False, f"got {response!r}")
+    if updates.get("response_streamed"):
+        return CaseResult(name, False, "deterministic memory answer should not call streaming LLM")
+    return CaseResult(name, True, response)
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +265,17 @@ async def case_entity_chart_type_pie() -> CaseResult:
     if entities.get("chart_type") != "pie":
         return CaseResult(name, False, f"got {entities}")
     return CaseResult(name, True, str(entities))
+
+
+async def case_analytics_detect_create_line_chart_swap() -> CaseResult:
+    name = "E3b - active analysis create line chart uses prior chart refinement"
+    detected = analytics_service._detect_chart_swap(
+        "t\u1ea1o bi\u1ec3u \u0111\u1ed3 \u0111\u01b0\u1eddng",
+        {"metric": "enrollments", "chartType": "line", "sql": "SELECT 1"},
+    )
+    if detected != "line":
+        return CaseResult(name, False, f"got {detected!r}")
+    return CaseResult(name, True, f"chart_type={detected}")
 
 
 async def case_entity_metric_progress_personal() -> CaseResult:
@@ -476,7 +533,9 @@ async def main() -> int:
     for func in [
         case_intent_router_file_fresh_context,
         case_intent_router_active_analysis_refine_chart,
+        case_intent_router_active_analysis_create_line_chart,
         case_intent_router_active_analysis_refine_filter,
+        case_conversation_agent_personal_context_recall,
     ]:
         print(f"\n--- {func.__name__}")
         try:
@@ -499,6 +558,7 @@ async def main() -> int:
         case_entity_chart_type_line,
         case_entity_chart_type_pie_not_trong,
         case_entity_chart_type_pie,
+        case_analytics_detect_create_line_chart_swap,
         case_entity_metric_progress_personal,
         case_entity_time_range_this_month,
         case_entity_file_scope_active,

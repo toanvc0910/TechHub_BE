@@ -7,6 +7,11 @@ from collections import Counter
 from typing import Any
 
 from app.core.config import get_settings
+from app.orchestration.memory.personal_memory import (
+    asks_assistant_favorite_color,
+    asks_personal_context_recall,
+    extract_user_memory_facts,
+)
 from app.orchestration.router.intent_result import IntentResult
 from app.orchestration.state.orchestrator_state import OrchestratorState
 from app.services.llm_gateway import switchable_ai_gateway
@@ -78,6 +83,19 @@ class IntentRouter:
                 confidence=0.82,
                 reason="Detected previously attached file context referenced by the current question.",
                 matched_rule="tier0:session-file-context",
+            )
+
+        if (
+            asks_personal_context_recall(text)
+            or asks_assistant_favorite_color(text)
+            or bool(extract_user_memory_facts(raw_text))
+        ):
+            return IntentResult(
+                intent="conversation",
+                sub_intent="personal-context-recall",
+                confidence=0.9,
+                reason="Detected a user-memory/context conversation.",
+                matched_rule="tier0:personal-context-recall",
             )
 
         # Tier-0 follow-up refinement: if there's an active analysis in the

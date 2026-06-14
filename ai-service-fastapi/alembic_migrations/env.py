@@ -9,6 +9,11 @@ takes responsibility for tables the AI service owns:
   - ai_generation_tasks
   - chat_sessions
   - chat_messages
+  - ai_data_contract_versions
+  - ai_data_contract_tables
+  - ai_data_contract_relations
+  - ai_data_contract_metrics
+  - ai_data_contract_vector_items
 
 The baseline migration `0001_baseline.py` is a NO-OP: it documents that the
 above tables already exist (created either by the Java app or by the legacy

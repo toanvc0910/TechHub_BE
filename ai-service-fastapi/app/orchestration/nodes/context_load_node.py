@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import re
+import unicodedata
+
+from sqlalchemy import text
+
+from app.core.enums import ChatSender
+from app.db.session import get_db_session
 from app.orchestration.memory.redis_memory_service import redis_memory_service
 from app.orchestration.state.orchestrator_state import OrchestratorState, trace_step
 from app.services.catalog_service import catalog_service
@@ -16,9 +23,19 @@ async def context_load_node(state: OrchestratorState) -> dict:
     if not isinstance(request_file_contexts, list):
         request_file_contexts = []
     file_contexts = request_file_contexts or list(context.activeFiles or [])
+    recent_messages = context.recentMessages
+    context_source = "redis"
+    if not recent_messages:
+        recent_messages = await _load_recent_messages_from_db(
+            user_id=user_id,
+            session_id=session_id,
+            current_input=state["user_input"],
+        )
+        if recent_messages:
+            context_source = "postgres"
 
     conversation_context = {
-        "recentMessages": context.recentMessages,
+        "recentMessages": recent_messages,
         "entities": context.entities,
         "filters": context.filters,
         "lastIntent": context.lastIntent,
@@ -84,8 +101,63 @@ async def context_load_node(state: OrchestratorState) -> dict:
         "user_course_history": user_course_history,
         "user_ratings": user_ratings,
     }
-    trace_step(state, "context_load", "Loaded Redis conversation context.",
+    trace_step(state, "context_load", "Loaded conversation context.",
                fileCount=len(file_contexts), freshFileContext=has_fresh_file_context,
-               hitlResume=bool(context.awaitingClarification))
+               hitlResume=bool(context.awaitingClarification), contextSource=context_source,
+               recentMessageCount=len(recent_messages))
     updates["execution_trace"] = list(state.get("execution_trace", []))
     return updates
+
+
+async def _load_recent_messages_from_db(
+    *,
+    user_id: str,
+    session_id: str,
+    current_input: str,
+    limit: int = 12,
+) -> list[dict[str, str]]:
+    try:
+        async with get_db_session() as session:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT cm.sender, cm.content
+                      FROM chat_messages cm
+                      JOIN chat_sessions cs ON cs.id = cm.session_id
+                     WHERE cm.session_id = CAST(:session_id AS uuid)
+                       AND cs.user_id = CAST(:user_id AS uuid)
+                       AND cm.is_active = 'Y'
+                       AND cs.is_active = 'Y'
+                     ORDER BY cm.timestamp DESC
+                     LIMIT :limit
+                    """
+                ),
+                {"session_id": session_id, "user_id": user_id, "limit": limit},
+            )
+            rows = list(result.mappings().all())
+    except Exception:
+        return []
+
+    messages: list[dict[str, str]] = []
+    for row in reversed(rows):
+        sender = str(row.get("sender") or "").upper()
+        content = str(row.get("content") or "").strip()
+        if not content:
+            continue
+        role = "assistant" if sender == ChatSender.BOT.value else "user"
+        messages.append({"role": role, "content": content})
+
+    if (
+        messages
+        and messages[-1].get("role") == "user"
+        and _normalize_text(messages[-1].get("content", "")) == _normalize_text(current_input)
+    ):
+        messages.pop()
+    return messages[-10:]
+
+
+def _normalize_text(text_value: str) -> str:
+    lowered = (text_value or "").lower().strip().replace("\u0111", "d")
+    normalized = unicodedata.normalize("NFD", lowered)
+    without_marks = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+    return re.sub(r"\s+", " ", without_marks)

@@ -12,6 +12,7 @@ from app.services.data_contract.tables import (
     TableContract,
     render_analytics_schema_context,
 )
+from app.services.data_contract.runtime import data_contract_registry
 from app.services.data_contract.validation import summarize_data_contract, validate_data_contract
 
 __all__ = [
@@ -30,6 +31,7 @@ __all__ = [
     "TABLES",
     "TABLES_WITH_IS_ACTIVE",
     "TableContract",
+    "data_contract_registry",
     "render_analytics_schema_context",
     "summarize_data_contract",
     "validate_data_contract",

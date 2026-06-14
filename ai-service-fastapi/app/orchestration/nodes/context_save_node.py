@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from app.orchestration.memory.personal_memory import extract_user_memory_facts
 from app.orchestration.memory.redis_memory_service import ConversationContext, redis_memory_service
 from app.orchestration.state.orchestrator_state import OrchestratorState, trace_step
 
 
 async def context_save_node(state: OrchestratorState) -> dict:
+    user_memory = dict(state.get("user_memory", {}))
+    user_memory.update(extract_user_memory_facts(state["user_input"]))
+
     recent = list(state.get("conversation_context", {}).get("recentMessages", []))
     recent.extend(
         [
@@ -42,7 +46,7 @@ async def context_save_node(state: OrchestratorState) -> dict:
     context = ConversationContext(
         recentMessages=recent,
         entities={k: str(v) for k, v in state.get("entities", {}).items()},
-        filters={k: str(v) for k, v in state.get("user_memory", {}).items() if isinstance(v, (str, int, float, bool))},
+        filters={k: str(v) for k, v in user_memory.items() if isinstance(v, (str, int, float, bool))},
         lastIntent=state.get("intent", "conversation"),
         lastQuery=state["user_input"],
         activeFiles=active_files[-5:],
@@ -53,5 +57,7 @@ async def context_save_node(state: OrchestratorState) -> dict:
         session_id=state["session_id"],
         context=context,
     )
+    if user_memory != state.get("user_memory", {}):
+        await redis_memory_service.update_user_memory(state["user_id"], user_memory)
     trace_step(state, "context_save", "Saved conversation context into Redis hot path.")
-    return {"execution_trace": list(state.get("execution_trace", []))}
+    return {"user_memory": user_memory, "execution_trace": list(state.get("execution_trace", []))}

@@ -21,6 +21,7 @@ _FILE_CHUNK_NAMESPACE = _uuid.UUID("9e2b3c6f-1d6a-4b9a-9d4b-4e5a7c8f0a01")
 from app.core.config import get_settings
 from app.schemas.admin import QdrantCollectionStats
 from app.services.catalog_service import catalog_service
+from app.services.data_contract import data_contract_registry
 from app.services.llm_gateway import switchable_ai_gateway
 from app.services.observability_service import runtime_observability_service
 
@@ -260,6 +261,7 @@ class VectorService:
         "user_file_chat": ("userFiles",),
         "course_rag": ("courses",),
         "integrated_blog": ("blogs",),
+        "data_contract_search": ("dataContract",),
     }
 
     async def get_feature_readiness(self) -> dict[str, Any]:
@@ -314,6 +316,7 @@ class VectorService:
             "courses": self._settings.qdrant_course_collection,
             "lessons": self._settings.qdrant_lesson_collection,
             "blogs": self._settings.qdrant_blog_collection,
+            "dataContract": self._settings.qdrant_data_contract_collection,
             "profiles": self._settings.qdrant_profile_collection,
             "sessionFiles": self._settings.qdrant_session_file_collection,
             "userFiles": self._settings.qdrant_user_file_collection,
@@ -453,6 +456,60 @@ class VectorService:
             },
         }
 
+    async def reindex_data_contract(self) -> dict[str, Any]:
+        started = perf_counter()
+        contract = await data_contract_registry.get_contract(force=True)
+        records = self._build_data_contract_records(contract)
+        indexed = 0
+        failed = 0
+
+        if records:
+            embeddings = await switchable_ai_gateway.generate_embeddings(
+                [record["text"] for record in records],
+                task_type="RETRIEVAL_DOCUMENT",
+            )
+            indexed, failed = await self._recreate_and_upsert(
+                collection=self._settings.qdrant_data_contract_collection,
+                records=records,
+                embeddings=embeddings,
+                payload_builder=self._data_contract_payload,
+            )
+            await data_contract_registry.record_vector_items(
+                version_key=contract.version_key,
+                collection=self._settings.qdrant_data_contract_collection,
+                items=[
+                    {
+                        "item_key": record["item_key"],
+                        "item_type": record["item_type"],
+                        "source_table": record.get("source_table"),
+                        "source_name": record.get("source_name"),
+                        "point_id": record["id"],
+                        "content_hash": record["content_hash"],
+                        "metadata": {"loadedFromDb": contract.loaded_from_db},
+                    }
+                    for record in records
+                ],
+            )
+
+        await runtime_observability_service.record_vector_operation(
+            operation="reindex_data_contract",
+            duration_ms=(perf_counter() - started) * 1000,
+            success=failed == 0,
+            collection=self._settings.qdrant_data_contract_collection,
+            count=indexed,
+        )
+        return {
+            "success": failed == 0,
+            "message": "Data-contract reindex completed from PostgreSQL contract registry to Qdrant.",
+            "stats": {
+                "indexed": indexed,
+                "failed": failed,
+                "duration": f"{perf_counter() - started:.2f}s",
+                "versionKey": contract.version_key,
+                "loadedFromDb": contract.loaded_from_db,
+            },
+        }
+
     async def reindex_single_course(self, course_id: str) -> dict[str, Any]:
         """Incrementally reindex a single course by ID instead of full reindex.
 
@@ -537,18 +594,21 @@ class VectorService:
         course_result = await self.reindex_courses()
         lesson_result = await self.reindex_lessons()
         blog_result = await self.reindex_blogs()
+        contract_result = await self.reindex_data_contract()
         profile_result = await self._reindex_behavior_profiles()
 
         counts = {
             "courses": course_result["stats"]["indexed"],
             "lessons": lesson_result["stats"]["indexed"],
             "blogs": blog_result["stats"]["indexed"],
+            "dataContract": contract_result["stats"]["indexed"],
             "enrollments": profile_result["stats"]["indexed"],
         }
         failed = (
             course_result["stats"]["failed"]
             + lesson_result["stats"]["failed"]
             + blog_result["stats"]["failed"]
+            + contract_result["stats"]["failed"]
             + profile_result["stats"]["failed"]
         )
         return {
@@ -835,6 +895,47 @@ class VectorService:
             limit=limit,
             operation="search_user_files",
         )
+
+    async def search_data_contract(self, query: str, *, limit: int = 8) -> list[dict[str, Any]]:
+        started = perf_counter()
+        if not query.strip() or not self._settings.qdrant_host:
+            return []
+        try:
+            embeddings = await switchable_ai_gateway.generate_embeddings(
+                [query.strip()],
+                task_type="RETRIEVAL_QUERY",
+            )
+            query_vector = embeddings[0] if embeddings else []
+            if not query_vector:
+                return []
+            response = await self._client.post(
+                f"{self._settings.qdrant_host}/collections/{self._settings.qdrant_data_contract_collection}/points/search",
+                headers=self._headers(),
+                json={
+                    "vector": query_vector,
+                    "limit": limit,
+                    "with_payload": True,
+                },
+            )
+            response.raise_for_status()
+            results = response.json().get("result", [])
+            await runtime_observability_service.record_vector_operation(
+                operation="search_data_contract",
+                duration_ms=(perf_counter() - started) * 1000,
+                success=True,
+                collection=self._settings.qdrant_data_contract_collection,
+                count=len(results),
+            )
+            return [self._normalize_scored_point(item) for item in results]
+        except Exception:
+            await runtime_observability_service.record_vector_operation(
+                operation="search_data_contract",
+                duration_ms=(perf_counter() - started) * 1000,
+                success=False,
+                collection=self._settings.qdrant_data_contract_collection,
+                count=0,
+            )
+            return []
 
     async def delete_file_chunks(
         self,
@@ -1262,6 +1363,91 @@ class VectorService:
                 if item.get("status") == "IN_PROGRESS" or item.get("historyBucket") == "in_progress"
             ],
             "skills": sorted({skill for item in history for skill in item.get("skills", [])}),
+        }
+
+    @staticmethod
+    def _data_contract_payload(record: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": record.get("id"),
+            "item_key": record.get("item_key"),
+            "item_type": record.get("item_type"),
+            "version_key": record.get("version_key"),
+            "source": record.get("source"),
+            "source_table": record.get("source_table"),
+            "source_name": record.get("source_name"),
+            "content_hash": record.get("content_hash"),
+            "summary": record.get("summary"),
+            "metadata": record.get("metadata") or {},
+        }
+
+    @staticmethod
+    def _build_data_contract_records(contract) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        for table_name, table in contract.tables.items():
+            safe_columns = [column for column in table.columns if column not in set(table.pii_columns)]
+            text = (
+                f"table {table_name}\n"
+                f"owner {table.owner}\n"
+                f"columns {', '.join(table.columns)}\n"
+                f"safe_columns {', '.join(safe_columns)}\n"
+                f"pii_columns {', '.join(table.pii_columns)}\n"
+                f"analytics_safe {table.analytics_safe}\n"
+                f"ai_readable {table.ai_readable}\n"
+                f"ai_writable {table.ai_writable}"
+            )
+            item_key = f"table:{table_name}"
+            records.append(VectorService._data_contract_record(contract, item_key, "table", text, table_name, table_name))
+
+        for join in contract.joins:
+            source_name = f"{join.left_table}.{join.left_column}->{join.right_table}.{join.right_column}"
+            text = (
+                f"relation {source_name}\n"
+                f"purpose {join.purpose}\n"
+                f"join {join.left_table}.{join.left_column} = {join.right_table}.{join.right_column}"
+            )
+            item_key = f"relation:{source_name}"
+            records.append(VectorService._data_contract_record(contract, item_key, "relation", text, join.left_table, source_name))
+
+        for metric_name, metric in contract.metrics.items():
+            text = (
+                f"metric {metric_name}\n"
+                f"title {metric.title}\n"
+                f"description {metric.description}\n"
+                f"grain {metric.grain}\n"
+                f"tables {', '.join(metric.tables)}\n"
+                f"allowed_scopes {', '.join(metric.allowed_scopes)}\n"
+                f"required_roles {', '.join(metric.required_roles)}"
+            )
+            item_key = f"metric:{metric_name}"
+            records.append(VectorService._data_contract_record(contract, item_key, "metric", text, None, metric_name))
+        return records
+
+    @staticmethod
+    def _data_contract_record(
+        contract,
+        item_key: str,
+        item_type: str,
+        text: str,
+        source_table: str | None,
+        source_name: str,
+    ) -> dict[str, Any]:
+        content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        point_id = str(_uuid.uuid5(_uuid.NAMESPACE_URL, f"techhub:{contract.version_key}:{item_key}"))
+        return {
+            "id": point_id,
+            "item_key": item_key,
+            "item_type": item_type,
+            "version_key": contract.version_key,
+            "source": contract.source,
+            "source_table": source_table,
+            "source_name": source_name,
+            "content_hash": content_hash,
+            "summary": text[:500],
+            "text": text,
+            "metadata": {
+                "loadedFromDb": contract.loaded_from_db,
+                "contractSource": contract.source,
+            },
         }
 
     @staticmethod
