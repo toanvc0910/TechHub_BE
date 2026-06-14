@@ -29,6 +29,19 @@ def _make_node(name: str, fn, detail: str):
     async def _wrapper(state: OrchestratorState) -> dict[str, Any]:
         emitter = current_emitter.get()
 
+        # Emit a "start" event so the UI can show this node as in-progress (a
+        # spinner) before it finishes; the matching "end" event below flips it
+        # to a completed (green-check) state with its duration.
+        if emitter is not None:
+            try:
+                await emitter.emit("planning_step", {
+                    "step": name,
+                    "detail": detail,
+                    "status": "start",
+                })
+            except Exception:
+                pass
+
         started = perf_counter()
         updates = await fn(state)
         duration_ms = round((perf_counter() - started) * 1000, 2)

@@ -336,6 +336,7 @@ def build_metric_sql(
                 COUNT(DISTINCT e.id)::int AS value,
                 c.price AS price,
                 c.level::text AS level,
+                c.id AS course_id,
                 c.instructor_id AS instructor_id
             FROM courses c
             LEFT JOIN enrollments e
@@ -382,6 +383,7 @@ def build_metric_sql(
                     FILTER (WHERE cs.skill_id IN (SELECT skill_id FROM my_skills))::int AS value,
                 c.price AS price,
                 c.level::text AS level,
+                c.id AS course_id,
                 c.instructor_id AS instructor_id,
                 COUNT(DISTINCT e.id)::int AS enrollment_count
             FROM courses c
@@ -437,6 +439,9 @@ def build_metric_sql(
         """
 
     if definition.key == "learning_path_catalog":
+        # ":topic" optionally narrows the list to paths whose title matches the
+        # requested subject (e.g. "gợi ý lộ trình devops"); no-op when empty so
+        # the same template also lists the whole catalog.
         return """
             SELECT
                 lp.title AS label,
@@ -445,6 +450,10 @@ def build_metric_sql(
             LEFT JOIN learning_path_courses lpc
                 ON lpc.path_id = lp.id
             WHERE lp.is_active = 'Y'
+              AND (
+                    :topic = ''
+                 OR lower(lp.title) LIKE '%' || lower(:topic) || '%'
+              )
             GROUP BY lp.id, lp.title
             ORDER BY value DESC, lp.title ASC
             LIMIT 50
@@ -498,7 +507,7 @@ def build_metric_sql(
 
 
 # Metrics that accept an optional free-text ":topic" filter (no-op when empty).
-_OPTIONAL_TOPIC_METRICS = frozenset({"course_catalog", "blog_catalog"})
+_OPTIONAL_TOPIC_METRICS = frozenset({"course_catalog", "blog_catalog", "learning_path_catalog"})
 
 
 def build_params(

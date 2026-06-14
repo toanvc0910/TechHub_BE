@@ -3,9 +3,11 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
+from datetime import date, datetime
 from decimal import Decimal
 from numbers import Number
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import text
 
@@ -776,6 +778,14 @@ class AnalyticsService:
             header = f'Nội dung blog "{title}":' if title else "Nội dung:"
             return f"{header}\n\n{body}" if body else header
 
+        # Personalized "what to learn next": craft a richer answer that names what
+        # the learner is already taking, then recommends related courses (with
+        # instructor + price) and a few to study afterwards.
+        if str(plan.get("metric") or "") == "recommended_next_courses":
+            return await self._summarize_recommended_next(
+                question, rows, plan, request_context=request_context
+            )
+
         # Aggregate insight summary. Drop bulky text columns (e.g. `content`)
         # from the preview so they don't blow up the prompt.
         preview = [
@@ -797,6 +807,95 @@ class AnalyticsService:
         )
         cleaned = summary.strip()
         return cleaned or fallback
+
+    async def _summarize_recommended_next(
+        self,
+        question: str,
+        rows: list[dict[str, Any]],
+        plan: dict[str, Any],
+        *,
+        request_context: Any | None = None,
+    ) -> str:
+        """Compose the next-course recommendation answer.
+
+        Names the courses the learner is already taking, then recommends related
+        courses (with instructor + price), then a few to study afterwards. The
+        clickable course cards (avatar + link) are rendered separately by the FE
+        from the same rows.
+        """
+        user_id = str((plan.get("params") or {}).get("user_id") or "").strip()
+        current_courses: list[str] = []
+        if user_id:
+            async with get_db_session() as session:
+                result = await session.execute(
+                    text(
+                        """
+                        SELECT c.title AS title
+                        FROM enrollments e
+                        JOIN courses c ON c.id = e.course_id
+                        WHERE e.is_active = 'Y' AND e.user_id = :uid
+                          AND c.is_active = 'Y' AND c.status = 'PUBLISHED'
+                        ORDER BY e.updated DESC NULLS LAST
+                        LIMIT 10
+                        """
+                    ),
+                    {"uid": user_id},
+                )
+                current_courses = [str(r["title"]) for r in result.mappings().all()]
+
+        def _fmt_price(value: Any) -> str:
+            try:
+                return f"{float(value):,.0f}".replace(",", ".") + "đ"
+            except (TypeError, ValueError):
+                return "đang cập nhật"
+
+        # Top related (skill-overlap) recommendations vs the rest to study later.
+        related = [r for r in rows if int(r.get("value") or 0) > 0][:3]
+        if not related:
+            related = rows[:3]
+        related_keys = {id(r) for r in related}
+        later = [r for r in rows if id(r) not in related_keys][:4]
+
+        def _line(r: dict[str, Any]) -> str:
+            return (
+                f"- {r.get('label') or r.get('title')} "
+                f"(giảng viên {r.get('instructor') or 'TechHub'}, "
+                f"giá {_fmt_price(r.get('price'))}, trình độ {r.get('level') or 'N/A'})"
+            )
+
+        current_block = "; ".join(current_courses) if current_courses else "(chưa đăng ký khóa nào)"
+        related_block = "\n".join(_line(r) for r in related) or "(không có)"
+        later_block = "\n".join(_line(r) for r in later) or "(không có)"
+
+        prompt = (
+            "Bạn là trợ lý học tập của TechHub. Viết câu trả lời gợi ý lộ trình học "
+            "tiếp theo cho học viên bằng tiếng Việt, thân thiện và có cấu trúc rõ ràng.\n"
+            f"Câu hỏi của học viên: {question}\n"
+            f"Học viên hiện đang học: {current_block}\n"
+            f"Khóa nên học tiếp (liên quan nhất tới khóa đang học):\n{related_block}\n"
+            f"Khóa có thể học thêm sau đó:\n{later_block}\n\n"
+            "Yêu cầu:\n"
+            "1. Mở đầu nêu rõ học viên đang học khóa gì (nếu chưa có thì nói chưa đăng ký khóa nào).\n"
+            "2. Gợi ý các khóa liên quan nên học tiếp, NÊU RÕ tên khóa, giảng viên và giá.\n"
+            "3. Sau đó gợi ý thêm vài khóa để học tiếp về sau.\n"
+            "Không bịa số liệu, chỉ dùng dữ liệu phía trên. Trả lời gọn gàng, dễ đọc."
+        )
+        summary = await switchable_ai_gateway.generate_text(
+            prompt=append_request_instructions(prompt, request_context)
+        )
+        cleaned = summary.strip()
+        if cleaned:
+            return cleaned
+
+        # Deterministic fallback if the LLM returns nothing.
+        intro = (
+            f"Bạn đang học: {current_block}. "
+            if current_courses
+            else "Bạn chưa đăng ký khóa học nào. "
+        )
+        return (
+            f"{intro}Gợi ý nên học tiếp:\n{related_block}\n\nHọc thêm sau đó:\n{later_block}"
+        )
 
     @staticmethod
     def _strip_html(raw: str) -> str:
@@ -1378,6 +1477,12 @@ class AnalyticsService:
             for key, value in row.items():
                 if isinstance(value, Decimal):
                     normalized_row[key] = float(value)
+                elif isinstance(value, UUID):
+                    # UUIDs (e.g. course_id) must become strings or json.dumps
+                    # fails when the rows are streamed to the client over SSE.
+                    normalized_row[key] = str(value)
+                elif isinstance(value, (datetime, date)):
+                    normalized_row[key] = value.isoformat()
                 else:
                     normalized_row[key] = value
             normalized_rows.append(normalized_row)

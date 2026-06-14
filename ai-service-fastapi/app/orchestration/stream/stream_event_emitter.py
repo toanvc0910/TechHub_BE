@@ -23,7 +23,9 @@ class StreamEventEmitter:
             if item is None:
                 break
             event = item["event"]
-            payload = json.dumps(item["data"], ensure_ascii=True)
+            # default=str so non-JSON-native values (UUID, datetime, Decimal)
+            # never crash the stream; they serialize to their string form.
+            payload = json.dumps(item["data"], ensure_ascii=True, default=str)
             yield f"event: {event}\ndata: {payload}\n\n"
 
 

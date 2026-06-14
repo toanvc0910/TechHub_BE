@@ -150,20 +150,16 @@ class AnalyticsSemanticPlanner:
         ) and not any(token in normalized for token in ("tien do", "hoan thanh", "completion", "cua toi")):
             return "learning_path_catalog"
 
-        # Course pricing (most expensive / cheapest / free).
-        if any(
+        # Course pricing (most expensive / cheapest / free). Guard against
+        # "đánh giá" ("danh gia"), whose "gia khoa" substring would otherwise be
+        # mistaken for a price question — that is a rating question.
+        if "danh gia" not in normalized and any(
             token in normalized
             for token in ("gia khoa", "hoc phi", "dat nhat", "mac nhat", "re nhat", "mien phi", "free", "gia re", "gia cao", "bao nhieu tien", "gia bao nhieu")
         ):
             return "course_pricing"
 
-        # General course catalog / topic search. A concrete topic combined with
-        # any course mention ("có khóa nào về database", "khóa học Docker") is a
-        # catalog lookup, regardless of exact word order or polite "gợi ý"
-        # phrasing.
-        topic = str(entities.get("topic") or "").strip()
-        if topic and ("khoa" in normalized or "course" in normalized):
-            return "course_catalog"
+        # General course catalog (explicit listing phrases).
         if any(
             token in normalized
             for token in ("co nhung khoa hoc", "nhung khoa hoc nao", "danh sach khoa hoc", "khoa hoc ve", "khoa hoc nao ve", "liet ke khoa hoc", "co khoa hoc nao", "khoa hoc pho bien", "khoa hoc lien quan")
@@ -210,6 +206,14 @@ class AnalyticsSemanticPlanner:
             return "active_enrollments_by_course"
         if any(token in normalized for token in ("khoa nao hoan thanh", "hoan thanh tot", "completion rate")):
             return "course_completion_rate"
+
+        # Topic-scoped course search fallback: "tôi muốn học khóa java", "khóa
+        # học Docker", "có khóa nào về database". A concrete topic plus a course /
+        # learning context maps to the catalog, filtered by that topic. Placed
+        # last so explicit metric keywords (revenue, rating, progress, …) win.
+        topic = str(entities.get("topic") or "").strip()
+        if topic and any(token in normalized for token in ("khoa", "course", "hoc", "mon hoc")):
+            return "course_catalog"
         return None
 
     @staticmethod

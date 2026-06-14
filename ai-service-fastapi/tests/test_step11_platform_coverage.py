@@ -382,6 +382,14 @@ CASES: list[Case] = [
         check=_check_course_catalog_topic,
     ),
     Case(
+        # "I want to learn Java" must search the catalog by topic, NOT fall to
+        # the profile recommender (the original misroute).
+        name="topic search 'muốn học java'",
+        question="tôi muốn học khóa học java thì sao",
+        expected_metric="course_catalog",
+        check=_check_course_catalog_topic,
+    ),
+    Case(
         name="course pricing",
         question="Khóa học nào đắt nhất trên hệ thống?",
         expected_metric="course_pricing",
@@ -411,6 +419,16 @@ CASES: list[Case] = [
         # and not the all-zero admin completion-rate table.
         name="recommended next courses",
         question="gợi ý cho tôi lộ trình học tiếp theo",
+        expected_metric="recommended_next_courses",
+        user_id=LEARNER_WITH_ENROLL,
+        check=_check_recommended_next,
+    ),
+    Case(
+        # Same intent phrased with "khóa học" instead of "lộ trình" (no "lộ
+        # trình" keyword) must still resolve to the personalized recommender,
+        # NOT the generic RAG recommendation intent.
+        name="recommended next courses (khóa học phrasing)",
+        question="gợi ý khóa học tiếp theo tôi nên học",
         expected_metric="recommended_next_courses",
         user_id=LEARNER_WITH_ENROLL,
         check=_check_recommended_next,

@@ -17,6 +17,23 @@ from app.orchestration.state.orchestrator_state import OrchestratorState
 from app.services.llm_gateway import switchable_ai_gateway
 
 
+# Concrete technology topics. A question naming one of these together with a
+# course/learning context ("khóa học java", "muốn học docker") is a catalog
+# search, not a profile-anchored recommendation. Vague role words
+# (backend/frontend/ai) are intentionally excluded so they keep going to the
+# recommender. Kept in sync with the topic extractor in entity_extraction_node.
+_COURSE_TOPIC_KEYWORDS = (
+    "java", "python", "javascript", "typescript", "react", "nextjs", "next js",
+    "node", "nodejs", "spring", "spring boot", "database", "postgresql", "postgres",
+    "sql", "nosql", "mongodb", "redis", "docker", "kubernetes", "devops", "cloud",
+    "aws", "azure", "gcp", "spark", "etl", "kafka", "microservice", "graphql",
+    "security", "bao mat", "testing", "kiem thu", "machine learning",
+    "deep learning", "html", "css", "git", "github", "postman", "linux",
+    "golang", "rust", "php", "ruby", "kotlin", "swift",
+)
+_COURSE_TOPIC_ALT = "|".join(re.escape(keyword) for keyword in _COURSE_TOPIC_KEYWORDS)
+
+
 class IntentRouter:
     def __init__(self) -> None:
         self._settings = get_settings()
@@ -54,8 +71,22 @@ class IntentRouter:
                 # profile-anchored recommender.
                 r"\bkhoa\b.{0,40}\bve\b",
                 r"\bcourses?\b.{0,40}\b(about|on)\b",
+                # "khóa học java", "java course", "muốn học docker" — a concrete
+                # tech topic in a course/learning context is a catalog search.
+                rf"\b(khoa hoc|khoa|course|mon hoc)\b.{{0,30}}\b({_COURSE_TOPIC_ALT})\b",
+                rf"\b({_COURSE_TOPIC_ALT})\b.{{0,20}}\b(khoa hoc|khoa|course|mon hoc)\b",
+                rf"\bhoc\b.{{0,15}}\b({_COURSE_TOPIC_ALT})\b",
             ]),
             ("data_query", "analytics", [r"\b(so lieu|thong ke|bao nhieu|analytics|report|tong hop|bang du lieu|truy van|query)\b"]),
+            # Personalized "what to learn next" ("gợi ý khóa học tiếp theo", "nên
+            # học gì tiếp theo", "học tiếp khóa nào"). Continuation phrasing means
+            # the learner wants suggestions anchored on what they're already
+            # taking — route to data_query so the planner picks
+            # recommended_next_courses, NOT the generic RAG recommender below.
+            ("data_query", "next-course", [
+                r"\b(tiep theo|hoc tiep|ke tiep)\b",
+                r"\bnen hoc gi\b",
+            ]),
             ("recommendation", "course-advice", [r"\b(goi y|de xuat|recommend|phu hop|nen hoc)\b"]),
             ("conversation", "profile-identity", [r"\b(ten toi|ten cua toi|toi ten|toi la ai|ten minh|ten cua minh|minh ten|what is my name|who am i)\b"]),
             ("knowledge", "lesson-qa", [r"\b(giai thich|khai niem|la gi|ai la|who is|how|tai sao)\b"]),
