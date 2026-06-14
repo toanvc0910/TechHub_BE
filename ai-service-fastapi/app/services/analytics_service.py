@@ -86,7 +86,12 @@ class AnalyticsService:
                 prior_analysis=prior_analysis,
             )
         scope = str(plan.get("scope") or scope)
-        self._enforce_analytics_access(policy, scope=scope, trusted_user_id=trusted_user_id)
+        self._enforce_analytics_access(
+            policy,
+            scope=scope,
+            trusted_user_id=trusted_user_id,
+            metric=str(plan.get("metric") or ""),
+        )
         sql = self._validate_sql(
             str(plan.get("sql") or ""),
             policy=policy,
@@ -146,6 +151,9 @@ class AnalyticsService:
                         rows, columns = fallback_rows, fallback_columns
 
         rows = self._normalize_rows(rows)
+        if str(active_plan.get("metric") or "") in self._INSTRUCTOR_NAME_METRICS:
+            rows = await self._enrich_instructor_names(rows)
+            columns = list(rows[0].keys()) if rows else columns
 
         summary = await self._summarize(
             question,
@@ -196,6 +204,44 @@ class AnalyticsService:
             "suggestedActions": suggested_actions,
             "chartOptions": chart_options,
         }
+
+    # Metrics whose rows carry an `instructor_id` that must be resolved to a
+    # public instructor display name for output.
+    _INSTRUCTOR_NAME_METRICS = frozenset({"learner_course_instructors", "courses_by_instructor"})
+
+    async def _enrich_instructor_names(
+        self,
+        rows: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Resolve `instructor_id` UUIDs to public instructor display names.
+
+        The analytics SQL only projects `instructor_id` (a non-PII UUID) so the
+        PII guard stays satisfied. Here we run a single controlled, parameterized
+        lookup to surface the instructor's public name (the same name shown on
+        the course page) and drop the raw id from the output.
+        """
+        instructor_ids = sorted(
+            {str(row["instructor_id"]) for row in rows if row.get("instructor_id")}
+        )
+        name_map: dict[str, str] = {}
+        if instructor_ids:
+            lookup_sql = """
+                SELECT
+                    u.id::text AS id,
+                    COALESCE(NULLIF(TRIM(pr.full_name), ''), u.username, 'Giang vien') AS name
+                FROM users u
+                LEFT JOIN profiles pr
+                    ON pr.user_id = u.id
+                   AND pr.is_active = 'Y'
+                WHERE u.id = ANY(:ids)
+            """
+            async with get_db_session() as session:
+                result = await session.execute(text(lookup_sql), {"ids": instructor_ids})
+                name_map = {row["id"]: row["name"] for row in result.mappings().all()}
+        for row in rows:
+            raw_id = row.pop("instructor_id", None)
+            row["instructor"] = name_map.get(str(raw_id), "Giang vien") if raw_id else "Giang vien"
+        return rows
 
     async def _execute_sql(
         self,
@@ -1011,12 +1057,26 @@ class AnalyticsService:
         self._runtime_tables = contract.tables
         self._schema_context = contract.render_analytics_schema_context()
 
-    @staticmethod
+    # Platform-scope metrics that expose only public catalog information and are
+    # therefore safe for any authenticated user (including learners) to query.
+    PUBLIC_PLATFORM_METRICS = frozenset({
+        "courses_by_instructor",
+        "course_catalog",
+        "course_pricing",
+        "course_structure",
+        "learning_path_catalog",
+        "learning_path_courses",
+        "blog_catalog",
+    })
+
+    @classmethod
     def _enforce_analytics_access(
+        cls,
         policy: dict[str, Any],
         *,
         scope: str,
         trusted_user_id: str | None,
+        metric: str = "",
     ) -> None:
         user_role = str(policy.get("userRole") or "USER").upper()
         if not policy.get("allowDataQuery", False):
@@ -1029,8 +1089,13 @@ class AnalyticsService:
                 raise ValueError("Current role cannot access personal analytics.")
             return
 
-        if scope == "platform" and user_role not in {"INSTRUCTOR", "STAFF", "ADMIN", "SUPER_ADMIN"}:
-            raise ValueError("Platform analytics requires instructor, staff, or admin role.")
+        if scope == "platform":
+            if metric in cls.PUBLIC_PLATFORM_METRICS:
+                if user_role not in {"LEARNER", "INSTRUCTOR", "STAFF", "ADMIN", "SUPER_ADMIN"}:
+                    raise ValueError("Current role cannot access analytics.")
+                return
+            if user_role not in {"INSTRUCTOR", "STAFF", "ADMIN", "SUPER_ADMIN"}:
+                raise ValueError("Platform analytics requires instructor, staff, or admin role.")
 
     @staticmethod
     def _normalize_platform_flags(sql: str) -> str:

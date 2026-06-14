@@ -261,10 +261,213 @@ def build_metric_sql(
             LIMIT 20
         """
 
+    if definition.key == "learner_course_instructors":
+        # List the courses the learner is enrolled in together with the owning
+        # instructor. The instructor's display name is PII, so we only project
+        # the non-sensitive instructor_id here; the analytics service resolves
+        # it to a public display name in a separate controlled lookup.
+        return f"""
+            SELECT
+                c.title AS label,
+                c.instructor_id AS instructor_id,
+                ROUND(COALESCE(AVG(COALESCE(p.completion, 0.0)) * 100, 0.0)::numeric, 2) AS value
+            FROM enrollments e
+            JOIN courses c
+                ON c.id = e.course_id
+               AND c.is_active = 'Y'
+               AND c.status = 'PUBLISHED'
+            LEFT JOIN chapters ch
+                ON ch.course_id = c.id
+               AND ch.is_active = 'Y'
+            LEFT JOIN lessons l
+                ON l.chapter_id = ch.id
+               AND l.is_active = 'Y'
+            LEFT JOIN progress p
+                ON p.lesson_id = l.id
+               AND p.user_id = e.user_id
+               AND p.is_active = 'Y'
+            WHERE e.is_active = 'Y'
+              AND e.user_id = :user_id
+              {time_filter('COALESCE(p.updated, e.updated, e.created)')}
+            GROUP BY c.id, c.title, c.instructor_id
+            ORDER BY MAX(e.updated) DESC NULLS LAST, c.title ASC
+            LIMIT 50
+        """
+
+    if definition.key == "courses_by_instructor":
+        # Published courses owned by a named instructor. The instructor name is
+        # only used to FILTER (in WHERE / JOIN), never projected, so the PII
+        # guard stays satisfied. The instructor display name is resolved later
+        # by the analytics service for output.
+        return f"""
+            SELECT
+                c.title AS label,
+                c.instructor_id AS instructor_id,
+                COUNT(DISTINCT e.id)::int AS value
+            FROM courses c
+            JOIN users u
+                ON u.id = c.instructor_id
+               AND u.is_active = 'Y'
+            LEFT JOIN profiles pr
+                ON pr.user_id = u.id
+               AND pr.is_active = 'Y'
+            LEFT JOIN enrollments e
+                ON e.course_id = c.id
+               AND e.is_active = 'Y'
+            WHERE c.is_active = 'Y'
+              AND c.status = 'PUBLISHED'
+              AND (
+                    lower(u.username) LIKE '%' || lower(:instructor_name) || '%'
+                 OR lower(pr.full_name) LIKE '%' || lower(:instructor_name) || '%'
+              )
+              {time_filter('COALESCE(c.updated, c.created)')}
+            GROUP BY c.id, c.title, c.instructor_id
+            ORDER BY value DESC, c.title ASC
+            LIMIT 50
+        """
+
+    if definition.key == "course_catalog":
+        # Public course catalog. ":topic" is an optional free-text filter that
+        # matches the course title, description, or an attached skill name. When
+        # empty it is a no-op so the same template lists the whole catalog.
+        return f"""
+            SELECT
+                c.title AS label,
+                COUNT(DISTINCT e.id)::int AS value,
+                c.price AS price,
+                c.level::text AS level
+            FROM courses c
+            LEFT JOIN enrollments e
+                ON e.course_id = c.id
+               AND e.is_active = 'Y'
+            LEFT JOIN course_skills cs
+                ON cs.course_id = c.id
+            LEFT JOIN skills sk
+                ON sk.id = cs.skill_id
+               AND sk.is_active = 'Y'
+            WHERE c.is_active = 'Y'
+              AND c.status = 'PUBLISHED'
+              AND (
+                    :topic = ''
+                 OR lower(c.title) LIKE '%' || lower(:topic) || '%'
+                 OR lower(COALESCE(c.description, '')) LIKE '%' || lower(:topic) || '%'
+                 OR lower(COALESCE(sk.name, '')) LIKE '%' || lower(:topic) || '%'
+              )
+              {time_filter('COALESCE(c.updated, c.created)')}
+            GROUP BY c.id, c.title, c.price, c.level
+            ORDER BY value DESC, c.title ASC
+            LIMIT 50
+        """
+
+    if definition.key == "course_pricing":
+        return f"""
+            SELECT
+                c.title AS label,
+                c.price AS value,
+                c.discount_price AS discount_price,
+                c.level::text AS level
+            FROM courses c
+            WHERE c.is_active = 'Y'
+              AND c.status = 'PUBLISHED'
+              {time_filter('COALESCE(c.updated, c.created)')}
+            ORDER BY c.price DESC, c.title ASC
+            LIMIT 50
+        """
+
+    if definition.key == "course_structure":
+        # Lessons inside a named course, ordered by chapter then lesson order.
+        # The course name is only used to FILTER, never projected.
+        return """
+            SELECT
+                l.title AS label,
+                COALESCE(l.estimated_duration, 0)::int AS value,
+                ch.title AS chapter,
+                l.content_type::text AS content_type
+            FROM courses c
+            JOIN chapters ch
+                ON ch.course_id = c.id
+               AND ch.is_active = 'Y'
+            JOIN lessons l
+                ON l.chapter_id = ch.id
+               AND l.is_active = 'Y'
+            WHERE c.is_active = 'Y'
+              AND c.status = 'PUBLISHED'
+              AND lower(c.title) LIKE '%' || lower(:course_name) || '%'
+            ORDER BY ch."order" ASC, l."order" ASC
+            LIMIT 100
+        """
+
+    if definition.key == "learning_path_catalog":
+        return """
+            SELECT
+                lp.title AS label,
+                COUNT(DISTINCT lpc.course_id)::int AS value
+            FROM learning_paths lp
+            LEFT JOIN learning_path_courses lpc
+                ON lpc.path_id = lp.id
+            WHERE lp.is_active = 'Y'
+            GROUP BY lp.id, lp.title
+            ORDER BY value DESC, lp.title ASC
+            LIMIT 50
+        """
+
+    if definition.key == "learning_path_courses":
+        # Courses inside a named learning path, in their defined order. The path
+        # name is only used to FILTER, never projected.
+        return """
+            SELECT
+                c.title AS label,
+                lpc."order" AS value,
+                lp.title AS path
+            FROM learning_paths lp
+            JOIN learning_path_courses lpc
+                ON lpc.path_id = lp.id
+            JOIN courses c
+                ON c.id = lpc.course_id
+               AND c.is_active = 'Y'
+            WHERE lp.is_active = 'Y'
+              AND lower(lp.title) LIKE '%' || lower(:path_name) || '%'
+            ORDER BY lpc."order" ASC, c.title ASC
+            LIMIT 100
+        """
+
+    if definition.key == "blog_catalog":
+        # Published blogs, newest first. ":topic" optionally filters by title,
+        # content, or tag array. Value is the count of related courses.
+        return """
+            SELECT
+                b.title AS label,
+                COALESCE(array_length(b.related_course_ids, 1), 0)::int AS value,
+                to_char(b.created, 'YYYY-MM-DD') AS created_at
+            FROM blogs b
+            WHERE b.is_active = 'Y'
+              AND b.status = 'PUBLISHED'
+              AND (
+                    :topic = ''
+                 OR lower(b.title) LIKE '%' || lower(:topic) || '%'
+                 OR lower(COALESCE(b.content, '')) LIKE '%' || lower(:topic) || '%'
+                 OR lower(COALESCE(array_to_string(b.tags, ' '), '')) LIKE '%' || lower(:topic) || '%'
+              )
+            ORDER BY b.created DESC
+            LIMIT 50
+        """
+
     raise ValueError(f"No SQL template registered for metric: {definition.key}")
 
 
-def build_params(definition: MetricDefinition, *, scope: str, user_role: str, user_id: str | None) -> dict[str, Any]:
+# Metrics that accept an optional free-text ":topic" filter (no-op when empty).
+_OPTIONAL_TOPIC_METRICS = frozenset({"course_catalog", "blog_catalog"})
+
+
+def build_params(
+    definition: MetricDefinition,
+    *,
+    scope: str,
+    user_role: str,
+    user_id: str | None,
+    entities: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    ents = entities or {}
     params: dict[str, Any] = {}
     needs_user = "user_id" in definition.required_params
     needs_user = needs_user or scope == "personal"
@@ -273,6 +476,17 @@ def build_params(definition: MetricDefinition, *, scope: str, user_role: str, us
         if not user_id:
             raise ValueError(f"Metric '{definition.key}' requires trusted user_id.")
         params["user_id"] = user_id
+    # Every required param other than user_id is pulled from the extracted
+    # entities (e.g. instructor_name, course_name, path_name).
+    for param in definition.required_params:
+        if param == "user_id":
+            continue
+        value = str(ents.get(param) or "").strip()
+        if not value:
+            raise ValueError(f"Metric '{definition.key}' requires '{param}'.")
+        params[param] = value
+    if definition.key in _OPTIONAL_TOPIC_METRICS:
+        params["topic"] = str(ents.get("topic") or "").strip()
     return params
 
 

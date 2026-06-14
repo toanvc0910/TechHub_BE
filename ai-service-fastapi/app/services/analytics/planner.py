@@ -31,7 +31,13 @@ class AnalyticsSemanticPlanner:
             raise ValueError(f"Metric '{definition.key}' does not support scope '{resolved_scope}'.")
 
         trusted_user_id = str(policy.get("trustedUserId") or user_id or "").strip() or None
-        params = build_params(definition, scope=resolved_scope, user_role=user_role, user_id=trusted_user_id)
+        params = build_params(
+            definition,
+            scope=resolved_scope,
+            user_role=user_role,
+            user_id=trusted_user_id,
+            entities=entities,
+        )
         time_range = self._resolve_time_range(question, entities, prior_analysis)
         chart_type = self._resolve_chart_type(question, definition.default_chart)
         sql = build_metric_sql(definition, scope=resolved_scope, user_role=user_role, time_range=time_range)
@@ -69,6 +75,80 @@ class AnalyticsSemanticPlanner:
                 return prior_metric
 
         normalized = _normalize(question)
+        # Instructor-centric questions. These take priority over the generic
+        # personal-history / enrollment metrics below.
+        instructor_name = str(entities.get("instructor_name") or "").strip()
+        if instructor_name:
+            # "Giang vien A co bao nhieu khoa hoc, gom nhung khoa nao?"
+            return "courses_by_instructor"
+        mentions_instructor = any(
+            token in normalized for token in ("giang vien", "giao vien", "instructor", "giảng vien")
+        )
+        if mentions_instructor and (
+            _looks_personal(normalized)
+            or "toi dang hoc" in normalized
+            or "dang theo hoc" in normalized
+            or "khoa hoc cua toi" in normalized
+        ):
+            # "Toi dang hoc khoa hoc cua giang vien nao?"
+            return "learner_course_instructors"
+
+        # Named-entity catalog breakdowns. These only fire when the entity
+        # extractor captured a concrete name, so they are unambiguous.
+        if str(entities.get("course_name") or "").strip():
+            # "Khoa hoc X gom nhung bai hoc nao?"
+            return "course_structure"
+        if str(entities.get("path_name") or "").strip():
+            # "Lo trinh X gom nhung khoa hoc nao?"
+            return "learning_path_courses"
+
+        # Blog catalog / search.
+        if any(token in normalized for token in ("blog", "bai viet", "bai blog")):
+            return "blog_catalog"
+
+        # Learning-path catalog ("co nhung lo trinh nao", "danh sach lo trinh").
+        # Must beat the learning_path_completion mapping below, but only when the
+        # question is a listing rather than a progress/completion question.
+        if any(token in normalized for token in ("lo trinh", "learning path")) and any(
+            token in normalized
+            for token in ("co nhung", "nhung lo trinh", "danh sach", "liet ke", "co bao nhieu", "gom nhung", "co lo trinh nao", "nhung lo trinh nao")
+        ) and not any(token in normalized for token in ("tien do", "hoan thanh", "completion", "cua toi")):
+            return "learning_path_catalog"
+
+        # Course pricing (most expensive / cheapest / free).
+        if any(
+            token in normalized
+            for token in ("gia khoa", "hoc phi", "dat nhat", "mac nhat", "re nhat", "mien phi", "free", "gia re", "gia cao", "bao nhieu tien", "gia bao nhieu")
+        ):
+            return "course_pricing"
+
+        # General course catalog / topic search.
+        if any(
+            token in normalized
+            for token in ("co nhung khoa hoc", "nhung khoa hoc nao", "danh sach khoa hoc", "khoa hoc ve", "khoa hoc nao ve", "liet ke khoa hoc", "co khoa hoc nao", "khoa hoc pho bien", "khoa hoc lien quan")
+        ):
+            return "course_catalog"
+        # Personal learning history: "which courses have I studied / enrolled in",
+        # "khóa học của tôi", "đã học khóa nào của giảng viên nào". Map to the
+        # personal course-progress metric, which lists the user's enrolled
+        # courses with completion. Exclude instructor/platform phrasing
+        # ("hoc vien dang hoc" = how many students are studying).
+        personal_history_tokens = (
+            "da hoc",
+            "da hoan thanh",
+            "da dang ky",
+            "khoa hoc cua toi",
+            "khoa cua toi",
+            "lich su hoc",
+            "khoa hoc nao cua",
+            "hoc khoa hoc nao",
+            "khoa hoc nao toi",
+        )
+        if "hoc vien" not in normalized and (
+            any(token in normalized for token in personal_history_tokens)
+            or ("dang hoc" in normalized and _looks_personal(normalized))
+        ):
+            return "learner_course_progress"
         if any(token in normalized for token in ("doanh thu", "revenue", "gross revenue", "thu theo khoa")):
             return "revenue_by_course"
         if any(token in normalized for token in ("danh gia", "rating", "score trung binh", "diem danh gia")):

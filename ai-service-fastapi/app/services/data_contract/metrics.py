@@ -72,6 +72,18 @@ METRICS: dict[str, MetricContract] = {
         grain="course",
         description="Revenue by course from completed transactions and successful payments.",
     ),
+    "learner_course_instructors": MetricContract(
+        name="learner_course_instructors",
+        tables=("enrollments", "courses", "chapters", "lessons", "progress"),
+        grain="user_course",
+        description="Courses the learner is enrolled in with the owning instructor. Filter by trusted user_id.",
+    ),
+    "courses_by_instructor": MetricContract(
+        name="courses_by_instructor",
+        tables=("courses", "users", "profiles", "enrollments"),
+        grain="instructor_course",
+        description="Published courses owned by a named instructor. Instructor name used only to filter, never projected.",
+    ),
     "course_catalog": MetricContract(
         name="course_catalog",
         tables=("courses", "chapters", "lessons", "course_skills", "skills", "ratings"),

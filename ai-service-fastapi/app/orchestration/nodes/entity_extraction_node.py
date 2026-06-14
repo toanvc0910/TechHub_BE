@@ -22,8 +22,22 @@ async def entity_extraction_node(state: OrchestratorState) -> dict:
             entities["level"] = level
             break
 
+    instructor_name = _extract_instructor_name(text)
+    if instructor_name:
+        entities["instructor_name"] = instructor_name
+
+    course_name = _extract_course_name(text)
+    if course_name:
+        entities["course_name"] = course_name
+
+    path_name = _extract_path_name(text)
+    if path_name:
+        entities["path_name"] = path_name
+
     topic_match = re.search(
-        r"\b(python|java|javascript|react|sql|data science|machine learning|ai|frontend|backend|fastapi)\b",
+        r"\b(python|java|javascript|typescript|react|next\.?js|node|spring|sql|"
+        r"data science|machine learning|ai|frontend|backend|fastapi|docker|"
+        r"postman|git|github|html|css|kubernetes|devops)\b",
         normalized,
     )
     if topic_match:
@@ -125,6 +139,100 @@ async def entity_extraction_node(state: OrchestratorState) -> dict:
         "entities": entities,
         "execution_trace": list(state.get("execution_trace", [])),
     }
+
+
+_INSTRUCTOR_TRIGGER = (
+    r"(?:gi[aả]ng\s*vi[eê]n|gi[aá]o\s*vi[eê]n|gv|th[aầ]y(?:\s*gi[aá]o)?|"
+    r"c[oô](?:\s*gi[aá]o)?|instructor|teacher)"
+)
+_INSTRUCTOR_STOP = (
+    r"(?:c[oó]|d[aạ]y|day|[dđ]ang|s[oở]\s*h[uữ]u|so\s*huu|bao\s*nhi[eê]u|bao\s*nhieu|"
+    r"g[oồ]m|gom|hi[eệ]n|hien|l[aà]|teaches?|owns?|v[oớ]i|voi|\?|$)"
+)
+_INSTRUCTOR_NAME_PATTERN = re.compile(
+    _INSTRUCTOR_TRIGGER + r"\s+(?:t[eê]n\s+)?(?P<name>[^\d,?.!\n]+?)\s*" + _INSTRUCTOR_STOP,
+    re.IGNORECASE,
+)
+_INSTRUCTOR_QUESTION_WORDS = {"nao", "nay", "do", "ai", "gi", "kia"}
+
+
+def _extract_instructor_name(text: str) -> str | None:
+    """Pull an instructor's name out of a course-context question.
+
+    Returns None unless the question is clearly about courses, so generic
+    chit-chat that happens to contain "thầy"/"cô" is not misread as a query.
+    Question words like "nào" (in "giảng viên nào") are intentionally rejected
+    so they fall through to the personal "which instructor teaches my courses"
+    metric instead.
+    """
+    if not text:
+        return None
+    if not re.search(r"kh[oó]a\s*h[oọ]c|course|m[oô]n\s*h[oọ]c", text, re.IGNORECASE):
+        return None
+    match = _INSTRUCTOR_NAME_PATTERN.search(text)
+    if not match:
+        return None
+    name = re.sub(r"\s+", " ", match.group("name")).strip(" -:–")
+    if not name or len(name) > 60:
+        return None
+    if _normalize_text(name) in _INSTRUCTOR_QUESTION_WORDS:
+        return None
+    return name
+
+
+_NAME_STOP = (
+    r"(?:g[oồ]m|bao\s*g[oồ]m|c[oó]|bao\s*nhi[eê]u|bao\s*nhieu|l[aà]|"
+    r"d[aạ]y|day|n[aà]o|nay|kh[oô]ng|\?|$)"
+)
+_COURSE_NAME_PATTERN = re.compile(
+    r"kh[oó]a\s*(?:h[oọ]c)?\s+(?P<name>[^\d,?.!\n]+?)\s*" + _NAME_STOP,
+    re.IGNORECASE,
+)
+_PATH_NAME_PATTERN = re.compile(
+    r"(?:l[oộ]\s*tr[iì]nh|learning\s*path)\s+(?:h[oọ]c\s+)?(?P<name>[^\d,?.!\n]+?)\s*" + _NAME_STOP,
+    re.IGNORECASE,
+)
+_NAME_QUESTION_WORDS = {"nao", "nay", "do", "gi", "kia", "hoc", "nhung", "cac", "ve"}
+
+
+def _clean_name(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    name = re.sub(r"\s+", " ", raw).strip(" -:–\"'")
+    if not name or len(name) > 80:
+        return None
+    if _normalize_text(name) in _NAME_QUESTION_WORDS:
+        return None
+    return name
+
+
+def _extract_course_name(text: str) -> str | None:
+    """Capture a course name for "khóa học X gồm những bài học nào".
+
+    Only fires when the question is about a course's lessons/chapters, so it
+    does not hijack generic course questions. The captured fragment is matched
+    with LIKE downstream, so a partial title is enough.
+    """
+    if not text:
+        return None
+    if not re.search(r"b[aà]i\s*h[oọ]c|lesson|ch[uươ]+ng|chuong|n[oộ]i\s*dung", text, re.IGNORECASE):
+        return None
+    match = _COURSE_NAME_PATTERN.search(text)
+    return _clean_name(match.group("name")) if match else None
+
+
+def _extract_path_name(text: str) -> str | None:
+    """Capture a learning-path name for "lộ trình X gồm những khóa nào".
+
+    Only fires when the question asks for the courses inside the path, so the
+    learning-path catalog / completion intents are not shadowed.
+    """
+    if not text:
+        return None
+    if not re.search(r"kh[oó]a|course|g[oồ]m", text, re.IGNORECASE):
+        return None
+    match = _PATH_NAME_PATTERN.search(text)
+    return _clean_name(match.group("name")) if match else None
 
 
 def _normalize_text(text: str) -> str:

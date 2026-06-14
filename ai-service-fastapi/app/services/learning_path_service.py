@@ -159,25 +159,74 @@ class LearningPathService:
                     )
                     pipeline = "fallback"
                 else:
-                    logger.error(
-                        "No relevant learning path courses found for user=%s goal=%r threshold=%s completed=%s "
-                        "course_scope=%s course_owner_id=%s",
-                        user_id,
-                        request.goal,
-                        self._settings.learning_path_vector_score_threshold,
-                        sorted(completed_ids),
-                        "instructor_owned" if course_owner_id else "platform",
-                        course_owner_id,
-                    )
+                    # Instructor-owned scope found nothing. Rather than hard-fail
+                    # with a 400 (which blocks instructors who own no courses, or
+                    # no courses matching this goal, from ever building a path),
+                    # fall back to the platform catalog. Own courses are still
+                    # preferred when they match; this only triggers when they don't.
                     if course_owner_id:
-                        raise ValueError(
-                            "No relevant published courses were found in your instructor catalog for this learning path goal. "
-                            "Publish and index matching courses, or choose a goal that matches your courses."
+                        logger.warning(
+                            "No instructor-owned courses matched user=%s goal=%r; "
+                            "falling back to platform catalog.",
+                            user_id,
+                            request.goal,
                         )
-                    raise ValueError(
-                        "No relevant published courses were found for this learning path goal. "
-                        "Publish and index matching courses, or choose preferred courses explicitly."
-                    )
+                        try:
+                            platform_courses = await vector_service.search_courses(
+                                query=search_query,
+                                limit=12,
+                                language=request.language,
+                                exclude_course_ids=completed_ids,
+                                instructor_id=None,
+                                score_threshold=self._settings.learning_path_vector_score_threshold,
+                            )
+                            platform_courses = await self._hydrate_vector_courses(
+                                platform_courses,
+                                instructor_id=None,
+                                completed_ids=completed_ids,
+                            )
+                            platform_courses = self._filter_goal_relevant_courses(request, platform_courses)
+                        except Exception:
+                            logger.exception(
+                                "Platform fallback course retrieval failed for user=%s goal=%r",
+                                user_id,
+                                request.goal,
+                            )
+                            platform_courses = []
+                        platform_preferred = [
+                            course
+                            for course in await catalog_service.fetch_courses_by_ids(
+                                [str(item) for item in request.preferredCourseIds or []],
+                                instructor_id=None,
+                            )
+                            if course.get("id") not in completed_ids
+                        ]
+                        candidates = self._merge_candidates(platform_courses, platform_preferred)
+                        logger.info(
+                            "Learning path platform-fallback candidates user=%s goal=%r count=%s",
+                            user_id,
+                            request.goal,
+                            len(candidates),
+                        )
+                        if candidates:
+                            # Downstream metadata/validation should now treat this
+                            # as a platform-scoped path, not instructor-owned.
+                            course_owner_id = None
+                            pipeline = "platform_fallback"
+
+                    if not candidates:
+                        logger.error(
+                            "No relevant learning path courses found for user=%s goal=%r threshold=%s completed=%s "
+                            "course_scope=platform course_owner_id=None",
+                            user_id,
+                            request.goal,
+                            self._settings.learning_path_vector_score_threshold,
+                            sorted(completed_ids),
+                        )
+                        raise ValueError(
+                            "No relevant published courses were found for this learning path goal. "
+                            "Publish and index matching courses, or choose preferred courses explicitly."
+                        )
             if not candidates:
                 raise ValueError("No published courses are available to build a learning path.")
 
