@@ -50,11 +50,14 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -453,6 +456,7 @@ public class ExerciseServiceImpl implements ExerciseService {
                 .userId(submission.getUserId())
                 .username(username != null ? String.valueOf(username) : null)
                 .avatar(avatar != null ? String.valueOf(avatar) : null)
+                .submitted(true)
                 .answer(submission.getAnswer())
                 .submissionData(submission.getSubmissionData())
                 .grade(submission.getGrade())

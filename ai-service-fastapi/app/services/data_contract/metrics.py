@@ -86,9 +86,39 @@ METRICS: dict[str, MetricContract] = {
     ),
     "course_catalog": MetricContract(
         name="course_catalog",
-        tables=("courses", "chapters", "lessons", "course_skills", "skills", "ratings"),
+        tables=("courses", "enrollments", "course_skills", "skills"),
         grain="course",
-        description="Course availability, level, language, skill coverage, lesson count, and course rating.",
+        description="Published course catalog with enrollment counts, optional free-text topic/skill filter.",
+    ),
+    "course_pricing": MetricContract(
+        name="course_pricing",
+        tables=("courses",),
+        grain="course",
+        description="Published courses ranked by price (most expensive / cheapest / free).",
+    ),
+    "course_structure": MetricContract(
+        name="course_structure",
+        tables=("courses", "chapters", "lessons"),
+        grain="lesson",
+        description="Lessons (chapter, content type, duration) inside a named course. Filter course by name.",
+    ),
+    "learning_path_catalog": MetricContract(
+        name="learning_path_catalog",
+        tables=("learning_paths", "learning_path_courses"),
+        grain="path",
+        description="All learning paths with the number of courses each contains.",
+    ),
+    "learning_path_courses": MetricContract(
+        name="learning_path_courses",
+        tables=("learning_paths", "learning_path_courses", "courses"),
+        grain="path_course",
+        description="Courses inside a named learning path, in defined order. Filter path by name.",
+    ),
+    "blog_catalog": MetricContract(
+        name="blog_catalog",
+        tables=("blogs",),
+        grain="blog",
+        description="Published blog posts, newest first, optional free-text topic filter.",
     ),
     "learner_progress": MetricContract(
         name="learner_progress",
