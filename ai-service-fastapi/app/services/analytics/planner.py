@@ -37,6 +37,15 @@ class AnalyticsSemanticPlanner:
         if definition is None:
             return None
 
+        # Topic-aware catalog metrics: derive/normalize the subject so role words
+        # and abbreviations (BE→backend, FE→fe) actually filter the catalog. The
+        # entity extractor leaves these out, which is why "lộ trình BE" used to
+        # return the whole (FE-heavy) list instead of the backend paths.
+        if definition.key in {"learning_path_catalog", "course_catalog"}:
+            derived_topic = self._derive_catalog_topic(question, entities)
+            if derived_topic:
+                entities = {**entities, "topic": derived_topic}
+
         resolved_scope = self._resolve_scope(definition, scope)
         user_role = str(policy.get("userRole") or "USER").upper()
         self._ensure_role_allowed(definition, user_role)
@@ -72,6 +81,38 @@ class AnalyticsSemanticPlanner:
                 "requiredParams": list(definition.required_params),
             },
         }
+
+    # Concrete tech topics whose name appears verbatim in course / learning-path
+    # titles, so a substring title filter is safe and precise.
+    _CATALOG_TECH_TOPICS = (
+        "java", "python", "javascript", "typescript", "react", "nextjs",
+        "node", "spring", "postgresql", "postgres", "sql", "mongodb", "redis",
+        "docker", "kubernetes", "devops", "aws", "kafka", "spark", "security",
+        "html", "css", "git", "github", "postman", "linux", "php", "golang",
+    )
+
+    def _derive_catalog_topic(self, question: str, entities: dict[str, Any]) -> str:
+        """Resolve the subject used to filter catalog/learning-path titles.
+
+        Honors an extracted concrete topic, maps role abbreviations to the
+        keyword that actually appears in titles (BE→backend, FE→fe), and as a
+        last resort scans the question for a known tech keyword.
+        """
+        existing = str(entities.get("topic") or "").strip().lower()
+        if existing and existing not in {"be", "fe", "backend", "frontend"}:
+            return existing
+
+        normalized = _normalize(question)
+        if "backend" in normalized or "back end" in normalized or re.search(r"\bbe\b", normalized):
+            return "backend"
+        if "frontend" in normalized or "front end" in normalized or re.search(r"\bfe\b", normalized):
+            return "fe"
+        if existing:
+            return existing
+        for keyword in self._CATALOG_TECH_TOPICS:
+            if keyword in normalized:
+                return keyword
+        return ""
 
     def _select_metric(
         self,
@@ -135,20 +176,27 @@ class AnalyticsSemanticPlanner:
         if wants_next and suggest_ctx:
             return "recommended_next_courses"
 
-        # Learning-path catalog: either a listing ("có những lộ trình nào",
-        # "danh sách lộ trình") OR a suggestion ("gợi ý lộ trình tiếp theo",
-        # "nên học lộ trình nào"). Both should surface the available paths, not
-        # the admin completion-rate table. Excluded when the user is clearly
-        # asking about progress/completion or their own personal data.
-        if any(token in normalized for token in ("lo trinh", "learning path")) and any(
-            token in normalized
-            for token in (
-                "co nhung", "nhung lo trinh", "danh sach", "liet ke", "co bao nhieu",
-                "gom nhung", "co lo trinh nao", "nhung lo trinh nao",
-                "goi y", "de xuat", "nen hoc", "phu hop", "tiep theo", "bat dau", "muon hoc",
+        # Learning-path catalog: a listing ("có những lộ trình nào", "danh sách
+        # lộ trình"), a suggestion ("gợi ý lộ trình", "nên học lộ trình nào"),
+        # OR a topic-scoped path lookup ("lộ trình học DevOps / Java / Python").
+        # All surface the available paths (topic-filtered when a topic is given),
+        # not the admin completion-rate table. Excluded when the user asks about
+        # progress/completion or their own personal data.
+        lp_mentioned = any(token in normalized for token in ("lo trinh", "learning path"))
+        if lp_mentioned and not any(
+            token in normalized for token in ("tien do", "hoan thanh", "completion", "cua toi")
+        ):
+            lp_listing = any(
+                token in normalized
+                for token in (
+                    "co nhung", "nhung lo trinh", "danh sach", "liet ke", "co bao nhieu",
+                    "gom nhung", "co lo trinh nao", "nhung lo trinh nao",
+                    "goi y", "de xuat", "nen hoc", "phu hop", "bat dau", "muon hoc",
+                )
             )
-        ) and not any(token in normalized for token in ("tien do", "hoan thanh", "completion", "cua toi")):
-            return "learning_path_catalog"
+            lp_topic = str(entities.get("topic") or "").strip() or self._derive_catalog_topic(question, entities)
+            if lp_listing or lp_topic:
+                return "learning_path_catalog"
 
         # Course pricing (most expensive / cheapest / free). Guard against
         # "đánh giá" ("danh gia"), whose "gia khoa" substring would otherwise be
@@ -196,7 +244,9 @@ class AnalyticsSemanticPlanner:
             return "learner_submissions"
         if any(token in normalized for token in ("thoi gian hoc", "study time", "hoc bao lau")):
             return "study_time_by_course"
-        if any(token in normalized for token in ("learning path", "lo trinh", "path completion", "hoan thanh lo trinh")):
+        if any(token in normalized for token in ("lo trinh", "learning path")) and any(
+            token in normalized for token in ("tien do", "hoan thanh", "completion", "ty le", "toi dau")
+        ):
             return "learning_path_completion"
         if any(token in normalized for token in ("tien do", "progress", "hoan thanh cua toi", "bieu do tien do")):
             return "learner_course_progress" if _looks_personal(normalized) else "course_completion_rate"

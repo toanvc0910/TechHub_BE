@@ -445,7 +445,8 @@ def build_metric_sql(
         return """
             SELECT
                 lp.title AS label,
-                COUNT(DISTINCT lpc.course_id)::int AS value
+                COUNT(DISTINCT lpc.course_id)::int AS value,
+                lp.id AS path_id
             FROM learning_paths lp
             LEFT JOIN learning_path_courses lpc
                 ON lpc.path_id = lp.id

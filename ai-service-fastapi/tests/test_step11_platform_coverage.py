@@ -272,13 +272,22 @@ async def _check_course_structure(session, rows, params):
 
 
 async def _check_lp_catalog(session, rows, params):
-    gt = (await session.execute(text(
-        "SELECT count(*) FROM learning_paths WHERE is_active='Y'"
-    ))).scalar()
+    topic = params.get("topic", "")
+    if topic:
+        gt = (await session.execute(text(
+            "SELECT count(*) FROM learning_paths WHERE is_active='Y' "
+            "AND lower(title) LIKE '%'||lower(:t)||'%'"
+        ), {"t": topic})).scalar()
+    else:
+        gt = (await session.execute(text(
+            "SELECT count(*) FROM learning_paths WHERE is_active='Y'"
+        ))).scalar()
     expected = min(gt, 50)
     if len(rows) != expected:
-        return False, f"learning_path_catalog rows={len(rows)} expected={expected} (gt={gt})"
-    return True, f"{len(rows)} learning paths (gt={gt})"
+        return False, f"learning_path_catalog rows={len(rows)} expected={expected} (gt={gt}, topic='{topic}')"
+    if topic and gt == 0:
+        return False, f"no learning paths matched topic '{topic}' - bad fixture"
+    return True, f"{len(rows)} learning paths (gt={gt}, topic='{topic}')"
 
 
 async def _check_recommended_next(session, rows, params):
@@ -404,6 +413,20 @@ CASES: list[Case] = [
     Case(
         name="learning path catalog",
         question="Hệ thống có những lộ trình học nào?",
+        expected_metric="learning_path_catalog",
+        check=_check_lp_catalog,
+    ),
+    Case(
+        # "Lộ trình học <chủ đề>" must list the topic's learning paths, NOT the
+        # all-zero completion-rate table (the reported bug).
+        name="learning path by topic (DevOps)",
+        question="Lộ Trình Học Devops",
+        expected_metric="learning_path_catalog",
+        check=_check_lp_catalog,
+    ),
+    Case(
+        name="learning path by topic (Java BE)",
+        question="Lộ Trình Học Java spring boot BE",
         expected_metric="learning_path_catalog",
         check=_check_lp_catalog,
     ),
