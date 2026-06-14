@@ -3,9 +3,11 @@ package com.techhub.app.courseservice.controller;
 import com.techhub.app.commonservice.payload.GlobalResponse;
 import com.techhub.app.courseservice.dto.request.ExerciseRequest;
 import com.techhub.app.courseservice.dto.request.ExerciseSubmissionRequest;
+import com.techhub.app.courseservice.dto.request.GradeSubmissionRequest;
 import com.techhub.app.courseservice.dto.response.ExerciseResponse;
 import com.techhub.app.courseservice.dto.response.ExerciseSubmissionResponse;
 import com.techhub.app.courseservice.dto.response.LeaderboardEntryResponse;
+import com.techhub.app.courseservice.dto.response.SubmissionResponse;
 import com.techhub.app.courseservice.service.ExerciseService;
 import com.techhub.app.courseservice.service.LeaderboardService;
 import lombok.RequiredArgsConstructor;
@@ -122,6 +124,36 @@ public class ExerciseController {
                 return ResponseEntity.ok(
                                 GlobalResponse.success("Exercise submitted", response)
                                                 .withStatus("EXERCISE_SUBMITTED")
+                                                .withPath(request.getRequestURI()));
+        }
+
+        // List the latest submission per learner for an exercise (instructor/admin)
+        @GetMapping("/exercises/{exerciseId}/submissions")
+        public ResponseEntity<GlobalResponse<List<SubmissionResponse>>> getExerciseSubmissions(
+                        @PathVariable UUID courseId,
+                        @PathVariable UUID lessonId,
+                        @PathVariable UUID exerciseId,
+                        HttpServletRequest request) {
+                List<SubmissionResponse> responses = exerciseService.getExerciseSubmissions(courseId, lessonId,
+                                exerciseId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Submissions retrieved", responses)
+                                                .withPath(request.getRequestURI()));
+        }
+
+        // Grade a submission with a score and/or written feedback (instructor/admin)
+        @PutMapping("/submissions/{submissionId}/grade")
+        public ResponseEntity<GlobalResponse<SubmissionResponse>> gradeSubmission(
+                        @PathVariable UUID courseId,
+                        @PathVariable UUID lessonId,
+                        @PathVariable UUID submissionId,
+                        @Valid @RequestBody GradeSubmissionRequest gradeRequest,
+                        HttpServletRequest request) {
+                SubmissionResponse response = exerciseService.gradeSubmission(courseId, lessonId, submissionId,
+                                gradeRequest);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Submission graded", response)
+                                                .withStatus("SUBMISSION_GRADED")
                                                 .withPath(request.getRequestURI()));
         }
 

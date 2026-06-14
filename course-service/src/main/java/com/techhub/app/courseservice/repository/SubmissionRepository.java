@@ -13,6 +13,8 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
 
     List<Submission> findByExercise_IdAndUserIdAndIsActiveTrueOrderByCreatedDesc(UUID exerciseId, UUID userId);
 
+    List<Submission> findByExercise_IdAndIsActiveTrueOrderByCreatedDesc(UUID exerciseId);
+
     Optional<Submission> findTopByExercise_IdAndUserIdAndIsActiveTrueOrderByCreatedDesc(UUID exerciseId, UUID userId);
 
     /**

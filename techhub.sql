@@ -452,6 +452,7 @@ CREATE TABLE submissions (
     grade FLOAT,
     graded_at TIMESTAMP WITH TIME ZONE,
     graded_by UUID REFERENCES users(id),
+    feedback TEXT,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status submission_status NOT NULL DEFAULT 'PENDING',

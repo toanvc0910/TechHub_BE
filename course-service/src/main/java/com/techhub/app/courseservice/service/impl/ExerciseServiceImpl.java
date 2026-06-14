@@ -10,14 +10,17 @@ import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
 import com.techhub.app.courseservice.client.AiExerciseFeedbackClient;
+import com.techhub.app.courseservice.client.UserServiceClient;
 import com.techhub.app.courseservice.dto.ExerciseTestCaseDto;
 import com.techhub.app.courseservice.dto.request.ExerciseRequest;
 import com.techhub.app.courseservice.dto.request.ExerciseSubmissionRequest;
+import com.techhub.app.courseservice.dto.request.GradeSubmissionRequest;
 import com.techhub.app.courseservice.dto.request.LessonProgressRequest;
 import com.techhub.app.courseservice.dto.response.ExerciseResponse;
 import com.techhub.app.courseservice.dto.response.ExerciseSubmissionResponse;
 import com.techhub.app.courseservice.dto.response.QuizFeedbackResponse;
 import com.techhub.app.courseservice.dto.response.ReviewSuggestionResponse;
+import com.techhub.app.courseservice.dto.response.SubmissionResponse;
 import com.techhub.app.courseservice.dto.response.TestCaseResultResponse;
 import com.techhub.app.courseservice.entity.Course;
 import com.techhub.app.courseservice.entity.Enrollment;
@@ -47,6 +50,7 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -71,6 +75,7 @@ public class ExerciseServiceImpl implements ExerciseService {
     private final CourseNotificationService courseNotificationService;
     private final ObjectMapper objectMapper;
     private final AiExerciseFeedbackClient aiExerciseFeedbackClient;
+    private final UserServiceClient userServiceClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -323,6 +328,134 @@ public class ExerciseServiceImpl implements ExerciseService {
                 .testCaseResults(evaluation.testCaseResults())
                 .feedback(feedback)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SubmissionResponse> getExerciseSubmissions(UUID courseId, UUID lessonId, UUID exerciseId) {
+        Lesson lesson = resolveLesson(courseId, lessonId);
+        ensureManagePermission(lesson.getChapter().getCourse());
+
+        Exercise exercise = exerciseRepository.findById(exerciseId)
+                .orElseThrow(() -> new NotFoundException("Exercise not found"));
+        if (!exercise.getLesson().getId().equals(lessonId)) {
+            throw new ForbiddenException("Exercise does not belong to the specified lesson");
+        }
+
+        List<Submission> submissions = submissionRepository
+                .findByExercise_IdAndIsActiveTrueOrderByCreatedDesc(exerciseId);
+
+        // Submissions arrive newest-first, so the first one seen per learner is
+        // their latest attempt — the one an instructor wants to review and grade.
+        Map<UUID, Submission> latestByUser = new LinkedHashMap<>();
+        for (Submission submission : submissions) {
+            latestByUser.putIfAbsent(submission.getUserId(), submission);
+        }
+
+        Map<UUID, Map<String, Object>> userInfo = fetchUserInfo(new ArrayList<>(latestByUser.keySet()));
+
+        return latestByUser.values().stream()
+                .map(submission -> toSubmissionResponse(submission,
+                        userInfo.getOrDefault(submission.getUserId(), Collections.emptyMap())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public SubmissionResponse gradeSubmission(UUID courseId, UUID lessonId, UUID submissionId,
+            GradeSubmissionRequest request) {
+        Lesson lesson = resolveLesson(courseId, lessonId);
+        ensureManagePermission(lesson.getChapter().getCourse());
+
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new NotFoundException("Submission not found"));
+        if (submission.getExercise() == null || submission.getExercise().getLesson() == null
+                || !lessonId.equals(submission.getExercise().getLesson().getId())) {
+            throw new ForbiddenException("Submission does not belong to the specified lesson");
+        }
+        if (request.getGrade() != null && (request.getGrade() < 0f || request.getGrade() > 100f)) {
+            throw new BadRequestException("Grade must be between 0 and 100");
+        }
+
+        UUID graderId = requireCurrentUser();
+        submission.setGrade(request.getGrade());
+        submission.setFeedback(request.getFeedback());
+        submission.setGradedBy(graderId);
+        submission.setGradedAt(OffsetDateTime.now());
+        submission.setUpdatedBy(graderId);
+
+        if (request.getStatus() != null) {
+            submission.setStatus(request.getStatus());
+        } else if (request.getGrade() != null) {
+            // Derive a pass/fail from the score so the entry leaves PENDING and
+            // starts counting toward the lesson leaderboard.
+            submission.setStatus(
+                    request.getGrade() >= 50f ? SubmissionStatus.PASSED : SubmissionStatus.FAILED);
+        }
+        // Feedback-only grading (no score, no explicit status) keeps the current status.
+
+        submissionRepository.save(submission);
+        log.info("Submission {} graded by {} (grade={}, status={})",
+                submission.getId(), graderId, submission.getGrade(), submission.getStatus());
+
+        Map<UUID, Map<String, Object>> userInfo = fetchUserInfo(List.of(submission.getUserId()));
+        return toSubmissionResponse(submission,
+                userInfo.getOrDefault(submission.getUserId(), Collections.emptyMap()));
+    }
+
+    private SubmissionResponse toSubmissionResponse(Submission submission, Map<String, Object> user) {
+        Object username = user.get("username");
+        Object avatar = user.get("avatar");
+        return SubmissionResponse.builder()
+                .id(submission.getId())
+                .userId(submission.getUserId())
+                .username(username != null ? String.valueOf(username) : null)
+                .avatar(avatar != null ? String.valueOf(avatar) : null)
+                .answer(submission.getAnswer())
+                .submissionData(submission.getSubmissionData())
+                .grade(submission.getGrade())
+                .feedback(submission.getFeedback())
+                .status(submission.getStatus())
+                .submittedAt(submission.getCreated())
+                .gradedAt(submission.getGradedAt())
+                .gradedBy(submission.getGradedBy())
+                .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<UUID, Map<String, Object>> fetchUserInfo(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        try {
+            UUID currentUserId = UserContext.getCurrentUserId();
+            Map<String, Object> resp = userServiceClient.getUsersBatch(
+                    ids,
+                    currentUserId != null ? currentUserId.toString() : null,
+                    UserContext.getCurrentUserEmail(),
+                    currentUserRoles(),
+                    "course-service");
+            Object data = resp == null ? null : resp.get("data");
+            if (!(data instanceof List)) {
+                return Collections.emptyMap();
+            }
+            Map<UUID, Map<String, Object>> map = new HashMap<>();
+            for (Object item : (List<Object>) data) {
+                if (!(item instanceof Map)) {
+                    continue;
+                }
+                Map<String, Object> entry = (Map<String, Object>) item;
+                Object idObj = entry.get("id");
+                if (idObj == null) {
+                    continue;
+                }
+                UUID id = idObj instanceof UUID ? (UUID) idObj : UUID.fromString(idObj.toString());
+                map.put(id, entry);
+            }
+            return map;
+        } catch (Exception ex) {
+            log.warn("[Submissions] Failed fetching user info batch: {}", ex.getMessage());
+            return Collections.emptyMap();
+        }
     }
 
     private ExerciseEvaluationResult evaluateSubmission(Exercise exercise,
@@ -764,6 +897,8 @@ public class ExerciseServiceImpl implements ExerciseService {
                 .lastSubmissionStatus(latestSubmission != null ? latestSubmission.getStatus() : null)
                 .bestScore(bestScore)
                 .lastSubmittedAt(latestSubmission != null ? latestSubmission.getUpdated() : null)
+                .lastAnswer(latestSubmission != null ? latestSubmission.getAnswer() : null)
+                .lastFeedback(latestSubmission != null ? latestSubmission.getFeedback() : null)
                 .build();
     }
 
