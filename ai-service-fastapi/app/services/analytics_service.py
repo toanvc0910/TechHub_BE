@@ -367,19 +367,21 @@ class AnalyticsService:
                 break
         if not requested:
             return None
-        prior_chart = str(prior_analysis.get("chartType") or "").lower()
-        if requested == prior_chart:
-            return None
         # Look for swap verbs so we don't accidentally match "phân tích bằng
         # biểu đồ cột" as a full new request.
         swap_verbs = (
             "doi sang",
             "chuyen sang",
             "ve lai",
+            "ve bieu do",
+            "tao bieu do",
             "chuyen qua",
             "doi thanh",
+            "render",
             "switch to",
             "change to",
+            "draw",
+            "create",
         )
         if not any(verb in normalized for verb in swap_verbs):
             # Also accept very short messages like "line chart" / "pie"
@@ -415,7 +417,7 @@ class AnalyticsService:
 
     @staticmethod
     def _static_normalize(text: str) -> str:
-        lowered = (text or "").lower().replace("đ", "d")
+        lowered = (text or "").lower().replace("\u0111", "d").replace("Ä‘", "d")
         normalized = unicodedata.normalize("NFD", lowered)
         without_marks = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
         without_punctuation = re.sub(r"[^\w\s]", " ", without_marks)
