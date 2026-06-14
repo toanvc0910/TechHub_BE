@@ -232,8 +232,8 @@ services:
       - OPENAI_EMBEDDING_MODEL=text-embedding-3-small
       - GEMINI_BASE_URL=${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_CHAT_MODEL=${GEMINI_CHAT_MODEL:-gemini-2.5-flash}
-      - GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+      - GEMINI_CHAT_MODEL=${GEMINI_CHAT_MODEL:-gemini-3.5-flash}
+      - GEMINI_EMBEDDING_MODEL=${GEMINI_EMBEDDING_MODEL:-gemini-embedding-2}
       - AI_PROVIDER=${AI_PROVIDER:-gemini}
       - QDRANT_HOST=${QDRANT_HOST}
       - QDRANT_API_KEY=${QDRANT_API_KEY}

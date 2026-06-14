@@ -21,6 +21,10 @@ class ProviderConfigService:
             "openai": self._settings.openai_chat_model,
             "gemini": self._settings.gemini_chat_model,
         }
+        self._embedding_models: dict[str, str] = {
+            "openai": self._settings.openai_embedding_model,
+            "gemini": self._settings.gemini_embedding_model,
+        }
         self._redis: Any | None = None
 
     def set_redis(self, client: Any | None) -> None:
@@ -42,6 +46,11 @@ class ProviderConfigService:
                     for provider, model in data["models"].items():
                         if provider in self._models:
                             self._models[provider] = model
+                if isinstance(data.get("embeddingModels"), dict):
+                    for provider, model in data["embeddingModels"].items():
+                        if provider in self._embedding_models:
+                            self._embedding_models[provider] = model
+                            self._apply_embedding_model(provider, model)
                 logger.info("Loaded persisted provider config from Redis: provider=%s", self._provider)
         except Exception as exc:
             logger.warning("Failed to load persisted provider config: %s", exc)
@@ -51,7 +60,13 @@ class ProviderConfigService:
         if self._redis is None:
             return
         try:
-            data = json.dumps({"provider": self._provider, "models": self._models})
+            data = json.dumps(
+                {
+                    "provider": self._provider,
+                    "models": self._models,
+                    "embeddingModels": self._embedding_models,
+                }
+            )
             await self._redis.set(REDIS_CONFIG_KEY, data)
         except Exception as exc:
             logger.warning("Failed to persist provider config to Redis: %s", exc)
@@ -126,9 +141,8 @@ class ProviderConfigService:
             "requestedProvider": requested_provider,
             "effectiveProvider": effective_provider or requested_provider,
             "effectiveEmbeddingProvider": effective_embedding_provider or requested_provider,
-            "activeEmbeddingModel": self._settings.openai_embedding_model
-            if (effective_embedding_provider or requested_provider) == "openai"
-            else self._settings.gemini_embedding_model,
+            "activeEmbeddingModel": self._embedding_models.get(effective_embedding_provider or requested_provider),
+            "embeddingModels": dict(self._embedding_models),
             "availableProviders": available_providers,
             "providerAvailability": availability,
             "usingMockFallback": using_mock,
@@ -149,8 +163,8 @@ class ProviderConfigService:
     async def get_active_embedding_model(self, provider: str | None = None) -> str:
         actual_provider = provider or await self.get_provider()
         if actual_provider == "openai":
-            return self._settings.openai_embedding_model
-        return self._settings.gemini_embedding_model
+            return self._embedding_models.get("openai") or self._settings.openai_embedding_model
+        return self._embedding_models.get("gemini") or self._settings.gemini_embedding_model
 
     async def get_current_models(self) -> dict[str, str]:
         return dict(self._models)
@@ -201,14 +215,17 @@ class ProviderConfigService:
                 actual_provider = self._normalize_provider(provider or self._provider)
                 self._models[actual_provider] = chat_model
             if embedding_model:
-                # Store embedding model override in settings
                 actual_provider = self._normalize_provider(provider or self._provider)
-                if actual_provider == "openai":
-                    self._settings.openai_embedding_model = embedding_model
-                elif actual_provider == "gemini":
-                    self._settings.gemini_embedding_model = embedding_model
+                self._embedding_models[actual_provider] = embedding_model
+                self._apply_embedding_model(actual_provider, embedding_model)
             await self._persist()
             return await self.get_current_models()
+
+    def _apply_embedding_model(self, provider: str, model: str) -> None:
+        if provider == "openai":
+            self._settings.openai_embedding_model = model
+        elif provider == "gemini":
+            self._settings.gemini_embedding_model = model
 
 
 provider_config_service = ProviderConfigService()

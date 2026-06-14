@@ -31,8 +31,11 @@ class ModelSelectorService:
         provider_models = supported.get(effective_provider, [])
         if effective_provider == "openai" and complexity == "HIGH" and "gpt-4.1" in provider_models:
             model = "gpt-4.1"
-        if effective_provider == "gemini" and complexity == "HIGH" and "gemini-2.5-pro" in provider_models:
-            model = "gemini-2.5-pro"
+        if effective_provider == "gemini" and complexity == "HIGH":
+            if "gemini-3.5-flash" in provider_models:
+                model = "gemini-3.5-flash"
+            elif "gemini-2.5-pro" in provider_models:
+                model = "gemini-2.5-pro"
         if effective_provider == "gemini" and complexity == "MEDIUM" and model not in provider_models:
             model = self._settings.gemini_chat_model
         if effective_provider == "openai" and complexity == "MEDIUM" and model not in provider_models:
