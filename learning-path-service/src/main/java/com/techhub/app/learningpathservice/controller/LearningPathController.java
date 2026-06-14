@@ -26,12 +26,23 @@ import java.util.UUID;
 @Validated
 public class LearningPathController {
 
+    private static final String ROLE_SUPER_ADMIN = "SUPER_ADMIN";
+    private static final String ROLE_ADMIN = "ADMIN";
+
     private final LearningPathService learningPathService;
 
     @PostMapping
     public ResponseEntity<GlobalResponse<LearningPathResponseDTO>> createLearningPath(
-            @Valid @RequestBody LearningPathRequestDTO requestDTO) {
+            @Valid @RequestBody LearningPathRequestDTO requestDTO,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
         log.info("REST request to create learning path: {}", requestDTO.getTitle());
+
+        // Stamp ownership from the trusted identity forwarded by the gateway so the
+        // creator is authoritative (the create form does not send it).
+        if (userId != null) {
+            requestDTO.setCreatedBy(userId);
+            requestDTO.setUpdatedBy(userId);
+        }
 
         LearningPathResponseDTO response = learningPathService.createLearningPath(requestDTO);
 
@@ -42,10 +53,17 @@ public class LearningPathController {
     @PutMapping("/{id}")
     public ResponseEntity<GlobalResponse<LearningPathResponseDTO>> updateLearningPath(
             @PathVariable UUID id,
-            @Valid @RequestBody LearningPathRequestDTO requestDTO) {
+            @Valid @RequestBody LearningPathRequestDTO requestDTO,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @RequestHeader(value = "X-User-Roles", required = false) String roles) {
         log.info("REST request to update learning path: {}", id);
 
-        LearningPathResponseDTO response = learningPathService.updateLearningPath(id, requestDTO);
+        if (userId != null) {
+            requestDTO.setUpdatedBy(userId);
+        }
+
+        LearningPathResponseDTO response = learningPathService.updateLearningPath(id, requestDTO, userId,
+                isAdmin(roles));
 
         return ResponseEntity.ok(GlobalResponse.success("Learning path updated successfully", response));
     }
@@ -72,6 +90,37 @@ public class LearningPathController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 
         Page<LearningPathResponseDTO> responsePage = learningPathService.getAllLearningPaths(pageable);
+
+        PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                .page(responsePage.getNumber())
+                .size(responsePage.getSize())
+                .totalElements(responsePage.getTotalElements())
+                .totalPages(responsePage.getTotalPages())
+                .first(responsePage.isFirst())
+                .last(responsePage.isLast())
+                .hasNext(responsePage.hasNext())
+                .hasPrevious(responsePage.hasPrevious())
+                .build();
+
+        return ResponseEntity.ok(PageGlobalResponse.success("Learning paths retrieved successfully",
+                responsePage.getContent(), paginationInfo));
+    }
+
+    @GetMapping("/my-paths")
+    public ResponseEntity<PageGlobalResponse<LearningPathResponseDTO>> getMyLearningPaths(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "created") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @RequestHeader(value = "X-User-Roles", required = false) String roles) {
+        log.info("REST request to get my learning paths - userId: {}, page: {}, size: {}", userId, page, size);
+
+        Sort.Direction direction = Sort.Direction.fromString(sortDirection);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Page<LearningPathResponseDTO> responsePage = learningPathService.getMyLearningPaths(userId, isAdmin(roles),
+                pageable);
 
         PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
                 .page(responsePage.getNumber())
@@ -139,12 +188,32 @@ public class LearningPathController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<GlobalResponse<Void>> deleteLearningPath(@PathVariable UUID id) {
+    public ResponseEntity<GlobalResponse<Void>> deleteLearningPath(
+            @PathVariable UUID id,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @RequestHeader(value = "X-User-Roles", required = false) String roles) {
         log.info("REST request to delete learning path: {}", id);
 
-        learningPathService.deleteLearningPath(id);
+        learningPathService.deleteLearningPath(id, userId, isAdmin(roles));
 
         return ResponseEntity.ok(GlobalResponse.success("Learning path deleted successfully", null));
+    }
+
+    /**
+     * The gateway forwards the caller's effective role(s) in the X-User-Roles
+     * header. ADMIN/SUPER_ADMIN manage every author's learning paths.
+     */
+    private boolean isAdmin(String rolesHeader) {
+        if (rolesHeader == null || rolesHeader.isEmpty()) {
+            return false;
+        }
+        for (String role : rolesHeader.split(",")) {
+            String normalized = role.trim();
+            if (ROLE_ADMIN.equalsIgnoreCase(normalized) || ROLE_SUPER_ADMIN.equalsIgnoreCase(normalized)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @PostMapping("/{pathId}/courses")

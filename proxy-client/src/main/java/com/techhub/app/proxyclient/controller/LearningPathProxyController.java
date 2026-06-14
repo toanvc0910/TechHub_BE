@@ -31,6 +31,17 @@ public class LearningPathProxyController {
         return learningPathServiceClient.getAllLearningPaths(page, size, sortBy, sortDirection);
     }
 
+    // Management list for the current user. Identity travels via X-User-* headers
+    // that FeignConfig forwards, so admins get every path and other roles get their own.
+    @GetMapping("/my-paths")
+    public ResponseEntity<String> getMyLearningPaths(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "created") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection) {
+        return learningPathServiceClient.getMyLearningPaths(page, size, sortBy, sortDirection);
+    }
+
     @PostMapping
     public ResponseEntity<String> createLearningPath(
             @RequestBody Object createRequest,

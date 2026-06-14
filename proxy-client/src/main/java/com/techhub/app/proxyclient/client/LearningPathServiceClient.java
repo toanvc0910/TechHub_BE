@@ -22,6 +22,14 @@ public interface LearningPathServiceClient {
             @RequestParam(defaultValue = "created") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection);
 
+    // Management list scoped to the current user (identity forwarded via X-User-* headers)
+    @GetMapping("/api/v1/learning-paths/my-paths")
+    ResponseEntity<String> getMyLearningPaths(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "created") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection);
+
     @PostMapping("/api/v1/learning-paths")
     ResponseEntity<String> createLearningPath(
             @RequestBody Object createRequest,

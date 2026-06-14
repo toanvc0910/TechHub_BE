@@ -11,17 +11,24 @@ public interface LearningPathService {
 
     LearningPathResponseDTO createLearningPath(LearningPathRequestDTO requestDTO);
 
-    LearningPathResponseDTO updateLearningPath(UUID id, LearningPathRequestDTO requestDTO);
+    LearningPathResponseDTO updateLearningPath(UUID id, LearningPathRequestDTO requestDTO, UUID requesterId,
+            boolean isAdmin);
 
     LearningPathResponseDTO getLearningPathById(UUID id);
 
     Page<LearningPathResponseDTO> getAllLearningPaths(Pageable pageable);
 
+    /**
+     * Management listing scoped to the current user: admins see every author's
+     * paths, while other roles (e.g. INSTRUCTOR) see only the ones they created.
+     */
+    Page<LearningPathResponseDTO> getMyLearningPaths(UUID requesterId, boolean isAdmin, Pageable pageable);
+
     Page<LearningPathResponseDTO> searchLearningPaths(String keyword, Pageable pageable);
 
     Page<LearningPathResponseDTO> getLearningPathsByCreator(UUID userId, Pageable pageable);
 
-    void deleteLearningPath(UUID id);
+    void deleteLearningPath(UUID id, UUID requesterId, boolean isAdmin);
 
     LearningPathResponseDTO addCoursesToPath(UUID pathId, AddCoursesToPathRequestDTO requestDTO);
 
