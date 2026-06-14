@@ -249,6 +249,21 @@ public interface CourseServiceClient {
                         @PathVariable String exerciseId,
                         @RequestHeader("Authorization") String authHeader);
 
+        // Instructor/admin: list the latest submission per learner for an exercise
+        @GetMapping("/api/courses/{courseId}/lessons/{lessonId}/exercises/{exerciseId}/submissions")
+        ResponseEntity<String> getExerciseSubmissions(@PathVariable String courseId,
+                        @PathVariable String lessonId,
+                        @PathVariable String exerciseId,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        // Instructor/admin: grade a submission (score and/or written feedback)
+        @PutMapping("/api/courses/{courseId}/lessons/{lessonId}/submissions/{submissionId}/grade")
+        ResponseEntity<String> gradeSubmission(@PathVariable String courseId,
+                        @PathVariable String lessonId,
+                        @PathVariable String submissionId,
+                        @RequestBody Object request,
+                        @RequestHeader("Authorization") String authHeader);
+
         // Workspace IDE
         @GetMapping("/api/courses/{courseId}/lessons/{lessonId}/workspace")
         ResponseEntity<String> getWorkspace(@PathVariable String courseId,

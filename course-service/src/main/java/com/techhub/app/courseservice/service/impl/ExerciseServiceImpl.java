@@ -50,11 +50,14 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -352,12 +355,55 @@ public class ExerciseServiceImpl implements ExerciseService {
             latestByUser.putIfAbsent(submission.getUserId(), submission);
         }
 
-        Map<UUID, Map<String, Object>> userInfo = fetchUserInfo(new ArrayList<>(latestByUser.keySet()));
-
-        return latestByUser.values().stream()
-                .map(submission -> toSubmissionResponse(submission,
-                        userInfo.getOrDefault(submission.getUserId(), Collections.emptyMap())))
+        // Include enrolled learners who have not submitted yet, so the instructor
+        // can also see who is missing (and the completion ratio).
+        List<UUID> enrolledUserIds = enrollmentRepository
+                .findAllByCourse_IdAndIsActiveTrue(courseId).stream()
+                .map(Enrollment::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
                 .collect(Collectors.toList());
+
+        // Resolve display info once for both submitters and non-submitters.
+        Set<UUID> allUserIds = new LinkedHashSet<>(latestByUser.keySet());
+        allUserIds.addAll(enrolledUserIds);
+        Map<UUID, Map<String, Object>> userInfo = fetchUserInfo(new ArrayList<>(allUserIds));
+
+        List<SubmissionResponse> result = new ArrayList<>();
+        for (Submission submission : latestByUser.values()) {
+            result.add(toSubmissionResponse(submission,
+                    userInfo.getOrDefault(submission.getUserId(), Collections.emptyMap())));
+        }
+        for (UUID enrolledId : enrolledUserIds) {
+            if (latestByUser.containsKey(enrolledId)) {
+                continue;
+            }
+            result.add(toNotSubmittedResponse(enrolledId,
+                    userInfo.getOrDefault(enrolledId, Collections.emptyMap())));
+        }
+
+        // Order the work an instructor cares about first: needs-grading (submitted
+        // but ungraded) -> already graded -> not submitted yet.
+        result.sort(Comparator.comparingInt(ExerciseServiceImpl::submissionSortRank));
+        return result;
+    }
+
+    private static int submissionSortRank(SubmissionResponse response) {
+        if (!Boolean.TRUE.equals(response.getSubmitted())) {
+            return 2; // not submitted
+        }
+        return response.getGrade() == null ? 0 : 1; // ungraded before graded
+    }
+
+    private SubmissionResponse toNotSubmittedResponse(UUID userId, Map<String, Object> user) {
+        Object username = user.get("username");
+        Object avatar = user.get("avatar");
+        return SubmissionResponse.builder()
+                .userId(userId)
+                .username(username != null ? String.valueOf(username) : null)
+                .avatar(avatar != null ? String.valueOf(avatar) : null)
+                .submitted(false)
+                .build();
     }
 
     @Override
@@ -410,6 +456,7 @@ public class ExerciseServiceImpl implements ExerciseService {
                 .userId(submission.getUserId())
                 .username(username != null ? String.valueOf(username) : null)
                 .avatar(avatar != null ? String.valueOf(avatar) : null)
+                .submitted(true)
                 .answer(submission.getAnswer())
                 .submissionData(submission.getSubmissionData())
                 .grade(submission.getGrade())

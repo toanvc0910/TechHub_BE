@@ -26,6 +26,12 @@ public class SubmissionResponse {
     private UUID userId;
     private String username;
     private String avatar;
+    /**
+     * Whether this learner has actually submitted. False for enrolled learners
+     * who have not done the exercise yet (placeholder rows so instructors can
+     * see who is missing).
+     */
+    private Boolean submitted;
     private String answer;
     private Object submissionData;
     private Float grade;

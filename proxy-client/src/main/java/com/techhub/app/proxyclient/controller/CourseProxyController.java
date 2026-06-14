@@ -338,6 +338,25 @@ public class CourseProxyController {
         return courseServiceClient.deleteExercise(courseId, lessonId, exerciseId, authHeader);
     }
 
+    // Instructor/admin: list the latest submission per learner for an exercise
+    @GetMapping("/{courseId}/lessons/{lessonId}/exercises/{exerciseId}/submissions")
+    public ResponseEntity<String> getExerciseSubmissions(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @PathVariable String exerciseId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return courseServiceClient.getExerciseSubmissions(courseId, lessonId, exerciseId, authHeader);
+    }
+
+    // Instructor/admin: grade a submission (score and/or written feedback)
+    @PutMapping("/{courseId}/lessons/{lessonId}/submissions/{submissionId}/grade")
+    public ResponseEntity<String> gradeSubmission(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @PathVariable String submissionId,
+            @RequestBody Object request,
+            @RequestHeader("Authorization") String authHeader) {
+        return courseServiceClient.gradeSubmission(courseId, lessonId, submissionId, request, authHeader);
+    }
+
     // Workspace
     @GetMapping("/{courseId}/lessons/{lessonId}/workspace")
     public ResponseEntity<String> getWorkspace(@PathVariable String courseId,

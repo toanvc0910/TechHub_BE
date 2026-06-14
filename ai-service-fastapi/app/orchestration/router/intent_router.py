@@ -23,6 +23,32 @@ class IntentRouter:
         self._rules: list[tuple[str, str, list[str]]] = [
             ("file_analysis", "uploaded-file", [r"\b(pdf|file|tai lieu|docx|document|phan tich file)\b"]),
             ("visualization", "chart", [r"\b(chart|bieu do|visual|plot|dashboard|do thi)\b"]),
+            # Personal learning-history lookups ("which courses have I studied",
+            # "khóa học của tôi", "đã đăng ký khóa nào của giảng viên nào") are a
+            # data query over the user's own enrollments — NOT a recommendation.
+            # Must precede the semantic tier, which otherwise mis-routes phrases
+            # mentioning "khoa hoc" to the recommendation template.
+            ("data_query", "learning-history", [
+                r"\b(da hoc|da hoan thanh|da dang ky|dang theo hoc|toi dang hoc|khoa hoc cua toi|khoa cua toi|lich su hoc|khoa hoc nao cua|hoc khoa hoc nao)\b",
+            ]),
+            # Instructor-centric course questions ("giảng viên A có bao nhiêu khóa
+            # học", "tôi đang học khóa của giảng viên nào") resolve to analytics
+            # over courses/instructors.
+            ("data_query", "instructor-courses", [
+                r"\b(giang vien|giao vien|instructor)\b.*\b(khoa hoc|khoa nao|bao nhieu|day|gom|so huu)\b",
+                r"\b(khoa hoc|khoa nao)\b.*\b(giang vien|giao vien|instructor)\b",
+            ]),
+            # Catalog / discovery questions over courses, lessons, learning
+            # paths and blogs ("có những khóa học nào", "lộ trình X gồm khóa
+            # nào", "khóa nào rẻ nhất", "blog về Docker"). These resolve to
+            # deterministic analytics templates.
+            ("data_query", "catalog", [
+                r"\b(blog|bai viet)\b",
+                r"\b(lo trinh|learning path)\b",
+                r"\b(danh sach|liet ke|co nhung|nhung khoa hoc|co khoa hoc|khoa hoc ve|khoa hoc nao)\b",
+                r"\b(bai hoc nao|gom nhung|gom bai|chuong nao)\b",
+                r"\b(gia|hoc phi|mien phi|free|dat nhat|re nhat|gia re|gia cao)\b",
+            ]),
             ("data_query", "analytics", [r"\b(so lieu|thong ke|bao nhieu|analytics|report|tong hop|bang du lieu|truy van|query)\b"]),
             ("recommendation", "course-advice", [r"\b(goi y|de xuat|recommend|phu hop|nen hoc)\b"]),
             ("conversation", "profile-identity", [r"\b(ten toi|ten cua toi|toi ten|toi la ai|ten minh|ten cua minh|minh ten|what is my name|who am i)\b"]),
