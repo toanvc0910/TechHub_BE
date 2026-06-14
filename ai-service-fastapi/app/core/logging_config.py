@@ -93,6 +93,11 @@ def configure_logging(level: str = "INFO") -> None:
     except Exception:
         root.setLevel(logging.INFO)
 
+    # Quiet very chatty third-party libraries so our own DEBUG logs stay
+    # readable when the app runs at DEBUG level. Their WARNING+ still surface.
+    for noisy in ("httpcore", "httpx", "urllib3", "openai", "google", "asyncio"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
     """Bind a request ID for every HTTP request.

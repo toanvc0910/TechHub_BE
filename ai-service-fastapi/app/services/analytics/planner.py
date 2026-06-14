@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from typing import Any
 
 from app.services.analytics.metric_registry import MetricDefinition, get_metric
 from app.services.analytics.sql_templates import build_metric_sql, build_params
+
+logger = logging.getLogger(__name__)
 
 
 class AnalyticsSemanticPlanner:
@@ -21,6 +24,16 @@ class AnalyticsSemanticPlanner:
     ) -> dict[str, Any] | None:
         metric_key = self._select_metric(question, entities, prior_analysis)
         definition = get_metric(metric_key)
+        logger.debug(
+            "semantic planner metric selection",
+            extra={
+                "event": "planner_select",
+                "selectedMetric": metric_key,
+                "matched": definition is not None,
+                "entities": entities,
+                "priorMetric": (prior_analysis or {}).get("metric") if isinstance(prior_analysis, dict) else None,
+            },
+        )
         if definition is None:
             return None
 
@@ -122,7 +135,13 @@ class AnalyticsSemanticPlanner:
         ):
             return "course_pricing"
 
-        # General course catalog / topic search.
+        # General course catalog / topic search. A concrete topic combined with
+        # any course mention ("có khóa nào về database", "khóa học Docker") is a
+        # catalog lookup, regardless of exact word order or polite "gợi ý"
+        # phrasing.
+        topic = str(entities.get("topic") or "").strip()
+        if topic and ("khoa" in normalized or "course" in normalized):
+            return "course_catalog"
         if any(
             token in normalized
             for token in ("co nhung khoa hoc", "nhung khoa hoc nao", "danh sach khoa hoc", "khoa hoc ve", "khoa hoc nao ve", "liet ke khoa hoc", "co khoa hoc nao", "khoa hoc pho bien", "khoa hoc lien quan")

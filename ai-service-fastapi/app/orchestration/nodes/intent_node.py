@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 
@@ -8,9 +9,22 @@ from app.orchestration.router.intent_router import intent_router
 from app.orchestration.state.orchestrator_state import OrchestratorState, trace_step
 from app.services.runtime_policy_service import runtime_policy_service
 
+logger = logging.getLogger(__name__)
+
 
 async def intent_node(state: OrchestratorState) -> dict:
     result = await intent_router.classify(state)
+    logger.info(
+        "intent classified",
+        extra={
+            "event": "intent_classified",
+            "userInput": state.get("user_input", ""),
+            "intent": result.intent,
+            "subIntent": result.sub_intent,
+            "confidence": result.confidence,
+            "matchedRule": result.matched_rule,
+        },
+    )
     normalized_input = _normalize_text(state.get("user_input", ""))
     if result.intent == "file_analysis" and normalized_input.strip() and not _is_file_reference(normalized_input):
         downgraded_intent = "knowledge" if _looks_like_knowledge_or_compare(normalized_input) else "conversation"

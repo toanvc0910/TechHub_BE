@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from decimal import Decimal
@@ -7,6 +8,8 @@ from numbers import Number
 from typing import Any
 
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import get_settings
 from app.db.session import get_db_session
@@ -65,6 +68,19 @@ class AnalyticsService:
         if policy.get("trustedUserId") and user_id and str(policy["trustedUserId"]) != str(user_id):
             raise ValueError("Analytics user context does not match trusted identity.")
 
+        logger.info(
+            "analytics request",
+            extra={
+                "event": "analytics_request",
+                "question": question,
+                "entities": resolved_entities,
+                "scope": scope,
+                "userRole": policy.get("userRole"),
+                "trustedUserId": trusted_user_id,
+                "priorMetric": (prior_analysis or {}).get("metric") if isinstance(prior_analysis, dict) else None,
+            },
+        )
+
         # Shortcut: if this is clearly just a chart-type swap and we have the
         # previous SQL to rerun, skip the LLM planner entirely.
         chart_swap_type = self._detect_chart_swap(question, prior_analysis) if prior_analysis else None
@@ -86,6 +102,18 @@ class AnalyticsService:
                 prior_analysis=prior_analysis,
             )
         scope = str(plan.get("scope") or scope)
+        logger.info(
+            "analytics plan resolved",
+            extra={
+                "event": "analytics_plan",
+                "metric": plan.get("metric"),
+                "scope": scope,
+                "timeRange": plan.get("timeRange"),
+                "chartType": plan.get("chartType"),
+                "executionMode": plan.get("executionMode"),
+                "params": sorted((plan.get("params") or {}).keys()),
+            },
+        )
         self._enforce_analytics_access(
             policy,
             scope=scope,
@@ -154,6 +182,21 @@ class AnalyticsService:
         if str(active_plan.get("metric") or "") in self._INSTRUCTOR_NAME_METRICS:
             rows = await self._enrich_instructor_names(rows)
             columns = list(rows[0].keys()) if rows else columns
+
+        logger.info(
+            "analytics executed",
+            extra={
+                "event": "analytics_result",
+                "metric": active_plan.get("metric"),
+                "executionMode": active_plan.get("executionMode"),
+                "rowCount": len(rows),
+                "columns": columns,
+            },
+        )
+        logger.debug(
+            "analytics sql",
+            extra={"event": "analytics_sql", "sql": re.sub(r"\s+", " ", sql).strip(), "params": params},
+        )
 
         summary = await self._summarize(
             question,
@@ -343,11 +386,16 @@ class AnalyticsService:
         if not prior_analysis or not isinstance(prior_analysis, dict):
             return dict(entities)
         merged = dict(entities)
-        # Inherit metric / time_range / scope only when the current question
-        # didn't already specify them. The current extractor uses snake_case
-        # keys, whereas the FE snapshot uses camelCase.
-        if not merged.get("metric") and prior_analysis.get("metric"):
-            merged["metric"] = prior_analysis["metric"]
+        # Inherit time_range / scope only when the current question didn't
+        # already specify them. The current extractor uses snake_case keys,
+        # whereas the FE snapshot uses camelCase.
+        #
+        # NOTE: we deliberately do NOT inherit `metric` here. Doing so made a
+        # brand-new question (e.g. "các blog hiện tại có trên web") reuse the
+        # previous turn's metric and answer about the wrong subject. The planner
+        # already reuses the prior metric on genuine refinements via
+        # `_looks_like_refinement`, so metric carry-over belongs there, not in a
+        # blanket entity merge.
         if not merged.get("time_range") and prior_analysis.get("timeRange"):
             merged["time_range"] = prior_analysis["timeRange"]
         if not merged.get("scope") and prior_analysis.get("scope"):
@@ -691,7 +739,35 @@ class AnalyticsService:
         if not rows:
             return "Khong co du lieu phu hop voi bo loc hien tai."
 
-        preview = rows[:5]
+        # Content-oriented question (e.g. "nội dung của blog X"): when the rows
+        # carry a real text `content` column, answer with that text directly.
+        # Otherwise the aggregate summarizer below would describe the numeric
+        # `value` column and the LLM mislabels it (e.g. a related-course count
+        # read as "lượt tương tác").
+        normalized_q = self._normalize_query_text(question)
+        wants_content = "noi dung" in normalized_q or "content" in normalized_q
+        # Only switch to content mode when a specific item was targeted (topic
+        # filter present) — a bare "list the blogs and their content" stays a
+        # listing instead of dumping one blog's full body.
+        topic = str((plan.get("params") or {}).get("topic") or "").strip()
+        content_rows = [
+            row for row in rows
+            if isinstance(row, dict) and str(row.get("content") or "").strip()
+        ]
+        if wants_content and topic and content_rows:
+            top = content_rows[0]
+            title = str(top.get("label") or top.get("title") or "").strip()
+            body = self._strip_html(str(top.get("content") or ""))
+            header = f'Nội dung blog "{title}":' if title else "Nội dung:"
+            return f"{header}\n\n{body}" if body else header
+
+        # Aggregate insight summary. Drop bulky text columns (e.g. `content`)
+        # from the preview so they don't blow up the prompt.
+        preview = [
+            {key: val for key, val in row.items() if key != "content"}
+            if isinstance(row, dict) else row
+            for row in rows[:5]
+        ]
         fallback = self._fallback_summary(rows, plan, scope=scope)
         prompt = (
             "Tom tat nhanh bang tieng Viet ket qua analytics cua TechHub.\n"
@@ -706,6 +782,30 @@ class AnalyticsService:
         )
         cleaned = summary.strip()
         return cleaned or fallback
+
+    @staticmethod
+    def _strip_html(raw: str) -> str:
+        """Render stored blog HTML as readable plain text for a chat reply.
+
+        Blog bodies are stored as HTML; dumping raw tags into a chat bubble reads
+        poorly. Drop block tags to line breaks, strip the rest, and unescape the
+        common entities. Intentionally lightweight — not a full HTML parser.
+        """
+        if not raw:
+            return ""
+        text_value = re.sub(r"(?i)</(p|div|li|h[1-6]|tr)>", "\n", raw)
+        text_value = re.sub(r"(?i)<br\s*/?>", "\n", text_value)
+        text_value = re.sub(r"(?i)<li[^>]*>", "• ", text_value)
+        text_value = re.sub(r"<[^>]+>", "", text_value)
+        replacements = {
+            "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">",
+            "&quot;": '"', "&#39;": "'", "&apos;": "'",
+        }
+        for entity, char in replacements.items():
+            text_value = text_value.replace(entity, char)
+        text_value = re.sub(r"[ \t]+", " ", text_value)
+        text_value = re.sub(r"\n{3,}", "\n\n", text_value)
+        return text_value.strip()
 
     def _fallback_summary(self, rows: list[dict[str, Any]], plan: dict[str, Any], *, scope: str) -> str:
         if not rows:

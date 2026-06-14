@@ -75,6 +75,9 @@ class Case:
     expected_intents: tuple[str, ...] = ("data_query", "visualization")
     # async validator(session, rows, params) -> (ok: bool, message: str)
     check: Callable[..., Any] | None = None
+    # Simulated previous analytics turn (FE sends this back as activeAnalysis).
+    # Used to prove a new question does NOT inherit the prior metric.
+    prior_analysis: dict[str, Any] | None = None
 
 
 def _policy(role: str, user_id: str | None) -> dict[str, Any]:
@@ -109,15 +112,19 @@ async def _run_case(case: Case) -> tuple[bool, str]:
             f"not in {case.expected_intents}"
         )
 
-    scope = _infer_scope(case.question, entities)
+    # Mirror exactly what AnalyticsService.execute does before planning so the
+    # prior-analysis carry-over path is exercised here too.
+    prior = case.prior_analysis
+    resolved_entities = analytics_service._merge_prior_entities(entities, prior)
+    scope = analytics_service._infer_scope_with_prior(case.question, resolved_entities, prior)
     policy = _policy(case.role, case.user_id)
     plan = analytics_semantic_planner.plan(
         case.question,
-        entities,
+        resolved_entities,
         policy=policy,
         user_id=case.user_id,
         scope=scope,
-        prior_analysis=None,
+        prior_analysis=prior,
     )
     if plan is None:
         return False, f"planner returned None (entities={entities})"
@@ -341,6 +348,15 @@ CASES: list[Case] = [
         check=_check_course_catalog_topic,
     ),
     Case(
+        # Topic-scoped lookup phrased politely as a recommendation must still
+        # resolve deterministically to the catalog (not the profile recommender).
+        name="topic search via 'gợi ý' phrasing",
+        question="có khóa nào học về database không hãy gợi ý cho tôi",
+        expected_metric="course_catalog",
+        expected_intents=("data_query", "visualization"),
+        check=_check_course_catalog_topic,
+    ),
+    Case(
         name="course pricing",
         question="Khóa học nào đắt nhất trên hệ thống?",
         expected_metric="course_pricing",
@@ -375,6 +391,49 @@ CASES: list[Case] = [
         question="Có blog nào về Docker không?",
         expected_metric="blog_catalog",
         check=_check_blog_catalog,
+    ),
+    # --- Prior-analysis carry-over regression cases -----------------------
+    # A previous analytics turn must NOT bleed its metric into a brand-new,
+    # unrelated question. (Reproduced the "blog question answered with course
+    # progress" bug.)
+    Case(
+        name="carryover: blog after personal course turn",
+        question="các blog hiện tại có trên web site này , và nội dung của các blog",
+        expected_metric="blog_catalog",
+        check=_check_blog_catalog,
+        prior_analysis={
+            "metric": "learner_course_instructors",
+            "scope": "personal",
+            "chartType": "bar",
+            "timeRange": "all_time",
+            "sql": "SELECT 1",
+        },
+    ),
+    Case(
+        name="carryover: course catalog after personal turn",
+        question="Có những khóa học nào về Docker?",
+        expected_metric="course_catalog",
+        check=_check_course_catalog_topic,
+        prior_analysis={
+            "metric": "learner_course_progress",
+            "scope": "personal",
+            "chartType": "bar",
+            "timeRange": "all_time",
+            "sql": "SELECT 1",
+        },
+    ),
+    Case(
+        name="carryover: learning paths after personal turn",
+        question="Hệ thống có những lộ trình học nào?",
+        expected_metric="learning_path_catalog",
+        check=_check_lp_catalog,
+        prior_analysis={
+            "metric": "learner_course_instructors",
+            "scope": "personal",
+            "chartType": "bar",
+            "timeRange": "all_time",
+            "sql": "SELECT 1",
+        },
     ),
 ]
 

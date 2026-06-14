@@ -433,12 +433,15 @@ def build_metric_sql(
 
     if definition.key == "blog_catalog":
         # Published blogs, newest first. ":topic" optionally filters by title,
-        # content, or tag array. Value is the count of related courses.
+        # content, or tag array. Value is the count of related courses. The
+        # bounded `content` column lets the assistant answer "what's in blog X?"
+        # with the actual body text instead of guessing from the numeric value.
         return """
             SELECT
                 b.title AS label,
                 COALESCE(array_length(b.related_course_ids, 1), 0)::int AS value,
-                to_char(b.created, 'YYYY-MM-DD') AS created_at
+                to_char(b.created, 'YYYY-MM-DD') AS created_at,
+                LEFT(COALESCE(b.content, ''), 8000) AS content
             FROM blogs b
             WHERE b.is_active = 'Y'
               AND b.status = 'PUBLISHED'

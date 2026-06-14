@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 
 from app.orchestration.state.orchestrator_state import OrchestratorState, trace_step
+
+logger = logging.getLogger(__name__)
 
 
 async def entity_extraction_node(state: OrchestratorState) -> dict:
@@ -35,9 +38,12 @@ async def entity_extraction_node(state: OrchestratorState) -> dict:
         entities["path_name"] = path_name
 
     topic_match = re.search(
-        r"\b(python|java|javascript|typescript|react|next\.?js|node|spring|sql|"
-        r"data science|machine learning|ai|frontend|backend|fastapi|docker|"
-        r"postman|git|github|html|css|kubernetes|devops)\b",
+        r"\b(python|java|javascript|typescript|react|next\.?js|node|spring|"
+        r"database|postgresql|postgres|sql|nosql|mongodb|redis|"
+        r"data science|data engineering|machine learning|deep learning|ai|"
+        r"frontend|backend|fullstack|full-stack|fastapi|docker|kubernetes|"
+        r"devops|cloud|aws|azure|gcp|spark|etl|microservice|api|rest|graphql|"
+        r"security|bao mat|testing|kiem thu|postman|git|github|html|css)\b",
         normalized,
     )
     if topic_match:
@@ -134,6 +140,14 @@ async def entity_extraction_node(state: OrchestratorState) -> dict:
     elif re.search(r"\b(file|tai lieu|pdf|docx|document|tep)\b", normalized):
         entities["file_scope"] = "any"
 
+    logger.debug(
+        "entity extraction",
+        extra={
+            "event": "entity_extract",
+            "userInput": text,
+            "entities": entities,
+        },
+    )
     trace_step(state, "entity_extract", "Extracted entities from user input.", entities=entities)
     return {
         "entities": entities,

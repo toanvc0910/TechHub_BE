@@ -48,6 +48,12 @@ class IntentRouter:
                 r"\b(danh sach|liet ke|co nhung|nhung khoa hoc|co khoa hoc|khoa hoc ve|khoa hoc nao)\b",
                 r"\b(bai hoc nao|gom nhung|gom bai|chuong nao)\b",
                 r"\b(gia|hoc phi|mien phi|free|dat nhat|re nhat|gia re|gia cao)\b",
+                # "khóa ... về <chủ đề>" / "có khóa nào về X" — a topic-scoped
+                # course lookup. Matches even when phrased politely as "gợi ý",
+                # so it resolves deterministically instead of going to the
+                # profile-anchored recommender.
+                r"\bkhoa\b.{0,40}\bve\b",
+                r"\bcourses?\b.{0,40}\b(about|on)\b",
             ]),
             ("data_query", "analytics", [r"\b(so lieu|thong ke|bao nhieu|analytics|report|tong hop|bang du lieu|truy van|query)\b"]),
             ("recommendation", "course-advice", [r"\b(goi y|de xuat|recommend|phu hop|nen hoc)\b"]),
