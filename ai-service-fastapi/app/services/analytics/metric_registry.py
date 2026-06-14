@@ -173,6 +173,21 @@ METRIC_REGISTRY: dict[str, MetricDefinition] = {
         default_chart="bar",
         grain="course",
     ),
+    "recommended_next_courses": MetricDefinition(
+        key="recommended_next_courses",
+        title="Khoa hoc nen hoc tiep theo",
+        description=(
+            "Personalized next-step suggestions: published courses the learner "
+            "has not enrolled in yet, ranked by how many skills they share with "
+            "the courses the learner is already taking."
+        ),
+        allowed_scopes=("personal",),
+        required_roles=ANY_AUTHENTICATED,
+        tables=("courses", "course_skills", "enrollments"),
+        required_params=(),
+        default_chart="bar",
+        grain="course",
+    ),
     "course_pricing": MetricDefinition(
         key="course_pricing",
         title="Gia cac khoa hoc",

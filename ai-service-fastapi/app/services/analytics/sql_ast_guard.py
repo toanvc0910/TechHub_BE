@@ -76,6 +76,15 @@ def parse_and_inspect(sql: str) -> ParsedSql:
         raise SqlAstGuardError("SQL does not contain a SELECT.")
 
     tables = {table.name.lower() for table in parsed.find_all(exp.Table) if table.name}
+    # Names introduced by CTEs (WITH ... AS) are not real tables — they are
+    # local query aliases. Exclude them so the table allowlist doesn't reject a
+    # valid CTE-based metric (e.g. "WITH my_courses AS (...)").
+    cte_names = {
+        (cte.alias_or_name or "").lower()
+        for cte in parsed.find_all(exp.CTE)
+    }
+    cte_names.discard("")
+    tables = tables - cte_names
 
     # Projected columns from every SELECT in the tree — captures CTE bodies
     # and subqueries too, which is what we want for PII enforcement: an inner

@@ -119,12 +119,34 @@ class AnalyticsSemanticPlanner:
         if any(token in normalized for token in ("blog", "bai viet", "bai blog")):
             return "blog_catalog"
 
-        # Learning-path catalog ("co nhung lo trinh nao", "danh sach lo trinh").
-        # Must beat the learning_path_completion mapping below, but only when the
-        # question is a listing rather than a progress/completion question.
+        # Personalized "what should I learn next": "gợi ý lộ trình/khóa học tiếp
+        # theo", "học gì tiếp theo", "nên học tiếp khóa nào". Continuation phrasing
+        # ("tiếp theo"/"học tiếp") means the learner wants suggestions anchored on
+        # what they are already taking, not the global popularity catalog. Must
+        # beat the learning_path_catalog / course_catalog mappings below.
+        wants_next = any(
+            token in normalized
+            for token in ("tiep theo", "hoc tiep", "ke tiep", "next", "hoc gi tiep", "nen hoc gi")
+        )
+        suggest_ctx = any(
+            token in normalized
+            for token in ("goi y", "de xuat", "nen hoc", "recommend", "lo trinh", "khoa", "learning path")
+        )
+        if wants_next and suggest_ctx:
+            return "recommended_next_courses"
+
+        # Learning-path catalog: either a listing ("có những lộ trình nào",
+        # "danh sách lộ trình") OR a suggestion ("gợi ý lộ trình tiếp theo",
+        # "nên học lộ trình nào"). Both should surface the available paths, not
+        # the admin completion-rate table. Excluded when the user is clearly
+        # asking about progress/completion or their own personal data.
         if any(token in normalized for token in ("lo trinh", "learning path")) and any(
             token in normalized
-            for token in ("co nhung", "nhung lo trinh", "danh sach", "liet ke", "co bao nhieu", "gom nhung", "co lo trinh nao", "nhung lo trinh nao")
+            for token in (
+                "co nhung", "nhung lo trinh", "danh sach", "liet ke", "co bao nhieu",
+                "gom nhung", "co lo trinh nao", "nhung lo trinh nao",
+                "goi y", "de xuat", "nen hoc", "phu hop", "tiep theo", "bat dau", "muon hoc",
+            )
         ) and not any(token in normalized for token in ("tien do", "hoan thanh", "completion", "cua toi")):
             return "learning_path_catalog"
 

@@ -335,7 +335,8 @@ def build_metric_sql(
                 c.title AS label,
                 COUNT(DISTINCT e.id)::int AS value,
                 c.price AS price,
-                c.level::text AS level
+                c.level::text AS level,
+                c.instructor_id AS instructor_id
             FROM courses c
             LEFT JOIN enrollments e
                 ON e.course_id = c.id
@@ -354,9 +355,47 @@ def build_metric_sql(
                  OR lower(COALESCE(sk.name, '')) LIKE '%' || lower(:topic) || '%'
               )
               {time_filter('COALESCE(c.updated, c.created)')}
-            GROUP BY c.id, c.title, c.price, c.level
+            GROUP BY c.id, c.title, c.price, c.level, c.instructor_id
             ORDER BY value DESC, c.title ASC
             LIMIT 50
+        """
+
+    if definition.key == "recommended_next_courses":
+        # Personalized "what to learn next": published courses the learner has
+        # NOT enrolled in, ranked by how many skills they share with what the
+        # learner is already taking (so a FE learner keeps getting FE courses,
+        # etc.), then by overall popularity for newcomers with no skill overlap.
+        return """
+            WITH my_courses AS (
+                SELECT course_id
+                FROM enrollments
+                WHERE is_active = 'Y' AND user_id = :user_id
+            ),
+            my_skills AS (
+                SELECT DISTINCT cs.skill_id
+                FROM course_skills cs
+                JOIN my_courses mc ON mc.course_id = cs.course_id
+            )
+            SELECT
+                c.title AS label,
+                COUNT(DISTINCT cs.skill_id)
+                    FILTER (WHERE cs.skill_id IN (SELECT skill_id FROM my_skills))::int AS value,
+                c.price AS price,
+                c.level::text AS level,
+                c.instructor_id AS instructor_id,
+                COUNT(DISTINCT e.id)::int AS enrollment_count
+            FROM courses c
+            LEFT JOIN course_skills cs
+                ON cs.course_id = c.id
+            LEFT JOIN enrollments e
+                ON e.course_id = c.id
+               AND e.is_active = 'Y'
+            WHERE c.is_active = 'Y'
+              AND c.status = 'PUBLISHED'
+              AND c.id NOT IN (SELECT course_id FROM my_courses)
+            GROUP BY c.id, c.title, c.price, c.level, c.instructor_id
+            ORDER BY value DESC, enrollment_count DESC, c.title ASC
+            LIMIT 20
         """
 
     if definition.key == "course_pricing":

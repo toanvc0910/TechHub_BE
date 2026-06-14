@@ -250,28 +250,33 @@ class AnalyticsService:
 
     # Metrics whose rows carry an `instructor_id` that must be resolved to a
     # public instructor display name for output.
-    _INSTRUCTOR_NAME_METRICS = frozenset({"learner_course_instructors", "courses_by_instructor"})
+    _INSTRUCTOR_NAME_METRICS = frozenset({
+        "learner_course_instructors", "courses_by_instructor", "course_catalog",
+        "recommended_next_courses",
+    })
 
     async def _enrich_instructor_names(
         self,
         rows: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """Resolve `instructor_id` UUIDs to public instructor display names.
+        """Resolve `instructor_id` UUIDs to public instructor display name + avatar.
 
         The analytics SQL only projects `instructor_id` (a non-PII UUID) so the
         PII guard stays satisfied. Here we run a single controlled, parameterized
-        lookup to surface the instructor's public name (the same name shown on
-        the course page) and drop the raw id from the output.
+        lookup to surface the instructor's public name and avatar (the same ones
+        shown on the course page) and drop the raw id from the output.
         """
         instructor_ids = sorted(
             {str(row["instructor_id"]) for row in rows if row.get("instructor_id")}
         )
         name_map: dict[str, str] = {}
+        avatar_map: dict[str, str | None] = {}
         if instructor_ids:
             lookup_sql = """
                 SELECT
                     u.id::text AS id,
-                    COALESCE(NULLIF(TRIM(pr.full_name), ''), u.username, 'Giang vien') AS name
+                    COALESCE(NULLIF(TRIM(pr.full_name), ''), u.username, 'Giang vien') AS name,
+                    COALESCE(NULLIF(TRIM(u.avatar), ''), NULLIF(TRIM(pr.avatar_url), '')) AS avatar
                 FROM users u
                 LEFT JOIN profiles pr
                     ON pr.user_id = u.id
@@ -280,10 +285,14 @@ class AnalyticsService:
             """
             async with get_db_session() as session:
                 result = await session.execute(text(lookup_sql), {"ids": instructor_ids})
-                name_map = {row["id"]: row["name"] for row in result.mappings().all()}
+                for row in result.mappings().all():
+                    name_map[row["id"]] = row["name"]
+                    avatar_map[row["id"]] = row["avatar"]
         for row in rows:
             raw_id = row.pop("instructor_id", None)
-            row["instructor"] = name_map.get(str(raw_id), "Giang vien") if raw_id else "Giang vien"
+            key = str(raw_id) if raw_id else None
+            row["instructor"] = name_map.get(key, "Giang vien") if key else "Giang vien"
+            row["instructorAvatar"] = avatar_map.get(key) if key else None
         return rows
 
     async def _execute_sql(
@@ -745,7 +754,13 @@ class AnalyticsService:
         # `value` column and the LLM mislabels it (e.g. a related-course count
         # read as "lượt tương tác").
         normalized_q = self._normalize_query_text(question)
-        wants_content = "noi dung" in normalized_q or "content" in normalized_q
+        # Phrasings that ask what a blog/article is about — all should surface the
+        # real body text, not the aggregate numeric value.
+        content_intent_tokens = (
+            "noi dung", "content", "noi ve gi", "noi ve", "viet ve gi", "viet ve",
+            "noi gi", "ve cai gi", "chu de", "tom tat", "tom luoc", "co gi",
+        )
+        wants_content = any(token in normalized_q for token in content_intent_tokens)
         # Only switch to content mode when a specific item was targeted (topic
         # filter present) — a bare "list the blogs and their content" stays a
         # listing instead of dumping one blog's full body.
@@ -764,7 +779,7 @@ class AnalyticsService:
         # Aggregate insight summary. Drop bulky text columns (e.g. `content`)
         # from the preview so they don't blow up the prompt.
         preview = [
-            {key: val for key, val in row.items() if key != "content"}
+            {key: val for key, val in row.items() if key not in ("content", "instructorAvatar")}
             if isinstance(row, dict) else row
             for row in rows[:5]
         ]

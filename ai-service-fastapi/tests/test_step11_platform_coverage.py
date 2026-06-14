@@ -281,6 +281,31 @@ async def _check_lp_catalog(session, rows, params):
     return True, f"{len(rows)} learning paths (gt={gt})"
 
 
+async def _check_recommended_next(session, rows, params):
+    if not rows:
+        return False, "recommended_next_courses returned no rows"
+    uid = params["user_id"]
+    enrolled = {
+        row["title"]
+        for row in (await session.execute(text(
+            """
+            SELECT c.title
+            FROM enrollments e
+            JOIN courses c ON c.id = e.course_id
+            WHERE e.is_active = 'Y' AND e.user_id = :uid
+            """
+        ), {"uid": uid})).mappings().all()
+    }
+    overlap = [row["label"] for row in rows if row.get("label") in enrolled]
+    if overlap:
+        return False, f"suggested already-enrolled courses: {overlap}"
+    if not all(row.get("instructor") for row in rows):
+        return False, "some rows missing resolved instructor name"
+    if any("instructor_id" in row for row in rows):
+        return False, "instructor_id should be dropped from output"
+    return True, f"{len(rows)} next-course suggestions (none already enrolled)"
+
+
 async def _check_lp_courses(session, rows, params):
     name = params["path_name"]
     gt = (await session.execute(text(
@@ -379,6 +404,16 @@ CASES: list[Case] = [
         question="Lộ trình TypeScript gồm những khóa học nào?",
         expected_metric="learning_path_courses",
         check=_check_lp_courses,
+    ),
+    Case(
+        # "Suggest what I should learn next" is a PERSONAL recommendation anchored
+        # on the learner's own enrollments — not the global learning-path catalog
+        # and not the all-zero admin completion-rate table.
+        name="recommended next courses",
+        question="gợi ý cho tôi lộ trình học tiếp theo",
+        expected_metric="recommended_next_courses",
+        user_id=LEARNER_WITH_ENROLL,
+        check=_check_recommended_next,
     ),
     Case(
         name="blog catalog (all)",
