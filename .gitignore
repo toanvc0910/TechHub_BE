@@ -40,3 +40,4 @@ src/main/resources/script/
 .env
 *.env
 !.env.example
+*.pyc
