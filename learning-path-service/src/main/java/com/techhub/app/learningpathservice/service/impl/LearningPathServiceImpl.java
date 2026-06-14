@@ -1,6 +1,7 @@
 package com.techhub.app.learningpathservice.service.impl;
 
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.learningpathservice.dto.*;
 import com.techhub.app.learningpathservice.entity.LearningPath;
 import com.techhub.app.learningpathservice.entity.LearningPathCourse;
@@ -84,11 +85,14 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public LearningPathResponseDTO updateLearningPath(UUID id, LearningPathRequestDTO requestDTO) {
+    public LearningPathResponseDTO updateLearningPath(UUID id, LearningPathRequestDTO requestDTO, UUID requesterId,
+            boolean isAdmin) {
         log.info("Updating learning path with ID: {}", id);
 
         LearningPath learningPath = learningPathRepository.findByIdAndIsActive(id, Boolean.TRUE)
                 .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + id));
+
+        assertCanManage(learningPath, requesterId, isAdmin);
 
         learningPathMapper.updateEntity(learningPath, requestDTO);
 
@@ -157,6 +161,21 @@ public class LearningPathServiceImpl implements LearningPathService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<LearningPathResponseDTO> getMyLearningPaths(UUID requesterId, boolean isAdmin, Pageable pageable) {
+        log.info("Fetching learning paths for management - requesterId={}, isAdmin={}", requesterId, isAdmin);
+
+        // Admins manage every author's learning paths; other roles only their own.
+        if (isAdmin) {
+            return learningPathRepository.findByIsActive(Boolean.TRUE, pageable).map(learningPathMapper::toDTO);
+        }
+        if (requesterId == null) {
+            return Page.empty(pageable);
+        }
+        return learningPathRepository.findByCreatedBy(requesterId, pageable).map(learningPathMapper::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<LearningPathResponseDTO> searchLearningPaths(String keyword, Pageable pageable) {
         log.info("Searching learning paths with keyword: {}", keyword);
 
@@ -174,16 +193,32 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public void deleteLearningPath(UUID id) {
+    public void deleteLearningPath(UUID id, UUID requesterId, boolean isAdmin) {
         log.info("Deleting learning path with ID: {}", id);
 
         LearningPath learningPath = learningPathRepository.findByIdAndIsActive(id, Boolean.TRUE)
                 .orElseThrow(() -> new RuntimeException("Learning path not found with ID: " + id));
 
+        assertCanManage(learningPath, requesterId, isAdmin);
+
         learningPath.setIsActive(Boolean.FALSE);
         learningPathRepository.save(learningPath);
 
         log.info("Learning path deleted successfully with ID: {}", id);
+    }
+
+    /**
+     * Authorize a mutation: admins may manage any path; everyone else only the
+     * paths they created. Mirrors course-service ownership checks so an instructor
+     * cannot edit or delete another author's learning path.
+     */
+    private void assertCanManage(LearningPath learningPath, UUID requesterId, boolean isAdmin) {
+        if (isAdmin) {
+            return;
+        }
+        if (requesterId == null || !requesterId.equals(learningPath.getCreatedBy())) {
+            throw new ForbiddenException("You are not allowed to modify this learning path");
+        }
     }
 
     @Override
