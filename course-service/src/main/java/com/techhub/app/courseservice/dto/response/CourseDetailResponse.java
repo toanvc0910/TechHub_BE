@@ -29,4 +29,5 @@ public class CourseDetailResponse {
     private List<UUID> unlockedChapterIds;
     private List<UUID> lockedChapterIds;
     private long completedLessons;
+    private LearningStreakResponse learningStreak;
 }

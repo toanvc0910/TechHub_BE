@@ -1,6 +1,6 @@
 package com.techhub.app.paymentservice.entity;
 
-import com.techhub.app.paymentservice.config.PostgreSQLEnumType;
+import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
 import com.techhub.app.paymentservice.entity.enums.PaymentMethod;
 import com.techhub.app.paymentservice.entity.enums.PaymentStatus;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,12 +46,12 @@ public class Payment {
     private Transaction transaction;
 
     @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum")
+    @Type(type = "pgsql_enum", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.paymentservice.entity.enums.PaymentMethod"))
     @Column(name = "method", nullable = false)
     private PaymentMethod method;
 
     @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum")
+    @Type(type = "pgsql_enum", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.paymentservice.entity.enums.PaymentStatus"))
     @Column(name = "status", nullable = false)
     private PaymentStatus status;
 

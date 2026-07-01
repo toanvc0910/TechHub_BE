@@ -1,5 +1,7 @@
 package com.techhub.app.proxyclient.controller;
 
+import com.techhub.app.commonservice.exception.BadRequestException;
+import com.techhub.app.commonservice.exception.UnauthorizedException;
 import com.techhub.app.proxyclient.client.UserServiceClient;
 import com.techhub.app.commonservice.jwt.JwtUtil;
 import java.util.Collections;
@@ -70,19 +72,17 @@ public class AuthProxyController {
     public ResponseEntity<String> changePassword(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody Object changePasswordRequest) {
+        String token = authHeader.replace("Bearer ", "");
+        UUID userId;
         try {
-            // Extract userId from JWT token
-            String token = authHeader.replace("Bearer ", "");
-            UUID userId = jwtUtil.getUserIdFromToken(token);
-
-            log.info("Change password request for user: {}", userId);
-            return userServiceClient.changePassword(changePasswordRequest, userId.toString());
-        } catch (Exception e) {
-            log.error("Error processing change password request", e);
-            return ResponseEntity.badRequest().body(
-                    String.format("{\"success\":false,\"message\":\"Failed to process change password request: %s\"}",
-                            e.getMessage()));
+            userId = jwtUtil.getUserIdFromToken(token);
+        } catch (RuntimeException e) {
+            log.warn("Invalid token while processing change password", e);
+            throw new UnauthorizedException("Invalid or expired token");
         }
+
+        log.info("Change password request for user: {}", userId);
+        return userServiceClient.changePassword(changePasswordRequest, userId.toString());
     } // Exchange OAuth2 result (from FE) to JWT issued by proxy-client
 
     @PostMapping("/oauth2/exchange")
@@ -93,12 +93,15 @@ public class AuthProxyController {
             Object emailObj = payload.get("email");
 
             if (userIdObj == null || emailObj == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "message", "userId and email are required"));
+                throw new BadRequestException("userId and email are required");
             }
 
-            java.util.UUID userId = java.util.UUID.fromString(userIdObj.toString());
+            java.util.UUID userId;
+            try {
+                userId = java.util.UUID.fromString(userIdObj.toString());
+            } catch (IllegalArgumentException exception) {
+                throw new BadRequestException("Invalid userId format");
+            }
             String email = emailObj.toString();
 
             log.info("OAuth2 exchange - userId: {}, email: {}", userId, email);
@@ -125,13 +128,18 @@ public class AuthProxyController {
                     } else {
                         log.warn("User fetch returned status: {}", userResponse.getStatusCode());
                     }
-                } catch (Exception e) {
-                    log.warn("Failed to fetch user (attempt {}/{}): {}", attempt, maxRetries, e.getMessage());
+                } catch (RuntimeException exception) {
+                    log.warn("Failed to fetch user (attempt {}/{}): {}", attempt, maxRetries, exception.getMessage());
                     if (attempt < maxRetries) {
-                        Thread.sleep(500); // Wait 500ms before retry
+                        try {
+                            Thread.sleep(500); // Wait 500ms before retry
+                        } catch (InterruptedException interruptedException) {
+                            Thread.currentThread().interrupt();
+                            throw new BadRequestException("OAuth2 exchange interrupted");
+                        }
                     } else {
-                        log.error("All retry attempts exhausted", e);
-                        throw e;
+                        log.error("All retry attempts exhausted", exception);
+                        throw exception;
                     }
                 }
             }
@@ -139,9 +147,7 @@ public class AuthProxyController {
             if (userResponse == null || !userResponse.getStatusCode().is2xxSuccessful()
                     || userResponse.getBody() == null) {
                 log.error("Failed to fetch user info after {} retries", maxRetries);
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "message", "Failed to fetch user info for OAuth2 exchange"));
+                throw new BadRequestException("Failed to fetch user info for OAuth2 exchange");
             }
 
             log.info("Parsing user response");
@@ -150,9 +156,7 @@ public class AuthProxyController {
             if (!root.path("success").asBoolean(false) || dataNode.isMissingNode()) {
                 log.error("Invalid user response - success: {}, data present: {}",
                         root.path("success").asBoolean(false), !dataNode.isMissingNode());
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "message", "User info not available for OAuth2 exchange"));
+                throw new BadRequestException("User info not available for OAuth2 exchange");
             }
 
             List<String> roles = objectMapper.convertValue(
@@ -172,18 +176,17 @@ public class AuthProxyController {
                 // Determine provider from payload (GOOGLE, GITHUB, FACEBOOK)
                 String provider = payload.getOrDefault("provider", "GOOGLE").toString().toUpperCase();
                 java.time.LocalDateTime expiresAt = jwtUtil.getExpirationDateFromRefreshToken(refreshToken);
-                
+
                 Map<String, Object> saveRefreshTokenRequest = Map.of(
-                    "userId", userId.toString(),
-                    "provider", provider,
-                    "refreshToken", refreshToken,
-                    "expiresAt", expiresAt.toString()
-                );
-                
+                        "userId", userId.toString(),
+                        "provider", provider,
+                        "refreshToken", refreshToken,
+                        "expiresAt", expiresAt.toString());
+
                 userServiceClient.saveRefreshToken(saveRefreshTokenRequest);
                 log.info("Saved refresh token for OAuth2 user {} with provider {}", userId, provider);
-            } catch (Exception e) {
-                log.error("Failed to save refresh token for OAuth2 user: {}", e.getMessage(), e);
+            } catch (RuntimeException exception) {
+                log.error("Failed to save refresh token for OAuth2 user: {}", exception.getMessage(), exception);
                 // Continue anyway - user can still login, just won't have refresh token
             }
 
@@ -200,10 +203,14 @@ public class AuthProxyController {
                             "roles", roles,
                             "status", dataNode.path("status").asText("ACTIVE"))));
 
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Failed to exchange OAuth2 result: " + e.getMessage()));
+        } catch (BadRequestException | UnauthorizedException exception) {
+            throw exception;
+        } catch (java.io.IOException exception) {
+            log.error("OAuth2 exchange payload parsing failed", exception);
+            throw new BadRequestException("Invalid user response from user-service");
+        } catch (RuntimeException exception) {
+            log.error("OAuth2 exchange failed", exception);
+            throw new BadRequestException("Failed to exchange OAuth2 result");
         }
     }
 }

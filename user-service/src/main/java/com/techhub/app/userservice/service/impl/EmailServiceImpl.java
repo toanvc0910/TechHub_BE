@@ -46,15 +46,19 @@ public class EmailServiceImpl implements EmailService {
                 Map<String, Object> variables = new HashMap<>();
                 variables.put("username", username);
 
-                // Welcome notification - both email and in-app
-                publishWithInApp(NotificationType.ACCOUNT,
-                                userId,
-                                email,
-                                username,
-                                "Welcome to TechHub",
-                                "Welcome to TechHub! Your account has been created successfully. Start exploring courses and begin your learning journey.",
-                                "welcome-email",
-                                variables);
+                try {
+                        // Welcome notification - both email and in-app
+                        publishWithInApp(NotificationType.ACCOUNT,
+                                        userId,
+                                        email,
+                                        username,
+                                        "Welcome to TechHub",
+                                        "Welcome to TechHub! Your account has been created successfully. Start exploring courses and begin your learning journey.",
+                                        "welcome-email",
+                                        variables);
+                } catch (RuntimeException ex) {
+                        log.warn("Could not publish welcome notification for userId={}, email={}", userId, email, ex);
+                }
         }
 
         @Override

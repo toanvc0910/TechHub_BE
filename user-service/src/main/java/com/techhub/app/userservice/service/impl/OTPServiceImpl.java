@@ -1,7 +1,7 @@
 package com.techhub.app.userservice.service.impl;
 
+import com.techhub.app.commonservice.enums.OtpType;
 import com.techhub.app.userservice.entity.OTPCode;
-import com.techhub.app.userservice.enums.OTPTypeEnum;
 import com.techhub.app.userservice.repository.OTPRepository;
 import com.techhub.app.userservice.service.OTPService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ public class OTPServiceImpl implements OTPService {
 
     @Override
     @Transactional
-    public void saveOTP(UUID userId, String otpCode, OTPTypeEnum type) {
+    public void saveOTP(UUID userId, String otpCode, OtpType type) {
         // Deactivate any existing OTP for this user and type
         otpRepository.deactivateByUserIdAndType(userId, type);
 
@@ -47,7 +47,7 @@ public class OTPServiceImpl implements OTPService {
 
     @Override
     @Transactional
-    public boolean validateOTP(UUID userId, String otpCode, OTPTypeEnum type) {
+    public boolean validateOTP(UUID userId, String otpCode, OtpType type) {
         Optional<OTPCode> otpOptional = otpRepository.findByUserIdAndCodeAndTypeAndIsActiveTrue(userId, otpCode, type);
 
         if (otpOptional.isEmpty()) {
@@ -72,13 +72,13 @@ public class OTPServiceImpl implements OTPService {
 
     @Override
     @Transactional
-    public void deleteOTP(UUID userId, OTPTypeEnum type) {
+    public void deleteOTP(UUID userId, OtpType type) {
         otpRepository.deactivateByUserIdAndType(userId, type);
         log.info("OTP deleted for user: {} type: {}", userId, type);
     }
 
     @Override
-    public boolean isOTPExpired(UUID userId, OTPTypeEnum type) {
+    public boolean isOTPExpired(UUID userId, OtpType type) {
         return !otpRepository.existsByUserIdAndTypeAndIsActiveTrueAndExpiresAtAfter(userId, type, LocalDateTime.now());
     }
 }

@@ -76,6 +76,34 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
+    public void deleteNotification(UUID notificationId, UUID userId) {
+        Notification notification = notificationRepository.findByIdAndUserIdAndIsActiveTrue(notificationId, userId)
+                .orElseThrow(() -> new NotFoundException("Notification not found"));
+
+        // Soft delete: flip is_active so the row is excluded from all queries
+        // (lists, unread count) but kept in the database for audit/history.
+        notification.setIsActive(Boolean.FALSE);
+        notification.setUpdated(OffsetDateTime.now());
+        notificationRepository.save(notification);
+        log.debug("Notification {} soft-deleted for user {}", notificationId, userId);
+    }
+
+    @Override
+    @Transactional
+    public int deleteAllNotifications(UUID userId) {
+        if (userId == null) {
+            return 0;
+        }
+        // Bulk soft delete: flip is_active for all of the user's active rows.
+        int deleted = notificationRepository.softDeleteAll(userId, OffsetDateTime.now());
+        if (deleted > 0) {
+            log.debug("Soft-deleted {} notifications for user {}", deleted, userId);
+        }
+        return deleted;
+    }
+
+    @Override
+    @Transactional
     public Notification createNotification(Notification notification) {
         return notificationRepository.save(notification);
     }

@@ -41,11 +41,6 @@ spring:
             enable: true
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        spring.json.add.type.headers: false
     consumer:
       group-id: user-service
       auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET}
@@ -120,3 +115,17 @@ app:
   oauth2:
     # Frontend URL to redirect after successful OAuth2 login
     authorized-redirect-uris: ${APP_OAUTH2_REDIRECT_URI}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+n8n:
+  webhook-url: ${N8N_WEBHOOK_URL:}
+  callback-base-url: ${N8N_CALLBACK_BASE_URL:http://localhost:8080}
+  callback-secret: ${N8N_CALLBACK_SECRET:dev-secret-change-me}

@@ -2,6 +2,9 @@ package com.techhub.app.courseservice.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.util.List;
 import java.util.Map;
@@ -17,4 +20,15 @@ public interface UserServiceClient {
      */
     @GetMapping("/internal/all-user-ids")
     Map<String, Object> getAllActiveUserIds();
+
+    /**
+     * Batch lookup minimal user info {id, username, avatar} for given ids.
+     * Response format: { "data": [{id,username,avatar}, ...], "statusCode": 200 }
+     */
+    @PostMapping("/internal/batch")
+    Map<String, Object> getUsersBatch(@RequestBody List<UUID> ids,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Email") String userEmail,
+            @RequestHeader("X-User-Roles") String userRoles,
+            @RequestHeader("X-Request-Source") String requestSource);
 }

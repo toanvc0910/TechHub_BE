@@ -25,6 +25,8 @@ public class LearningPathRequestDTO {
 
     private List<String> skills;
 
+    private List<CourseInPathDTO> courses;
+
     private List<LearningPath.LayoutEdge> layoutEdges;
 
     private UUID createdBy;

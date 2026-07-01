@@ -3,6 +3,8 @@ package com.techhub.app.userservice.service;
 import com.techhub.app.userservice.dto.response.PermissionResponse;
 import com.techhub.app.userservice.dto.response.RoleResponse;
 import com.techhub.app.userservice.enums.PermissionMethod;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -10,6 +12,10 @@ import java.util.UUID;
 public interface PermissionService {
 
         List<PermissionResponse> getEffectivePermissions(UUID userId);
+
+        List<PermissionResponse> getUserPermissionOverrides(UUID userId);
+
+        Page<PermissionResponse> getUserPermissionCatalog(UUID userId, String search, Pageable pageable);
 
         boolean hasPermission(UUID userId, String url, PermissionMethod method);
 

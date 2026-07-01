@@ -40,7 +40,7 @@ public class CommentWebSocketController {
      */
     @MessageMapping("/blog/{blogId}/comment")
     public void handleNewComment(
-            @DestinationVariable Long blogId,
+            @DestinationVariable UUID blogId,
             @Payload CommentPayload payload,
             Principal principal) {
 
@@ -69,7 +69,7 @@ public class CommentWebSocketController {
         
         CommentWebSocketMessage message = CommentWebSocketMessage.created(
                 commentId,
-                UUID.randomUUID(), // blogId as UUID for now - TODO: fix type
+                blogId,
                 CommentTargetType.BLOG,
                 payload.getParentId(),
                 userId,
@@ -93,8 +93,8 @@ public class CommentWebSocketController {
      */
     @MessageMapping("/blog/{blogId}/comment/{commentId}/edit")
     public void handleEditComment(
-            @DestinationVariable Long blogId,
-            @DestinationVariable Long commentId,
+            @DestinationVariable UUID blogId,
+            @DestinationVariable UUID commentId,
             @Payload CommentPayload payload,
             Principal principal) {
 
@@ -110,8 +110,8 @@ public class CommentWebSocketController {
         }
 
         CommentWebSocketMessage message = CommentWebSocketMessage.updated(
-                UUID.randomUUID(), // commentId
-                UUID.randomUUID(), // targetId
+                commentId,
+                blogId,
                 CommentTargetType.BLOG,
                 userId,
                 payload.getContent()
@@ -129,8 +129,8 @@ public class CommentWebSocketController {
      */
     @MessageMapping("/blog/{blogId}/comment/{commentId}/delete")
     public void handleDeleteComment(
-            @DestinationVariable Long blogId,
-            @DestinationVariable Long commentId,
+            @DestinationVariable UUID blogId,
+            @DestinationVariable UUID commentId,
             Principal principal) {
 
         log.info(">>> [WS] Delete comment {} for blog {}", commentId, blogId);
@@ -145,8 +145,8 @@ public class CommentWebSocketController {
         }
 
         CommentWebSocketMessage message = CommentWebSocketMessage.deleted(
-                UUID.randomUUID(), // commentId
-                UUID.randomUUID(), // targetId
+                commentId,
+                blogId,
                 CommentTargetType.BLOG,
                 userId
         );

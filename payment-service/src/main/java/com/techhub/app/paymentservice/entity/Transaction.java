@@ -1,6 +1,6 @@
 package com.techhub.app.paymentservice.entity;
 
-import com.techhub.app.paymentservice.config.PostgreSQLEnumType;
+import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
 import com.techhub.app.paymentservice.entity.enums.TransactionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,6 +12,7 @@ import org.hibernate.annotations.TypeDef;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,8 +39,29 @@ public class Transaction {
     @Column(name = "amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
+    @Column(name = "original_amount", precision = 14, scale = 2)
+    private BigDecimal originalAmount;
+
+    @Column(name = "original_currency", length = 3)
+    private String originalCurrency;
+
+    @Column(name = "gateway_amount", precision = 14, scale = 2)
+    private BigDecimal gatewayAmount;
+
+    @Column(name = "gateway_currency", length = 3)
+    private String gatewayCurrency;
+
+    @Column(name = "fx_rate", precision = 18, scale = 8)
+    private BigDecimal fxRate;
+
+    @Column(name = "fx_provider", length = 64)
+    private String fxProvider;
+
+    @Column(name = "fx_quoted_at")
+    private OffsetDateTime fxQuotedAt;
+
     @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum")
+    @Type(type = "pgsql_enum", parameters = @org.hibernate.annotations.Parameter(name = "enumClass", value = "com.techhub.app.paymentservice.entity.enums.TransactionStatus"))
     @Column(name = "status", nullable = false)
     private TransactionStatus status;
 

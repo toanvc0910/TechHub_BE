@@ -11,16 +11,23 @@ import java.util.List;
 import java.util.UUID;
 
 public interface FileManagementService {
-    FileResponse uploadFile(MultipartFile file, UUID userId, UUID folderId, String[] tags, String description);
+    FileResponse uploadFile(MultipartFile file, UUID userId, UUID folderId, String[] tags, String description,
+            String uploadSource);
 
     List<FileResponse> uploadMultipleFiles(List<MultipartFile> files, UUID userId, UUID folderId, String[] tags,
-            String description);
+            String description, String uploadSource);
 
     FileResponse getFileById(UUID userId, UUID fileId);
+
+    StoredFileContent getFileContent(UUID userId, UUID fileId);
+
+    StoredFileContent getFileThumbnail(UUID userId, UUID fileId);
 
     List<FileResponse> getFilesByFolder(UUID userId, UUID folderId);
 
     Page<FileResponse> getFilesByFolderPaginated(UUID userId, UUID folderId, Pageable pageable);
+
+    Page<FileResponse> searchFilesByFolder(UUID userId, UUID folderId, String keyword, Pageable pageable);
 
     Page<FileResponse> getFilesByUser(UUID userId, Pageable pageable);
 

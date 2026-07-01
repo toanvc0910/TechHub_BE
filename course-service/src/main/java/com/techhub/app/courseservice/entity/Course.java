@@ -2,9 +2,9 @@ package com.techhub.app.courseservice.entity;
 
 import com.techhub.app.commonservice.jpa.BooleanToYNStringConverter;
 import com.techhub.app.commonservice.jpa.PostgreSQLEnumType;
+import com.techhub.app.commonservice.enums.Language;
 import com.techhub.app.courseservice.enums.CourseLevel;
 import com.techhub.app.courseservice.enums.CourseStatus;
-import com.techhub.app.courseservice.enums.Language;
 import com.vladmihalcea.hibernate.type.array.ListArrayType;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
@@ -58,6 +58,9 @@ public class Course {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "currency", nullable = false, length = 3, columnDefinition = "VARCHAR(3) NOT NULL DEFAULT 'VND'")
+    private String currency = "VND";
+
     @Column(name = "instructor_id", nullable = false)
     private UUID instructorId;
 
@@ -72,7 +75,7 @@ public class Course {
     private CourseLevel level = CourseLevel.ALL_LEVELS;
 
     @Enumerated(EnumType.STRING)
-    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.courseservice.enums.Language"))
+    @Type(type = "pgsql_enum", parameters = @Parameter(name = "enumClass", value = "com.techhub.app.commonservice.enums.Language"))
     @Column(name = "language", columnDefinition = "lang")
     private Language language = Language.VI;
 

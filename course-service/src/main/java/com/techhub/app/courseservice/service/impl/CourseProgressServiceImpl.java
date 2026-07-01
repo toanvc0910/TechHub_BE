@@ -1,6 +1,7 @@
 package com.techhub.app.courseservice.service.impl;
 
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
@@ -15,8 +16,11 @@ import com.techhub.app.courseservice.repository.CourseRepository;
 import com.techhub.app.courseservice.repository.EnrollmentRepository;
 import com.techhub.app.courseservice.repository.LessonRepository;
 import com.techhub.app.courseservice.repository.ProgressRepository;
+import com.techhub.app.commonservice.kafka.event.EnrollmentEventPayload;
+import com.techhub.app.commonservice.kafka.publisher.CourseEventPublisher;
 import com.techhub.app.courseservice.service.CourseProgressService;
 import com.techhub.app.courseservice.service.CourseService;
+import com.techhub.app.courseservice.service.LearningStreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +40,8 @@ public class CourseProgressServiceImpl implements CourseProgressService {
     private final ProgressRepository progressRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final CourseService courseService;
+    private final CourseEventPublisher courseEventPublisher;
+    private final LearningStreakService learningStreakService;
 
     @Override
     public CourseDetailResponse updateLessonProgress(UUID courseId, UUID lessonId, LessonProgressRequest request) {
@@ -71,9 +77,31 @@ public class CourseProgressServiceImpl implements CourseProgressService {
 
         progress.setUpdatedBy(userId);
         progressRepository.save(progress);
+        if (isTrackableLearningActivity(completionValue, markComplete, progress)) {
+            learningStreakService.recordActivity(userId, OffsetDateTime.now());
+        }
         log.debug("Progress updated for lesson {} by {} - completion {}", lessonId, userId, progress.getCompletion());
 
+        // Publish progress event for AI service to update user embeddings
+        try {
+            courseEventPublisher.publishEnrollmentEvent(EnrollmentEventPayload.builder()
+                    .eventType("PROGRESS_UPDATED")
+                    .userId(String.valueOf(userId))
+                    .courseId(String.valueOf(courseId))
+                    .status("IN_PROGRESS")
+                    .progressPercentage(progress.getCompletion() != null ? progress.getCompletion().doubleValue() : 0.0)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to publish progress event for lesson {}: {}", lessonId, e.getMessage());
+        }
+
         return courseService.getCourse(courseId);
+    }
+
+    private boolean isTrackableLearningActivity(Float requestedCompletion, boolean markComplete, Progress progress) {
+        return markComplete
+                || (requestedCompletion != null && requestedCompletion > 0f)
+                || (progress.getCompletion() != null && progress.getCompletion() > 0f);
     }
 
     @Override
@@ -125,8 +153,9 @@ public class CourseProgressServiceImpl implements CourseProgressService {
             course = courseRepository.findById(courseId)
                     .orElseThrow(() -> new NotFoundException("Course not found"));
         }
-        boolean isAdmin = UserContext.hasAnyRole("ADMIN");
-        boolean isInstructor = UserContext.hasAnyRole("INSTRUCTOR") && userId.equals(course.getInstructorId());
+        boolean isAdmin = UserContext.hasAnyRole(UserRole.ADMIN.name(), UserRole.SUPER_ADMIN.name());
+        boolean isInstructor = UserContext.hasAnyRole(UserRole.INSTRUCTOR.name())
+                && userId.equals(course.getInstructorId());
         if (isAdmin || isInstructor) {
             return;
         }

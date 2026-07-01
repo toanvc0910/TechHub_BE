@@ -34,9 +34,12 @@ public class LessonRequest {
 
     private Float completionWeight;
 
-    // Accept both 'estimatedDuration' and 'duration' from frontend
+    // Legacy aliases are accepted for backward compatibility; service recalculates this value.
     @JsonAlias({ "duration", "estimatedDuration" })
     private Integer estimatedDuration;
+
+    @JsonAlias({ "videoDuration", "videoDurationSeconds", "video_duration", "video_duration_seconds" })
+    private Integer videoDuration;
 
     private Boolean workspaceEnabled;
     private List<@Size(max = 50) String> workspaceLanguages;

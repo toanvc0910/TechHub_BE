@@ -1,5 +1,7 @@
 package com.techhub.app.proxyclient.controller;
 
+import com.techhub.app.commonservice.exception.BadRequestException;
+import com.techhub.app.commonservice.exception.UnauthorizedException;
 import com.techhub.app.proxyclient.client.UserServiceClient;
 import com.techhub.app.commonservice.jwt.JwtUtil;
 import java.util.UUID;
@@ -68,19 +70,17 @@ public class UserProxyController {
     public ResponseEntity<String> changePassword(
             @RequestBody Object changePasswordRequest,
             @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        UUID userId;
         try {
-            // Extract userId from JWT token
-            String token = authHeader.replace("Bearer ", "");
-            UUID userId = jwtUtil.getUserIdFromToken(token);
-
-            log.info("Change password request for user: {}", userId);
-            return userServiceClient.changePassword(changePasswordRequest, userId.toString());
-        } catch (Exception e) {
-            log.error("Error processing change password request", e);
-            return ResponseEntity.badRequest().body(
-                    String.format("{\"success\":false,\"message\":\"Failed to process change password request: %s\"}",
-                            e.getMessage()));
+            userId = jwtUtil.getUserIdFromToken(token);
+        } catch (RuntimeException e) {
+            log.warn("Invalid token while processing change password", e);
+            throw new UnauthorizedException("Invalid or expired token");
         }
+
+        log.info("Change password request for user: {}", userId);
+        return userServiceClient.changePassword(changePasswordRequest, userId.toString());
     }
 
     @PostMapping("/forgot-password")
@@ -128,7 +128,7 @@ public class UserProxyController {
         Object userEmail = request.getAttribute("userEmail");
 
         if (userId == null || userEmail == null) {
-            return ResponseEntity.badRequest().body("{\"error\": \"User context missing\"}");
+            throw new BadRequestException("User context missing");
         }
 
         return userServiceClient.getCurrentUserProfile(authHeader, userId.toString(), userEmail.toString());
@@ -139,5 +139,102 @@ public class UserProxyController {
     public ResponseEntity<String> getPublicInstructors(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "4") int size) {
         return userServiceClient.getPublicInstructors(page, size);
+    }
+
+    // ===== Instructor Applications =====
+    @PostMapping("/instructor-applications")
+    public ResponseEntity<String> submitInstructorApplication(@RequestBody Object body,
+            HttpServletRequest httpReq) {
+        Object uid = httpReq.getAttribute("userId");
+        if (uid == null) throw new UnauthorizedException("User context missing");
+        return userServiceClient.submitInstructorApplication(body, uid.toString());
+    }
+
+    @GetMapping("/instructor-applications/me")
+    public ResponseEntity<String> getMyInstructorApplications(HttpServletRequest httpReq) {
+        Object uid = httpReq.getAttribute("userId");
+        if (uid == null) throw new UnauthorizedException("User context missing");
+        return userServiceClient.getMyInstructorApplications(uid.toString());
+    }
+
+    @GetMapping("/instructor-applications")
+    public ResponseEntity<String> listInstructorApplications(
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        return userServiceClient.listInstructorApplications(status, page, size,
+                roles == null ? "" : roles.toString());
+    }
+
+    @GetMapping("/instructor-applications/{id}")
+    public ResponseEntity<String> getInstructorApplicationDetail(@PathVariable String id,
+            HttpServletRequest httpReq) {
+        Object uid = httpReq.getAttribute("userId");
+        Object roles = httpReq.getAttribute("userRoles");
+        if (uid == null) throw new UnauthorizedException("User context missing");
+        return userServiceClient.getInstructorApplicationDetail(id, uid.toString(),
+                roles == null ? "" : roles.toString());
+    }
+
+    @PutMapping("/instructor-applications/{id}/approve")
+    public ResponseEntity<String> approveInstructorApplication(@PathVariable String id,
+            @RequestBody(required = false) Object body, HttpServletRequest httpReq) {
+        Object uid = httpReq.getAttribute("userId");
+        Object roles = httpReq.getAttribute("userRoles");
+        if (uid == null) throw new UnauthorizedException("User context missing");
+        return userServiceClient.approveInstructorApplication(id, body, uid.toString(),
+                roles == null ? "" : roles.toString());
+    }
+
+    @PutMapping("/instructor-applications/{id}/reject")
+    public ResponseEntity<String> rejectInstructorApplication(@PathVariable String id,
+            @RequestBody Object body, HttpServletRequest httpReq) {
+        Object uid = httpReq.getAttribute("userId");
+        Object roles = httpReq.getAttribute("userRoles");
+        if (uid == null) throw new UnauthorizedException("User context missing");
+        return userServiceClient.rejectInstructorApplication(id, body, uid.toString(),
+                roles == null ? "" : roles.toString());
+    }
+
+    @PostMapping("/instructor-applications/{id}/rescan/cv")
+    public ResponseEntity<String> rescanCv(@PathVariable String id, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        return userServiceClient.rescanCv(id, roles == null ? "" : roles.toString());
+    }
+
+    @PostMapping("/instructor-applications/{id}/rescan/cccd-front")
+    public ResponseEntity<String> rescanCccdFront(@PathVariable String id, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        return userServiceClient.rescanCccdFront(id, roles == null ? "" : roles.toString());
+    }
+
+    @PostMapping("/instructor-applications/{id}/rescan/cccd-back")
+    public ResponseEntity<String> rescanCccdBack(@PathVariable String id, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        return userServiceClient.rescanCccdBack(id, roles == null ? "" : roles.toString());
+    }
+
+    @PostMapping("/instructor-applications/certificates/{certId}/rescan")
+    public ResponseEntity<String> rescanCertificate(@PathVariable String certId, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        return userServiceClient.rescanCertificate(certId, roles == null ? "" : roles.toString());
+    }
+
+    @GetMapping("/instructor-profiles/me")
+    public ResponseEntity<String> getMyInstructorProfile(HttpServletRequest httpReq) {
+        Object uid = httpReq.getAttribute("userId");
+        if (uid == null) throw new UnauthorizedException("User context missing");
+        return userServiceClient.getMyInstructorProfile(uid.toString());
+    }
+
+    @GetMapping("/instructor-profiles/{userId}")
+    public ResponseEntity<String> getInstructorProfile(@PathVariable String userId, HttpServletRequest httpReq) {
+        Object roles = httpReq.getAttribute("userRoles");
+        Object callerId = httpReq.getAttribute("userId");
+        return userServiceClient.getInstructorProfile(userId,
+                callerId == null ? "" : callerId.toString(),
+                roles == null ? "" : roles.toString());
     }
 }

@@ -7,6 +7,9 @@ dotenv:
 spring:
   application:
     name: PAYMENT-SERVICE
+  task:
+    scheduling:
+      enabled: ${SPRING_TASK_SCHEDULING_ENABLED:true}
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
@@ -31,6 +34,11 @@ spring:
       hibernate:
         dialect: com.techhub.app.commonservice.jpa.PostgreSQLEnumDialect
         format_sql: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 # PayPal Configuration
 paypal:
@@ -55,6 +63,14 @@ vnpay:
 payment:
   frontend-result-url: ${PAYMENT_FRONTEND_RESULT_URL}
   frontend-vnpay-return-url: ${PAYMENT_FRONTEND_VNPAY_RETURN_URL}
+  revenue:
+    instructor-rate: ${INSTRUCTOR_REVENUE_RATE:0.7}
+  payout:
+    paid-deduction-cutoff: ${PAYOUT_PAID_DEDUCTION_CUTOFF:2026-06-05T00:00:00+07:00}
+  events:
+    topic: ${PAYMENT_EVENTS_TOPIC:payment.revenue.events}
+    dispatch-delay-ms: ${OUTBOX_DISPATCH_DELAY_MS:3000}
+    max-retry: ${OUTBOX_MAX_RETRY:5}
 
 # Eureka Configuration
 eureka:
@@ -70,3 +86,12 @@ eureka:
 # Course Service - sử dụng service name thay vì hardcode URL
 course-service:
   name: COURSE-SERVICE  # Service name registered in Eureka
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

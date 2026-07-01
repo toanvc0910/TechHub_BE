@@ -1,5 +1,6 @@
 package com.techhub.app.commonservice.interceptor;
 
+import com.techhub.app.commonservice.enums.SecurityLevel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -22,6 +23,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
     public static final String USER_EMAIL_HEADER = "X-User-Email";
     public static final String USER_ROLES_HEADER = "X-User-Roles";
     public static final String REQUEST_SOURCE_HEADER = "X-Request-Source";
+    public static final String SECURITY_LEVEL_HEADER = "X-Security-Level";
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -69,7 +71,16 @@ public class UserContextInterceptor implements HandlerInterceptor {
             }
         }
 
-        // No user context found - this should not happen for protected endpoints
+        // No user context. Trust the security level resolved by proxy-client from
+        // the DB policy (single source of truth). PUBLIC endpoints are served to
+        // anonymous visitors; anything else still requires authentication.
+        String securityLevel = request.getHeader(SECURITY_LEVEL_HEADER);
+        if (SecurityLevel.PUBLIC.name().equalsIgnoreCase(securityLevel)) {
+            log.debug("Anonymous access allowed for PUBLIC endpoint: {} {}", method, requestURI);
+            return true;
+        }
+
+        // Otherwise this is a protected endpoint that requires authentication.
         log.warn("No user context found in headers for protected endpoint: {} {}", method, requestURI);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         return false;
@@ -77,6 +88,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
 
     private boolean isPublicEndpoint(String uri) {
         return uri.startsWith("/actuator/") ||
+                uri.matches("^/[^/]+/actuator/.*") ||
                 uri.startsWith("/swagger-ui/") ||
                 uri.startsWith("/v3/api-docs/") ||
                 uri.equals("/health") ||
@@ -92,11 +104,10 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 // Public user endpoints
                 uri.startsWith("/api/users/public/") ||
                 // Internal service-to-service endpoints (no auth required)
+                uri.startsWith("/api/internal/") ||
                 uri.equals("/api/users/internal/all-user-ids") ||
                 // OAuth2 endpoints
                 uri.startsWith("/oauth2/") ||
-                // AI Chat streaming endpoints (SSE - bypass proxy for real-time streaming)
-                uri.startsWith("/api/ai/chat/stream") ||
                 // Payment callbacks from external providers (MoMo, ZaloPay, VNPay)
                 uri.startsWith("/api/v1/payment/callback/") ||
                 uri.startsWith("/api/v1/payment/vn-pay-callback") ||
@@ -112,6 +123,7 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 requestSource.equals("notification-service") ||
                 requestSource.equals("learning-path-service") ||
                 requestSource.equals("blog-service") ||
+                requestSource.equals("ai-service") ||
                 requestSource.equals("file-service"));
     }
 }

@@ -10,7 +10,7 @@ import com.techhub.app.courseservice.entity.Lesson;
 import com.techhub.app.courseservice.entity.LessonAsset;
 import com.techhub.app.courseservice.enums.CourseLevel;
 import com.techhub.app.courseservice.enums.CourseStatus;
-import com.techhub.app.courseservice.enums.Language;
+import com.techhub.app.commonservice.enums.Language;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -33,6 +33,7 @@ public class CourseMapper {
         course.setTitle(normalizeTitle(request.getTitle()));
         course.setDescription(normalizeText(request.getDescription()));
         course.setPrice(normalizePrice(request.getPrice()));
+        course.setCurrency(normalizeCurrency(request.getCurrency()));
         course.setInstructorId(instructorId);
         course.setStatus(request.getStatus() != null ? request.getStatus() : CourseStatus.DRAFT);
         course.setLevel(request.getLevel() != null ? request.getLevel() : CourseLevel.ALL_LEVELS);
@@ -59,6 +60,9 @@ public class CourseMapper {
         }
         if (request.getPrice() != null) {
             course.setPrice(normalizePrice(request.getPrice()));
+        }
+        if (request.getCurrency() != null) {
+            course.setCurrency(normalizeCurrency(request.getCurrency()));
         }
         if (request.getStatus() != null) {
             course.setStatus(request.getStatus());
@@ -137,7 +141,7 @@ public class CourseMapper {
         log.info("  - isFree: {}", request.getIsFree());
         log.info("  - contentType: {}", request.getContentType());
         log.info("  - videoUrl: {}", request.getVideoUrl());
-        log.info("  - estimatedDuration: {}", request.getEstimatedDuration());
+        log.info("  - videoDuration: {}", request.getVideoDuration());
         log.info("  - orderIndex: {}", request.getOrderIndex());
 
         Lesson lesson = new Lesson();
@@ -159,7 +163,6 @@ public class CourseMapper {
         if (request.getCompletionWeight() != null) {
             lesson.setCompletionWeight(request.getCompletionWeight());
         }
-        lesson.setEstimatedDuration(request.getEstimatedDuration());
         if (request.getWorkspaceEnabled() != null) {
             lesson.setWorkspaceEnabled(request.getWorkspaceEnabled());
         }
@@ -180,7 +183,7 @@ public class CourseMapper {
         log.info("  - isFree: {}", request.getIsFree());
         log.info("  - contentType: {}", request.getContentType());
         log.info("  - videoUrl: {}", request.getVideoUrl());
-        log.info("  - estimatedDuration: {}", request.getEstimatedDuration());
+        log.info("  - videoDuration: {}", request.getVideoDuration());
         log.info("  - orderIndex: {}", request.getOrderIndex());
 
         if (request.getTitle() != null) {
@@ -209,9 +212,6 @@ public class CourseMapper {
         }
         if (request.getCompletionWeight() != null) {
             lesson.setCompletionWeight(request.getCompletionWeight());
-        }
-        if (request.getEstimatedDuration() != null) {
-            lesson.setEstimatedDuration(request.getEstimatedDuration());
         }
         if (request.getWorkspaceEnabled() != null) {
             lesson.setWorkspaceEnabled(request.getWorkspaceEnabled());
@@ -287,6 +287,14 @@ public class CourseMapper {
             return null;
         }
         return price.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : price;
+    }
+
+    private String normalizeCurrency(String currency) {
+        if (currency == null || currency.isBlank()) {
+            return "VND";
+        }
+        String normalized = currency.trim().toUpperCase();
+        return ("USD".equals(normalized) || "VND".equals(normalized)) ? normalized : "VND";
     }
 
     private List<String> normalizeList(List<String> values, boolean toLowercase) {

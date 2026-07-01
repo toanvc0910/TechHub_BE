@@ -12,7 +12,6 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CreateEnrollmentRequest {
 
-    @NotNull(message = "User ID is required")
     private UUID userId;
 
     @NotNull(message = "Course ID is required")

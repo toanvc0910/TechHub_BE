@@ -19,6 +19,9 @@ public interface LearningPathCourseRepository
     @Query("SELECT lpc FROM LearningPathCourse lpc WHERE lpc.courseId = :courseId")
     List<LearningPathCourse> findByCourseId(@Param("courseId") UUID courseId);
 
+    @Query("SELECT lpc.courseId FROM LearningPathCourse lpc WHERE lpc.pathId = :pathId")
+    List<UUID> findCourseIdsByPathId(@Param("pathId") UUID pathId);
+
     @Modifying
     @Query("DELETE FROM LearningPathCourse lpc WHERE lpc.pathId = :pathId")
     void deleteByPathId(@Param("pathId") UUID pathId);

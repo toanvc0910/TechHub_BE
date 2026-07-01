@@ -24,4 +24,12 @@ public interface NotificationServiceClient {
 
     @PutMapping("/api/notifications/read")
     ResponseEntity<Object> markAllAsRead(@RequestHeader("Authorization") String authHeader);
+
+    @DeleteMapping("/api/notifications/{notificationId}")
+    ResponseEntity<Object> deleteNotification(
+            @PathVariable String notificationId,
+            @RequestHeader("Authorization") String authHeader);
+
+    @DeleteMapping("/api/notifications")
+    ResponseEntity<Object> deleteAllNotifications(@RequestHeader("Authorization") String authHeader);
 }

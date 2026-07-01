@@ -9,6 +9,17 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * Security configuration for Proxy-Client.
+ *
+ * All endpoint-level access control (PUBLIC / AUTHENTICATED / AUTHORIZED) is
+ * driven by the endpoint_security_policies table — loaded and cached by
+ * {@link com.techhub.app.proxyclient.cache.EndpointSecurityCacheService}.
+ *
+ * Spring Security itself permits all requests; the
+ * {@link JwtAuthenticationFilter}
+ * enforces JWT validation and RBAC permission checks based on the DB policies.
+ */
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -22,31 +33,7 @@ public class SecurityConfig {
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
                 .authorizeRequests()
-                // Public endpoints - no JWT required
-                .antMatchers("/api/auth/**", "/api/proxy/auth/**").permitAll()
-                .antMatchers(org.springframework.http.HttpMethod.POST, "/api/users", "/api/proxy/users").permitAll()
-                .antMatchers("/api/users/forgot-password", "/api/proxy/users/forgot-password").permitAll()
-                .antMatchers("/api/users/reset-password/**", "/api/proxy/users/reset-password/**").permitAll()
-                .antMatchers("/api/users/resend-reset-code/**", "/api/proxy/users/resend-reset-code/**").permitAll()
-                .antMatchers("/actuator/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .antMatchers("/oauth2/**").permitAll()
-                // File endpoints - permitAll for now (can add authentication later)
-                .antMatchers("/api/proxy/files/**").permitAll()
-                .antMatchers("/api/proxy/folders/**").permitAll()
-                .antMatchers("/api/proxy/file-usage/**").permitAll()
-                // AI Chat streaming endpoints (SSE)
-                .antMatchers("/api/proxy/ai/chat/stream/**").permitAll()
-                .antMatchers("/app/api/proxy/ai/chat/stream/**").permitAll()
-                // Payment endpoints - permitAll for payment callbacks and public payment
-                // operations
-                .antMatchers("/api/payment/**").permitAll()
-                .antMatchers("/api/payments/**").permitAll()
-                .antMatchers("/api/transactions/**").permitAll()
-                .antMatchers("/api/proxy/payment/**").permitAll()
-                .antMatchers("/api/proxy/payments/**").permitAll()
-                .antMatchers("/api/proxy/transactions/**").permitAll()
-                // All other endpoints require JWT authentication
-                .anyRequest().authenticated()
+                .anyRequest().permitAll()
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

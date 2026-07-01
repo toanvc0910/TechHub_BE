@@ -18,6 +18,15 @@ spring:
       max-request-size: 250MB
       file-size-threshold: 2MB
   cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 5000
+            readTimeout: 120000
+          AI-SERVICE:
+            connectTimeout: 5000
+            readTimeout: 240000
     loadbalancer:
       retry:
         enabled: true # Retry nếu no instance
@@ -37,7 +46,7 @@ spring:
         min-idle: ${REDIS_POOL_MIN_IDLE}
   # Kafka Configuration for Cache Invalidation (uses common-service KafkaConfig)
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
 eureka:
   client:
@@ -67,7 +76,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
   endpoint:
     health:
       show-details: always

@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+from enum import Enum
+
+
+class ChatMode(str, Enum):
+    AUTO = "AUTO"
+    GENERAL = "GENERAL"
+    ADVISOR = "ADVISOR"
+
+
+class ChatSender(str, Enum):
+    USER = "USER"
+    BOT = "BOT"
+
+
+class RecommendationMode(str, Enum):
+    REALTIME = "REALTIME"
+    SCHEDULED = "SCHEDULED"
+
+
+class DifficultyLevel(str, Enum):
+    BEGINNER = "BEGINNER"
+    INTERMEDIATE = "INTERMEDIATE"
+    ADVANCED = "ADVANCED"
+
+
+class ExerciseFormat(str, Enum):
+    MCQ = "MCQ"
+    ESSAY = "ESSAY"
+    CODING = "CODING"
+
+
+class AiTaskStatus(str, Enum):
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    PUBLISHING = "PUBLISHING"
+    PUBLISHED = "PUBLISHED"
+    PUBLISH_FAILED = "PUBLISH_FAILED"
+
+
+class AiTaskType(str, Enum):
+    EXERCISE_GENERATION = "EXERCISE_GENERATION"
+    LEARNING_PATH = "LEARNING_PATH"
+    LEARNING_PATH_GENERATION = "LEARNING_PATH_GENERATION"
+    RECOMMENDATION_REALTIME = "RECOMMENDATION_REALTIME"
+    RECOMMENDATION_SCHEDULED = "RECOMMENDATION_SCHEDULED"
+    CHAT_AUTO = "CHAT_AUTO"
+    CHAT_GENERAL = "CHAT_GENERAL"
+    CHAT_ADVISOR = "CHAT_ADVISOR"
+    CHAT_RESPONSE_REVIEW = "CHAT_RESPONSE_REVIEW"
+
+
+class ApprovalType(str, Enum):
+    CHAT_RESPONSE = "CHAT_RESPONSE"
+    DATA_QUERY = "DATA_QUERY"
+    VISUALIZATION = "VISUALIZATION"

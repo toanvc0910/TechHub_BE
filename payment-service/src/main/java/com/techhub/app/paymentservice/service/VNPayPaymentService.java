@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpServletRequest;
-import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -31,22 +31,27 @@ public class VNPayPaymentService {
     private final PaymentRepository paymentRepository;
     private final EnrollmentService enrollmentService;
     private final TransactionItemRepository transactionItemRepository;
+    private final PaymentEventOutboxService paymentEventOutboxService;
+    private final CoursePaymentPricingService coursePaymentPricingService;
 
     public VNPayPaymentService(VNPAYConfig vnPayConfig,
             TransactionRepository transactionRepository,
             PaymentRepository paymentRepository,
             EnrollmentService enrollmentService,
-            TransactionItemRepository transactionItemRepository) {
+            TransactionItemRepository transactionItemRepository,
+            PaymentEventOutboxService paymentEventOutboxService,
+            CoursePaymentPricingService coursePaymentPricingService) {
         this.vnPayConfig = vnPayConfig;
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
         this.enrollmentService = enrollmentService;
         this.transactionItemRepository = transactionItemRepository;
+        this.paymentEventOutboxService = paymentEventOutboxService;
+        this.coursePaymentPricingService = coursePaymentPricingService;
     }
 
     @Transactional
     public VNPayPaymentDTO.VNPayResponse createVnPayPayment(HttpServletRequest request) {
-        long amount = Integer.parseInt(request.getParameter("amount")) * 100L;
         String bankCode = request.getParameter("bankCode");
 
         // Lấy userId từ request parameter hoặc attribute
@@ -62,7 +67,7 @@ public class VNPayPaymentService {
         }
 
         log.info("=== Creating VNPay Payment ===");
-        log.info("Amount: {}, userId: {}, courseId: {}", amount, userIdStr, courseIdStr);
+        log.info("Creating VNPay payment for userId: {}, courseId: {}", userIdStr, courseIdStr);
 
         // Tạo transaction pending trước khi chuyển hướng đến VNPay
         UUID userId = null;
@@ -92,12 +97,28 @@ public class VNPayPaymentService {
                 throw new IllegalArgumentException("Invalid courseId format: " + courseIdStr);
             }
         }
+        if (courseId == null) {
+            throw new IllegalArgumentException("courseId parameter is required for VNPay payment");
+        }
+
+        PaymentPriceQuote quote = coursePaymentPricingService.quoteForGateway(courseId, "VND");
+        long gatewayAmount = quote.getGatewayAmount().setScale(0, RoundingMode.HALF_UP).longValueExact();
+        long vnpayMinorAmount = gatewayAmount * 100L;
 
         // Create and save transaction
-        log.info("Creating transaction with userId: {}, amount: {}", userId, amount / 100.0);
+        log.info("Creating transaction with userId: {}, original={} {}, gateway={} {}",
+                userId, quote.getOriginalAmount(), quote.getOriginalCurrency(),
+                quote.getGatewayAmount(), quote.getGatewayCurrency());
         Transaction transaction = Transaction.builder()
                 .userId(userId)
-                .amount(BigDecimal.valueOf(amount / 100.0))
+                .amount(quote.getOriginalAmount())
+                .originalAmount(quote.getOriginalAmount())
+                .originalCurrency(quote.getOriginalCurrency())
+                .gatewayAmount(quote.getGatewayAmount())
+                .gatewayCurrency(quote.getGatewayCurrency())
+                .fxRate(quote.getFxRate())
+                .fxProvider(quote.getFxProvider())
+                .fxQuotedAt(quote.getFxQuotedAt())
                 .status(TransactionStatus.PENDING)
                 .isActive("Y")
                 .build();
@@ -111,7 +132,8 @@ public class VNPayPaymentService {
             TransactionItem transactionItem = TransactionItem.builder()
                     .transaction(savedTransaction)
                     .courseId(courseId)
-                    .priceAtPurchase(BigDecimal.valueOf(amount / 100.0))
+                    .priceAtPurchase(quote.getOriginalAmount())
+                    .priceCurrency(quote.getOriginalCurrency())
                     .quantity(1)
                     .isActive("Y")
                     .build();
@@ -124,7 +146,7 @@ public class VNPayPaymentService {
         }
 
         Map<String, String> vnpParamsMap = vnPayConfig.getVNPayConfig();
-        vnpParamsMap.put("vnp_Amount", String.valueOf(amount));
+        vnpParamsMap.put("vnp_Amount", String.valueOf(vnpayMinorAmount));
         // Sử dụng transaction ID làm vnp_TxnRef để tracking
         vnpParamsMap.put("vnp_TxnRef", transaction.getId().toString());
 
@@ -141,7 +163,7 @@ public class VNPayPaymentService {
         String paymentUrl = vnPayConfig.getVnp_PayUrl() + "?" + queryUrl;
 
         log.info("Created pending transaction with ID: {} for user: {}, amount: {}",
-                transaction.getId(), userId, amount / 100.0);
+                transaction.getId(), userId, quote.getOriginalAmount());
 
         return VNPayPaymentDTO.VNPayResponse.builder()
                 .code("ok")
@@ -206,6 +228,12 @@ public class VNPayPaymentService {
             gatewayResponse.put("vnp_ResponseCode", vnp_ResponseCode);
             gatewayResponse.put("vnp_TransactionStatus", vnp_TransactionStatus);
             gatewayResponse.put("vnp_TxnRef", vnp_TxnRef);
+            gatewayResponse.put("originalAmount", transaction.getOriginalAmount());
+            gatewayResponse.put("originalCurrency", transaction.getOriginalCurrency());
+            gatewayResponse.put("gatewayAmount", transaction.getGatewayAmount());
+            gatewayResponse.put("gatewayCurrency", transaction.getGatewayCurrency());
+            gatewayResponse.put("fxRate", transaction.getFxRate());
+            gatewayResponse.put("fxProvider", transaction.getFxProvider());
 
             Payment payment = Payment.builder()
                     .transaction(savedTransaction)
@@ -221,6 +249,8 @@ public class VNPayPaymentService {
 
             // Tạo enrollment khi thanh toán thành công
             if (paymentStatus == PaymentStatus.SUCCESS) {
+                paymentEventOutboxService.recordPaymentCompleted(savedTransaction, PaymentMethod.VNPAY);
+                paymentEventOutboxService.recordRevenueSplit(savedTransaction);
                 log.info("\n" +
                         "================================================================================\n" +
                         "💰 PAYMENT SUCCESSFUL - Starting Enrollment Process\n" +

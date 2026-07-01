@@ -1,5 +1,8 @@
 package com.techhub.app.fileservice.service;
 
+import com.techhub.app.commonservice.exception.BadRequestException;
+import com.techhub.app.commonservice.exception.ConflictException;
+import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.fileservice.dto.request.CreateFolderRequest;
 import com.techhub.app.fileservice.dto.request.UpdateFolderRequest;
 import com.techhub.app.fileservice.dto.response.FolderResponse;
@@ -10,8 +13,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.io.ByteArrayInputStream;
+import java.text.Normalizer;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,38 +29,67 @@ public class FolderService {
 
     private final FileFolderRepository folderRepository;
     private final FileRepository fileRepository;
+    private final ObjectStorageService objectStorageService;
 
     @Transactional
     public FolderResponse createFolder(CreateFolderRequest request) {
-        // Check if folder with same name exists in the same parent
-        if (folderRepository.existsByUserIdAndNameAndParentIdAndIsActive(
-                request.getUserId(), request.getName(), request.getParentId(), "Y")) {
-            throw new RuntimeException("Folder with this name already exists in the same location");
+        String folderName = normalizeFolderName(request.getName());
+        UUID userId = request.getUserId();
+        UUID parentId = request.getParentId();
+
+        // Look for ANY folder (active or soft-deleted) with the same name+parent
+        // to avoid hitting the DB unique index when an inactive duplicate exists.
+        Optional<FileFolderEntity> existingByName = findFolderByNameAndParent(userId, folderName, parentId);
+        if (existingByName.isPresent()) {
+            FileFolderEntity existing = existingByName.get();
+            if ("Y".equals(existing.getIsActive())) {
+                throw new ConflictException(
+                        "Folder with this name already exists in the same location");
+            }
+            // Reactivate the previously soft-deleted folder instead of inserting a new row.
+            String storagePath = buildFolderPath(userId, parentId, folderName);
+            existing.setIsActive("Y");
+            existing.setParentId(parentId);
+            existing.setPath(storagePath);
+            existing.setUpdatedBy(userId);
+            FileFolderEntity revived = folderRepository.save(existing);
+            createFolderMarker(revived);
+            return mapToResponse(revived);
+        }
+
+        String storagePath = buildFolderPath(userId, parentId, folderName);
+        Optional<FileFolderEntity> existingByPath = folderRepository.findByUserIdAndPath(userId, storagePath);
+        if (existingByPath.isPresent()) {
+            FileFolderEntity existing = existingByPath.get();
+            if ("Y".equals(existing.getIsActive())) {
+                throw new ConflictException(
+                        "Folder with this storage path already exists in the same location");
+            }
+            existing.setIsActive("Y");
+            existing.setName(folderName);
+            existing.setParentId(parentId);
+            existing.setUpdatedBy(userId);
+            FileFolderEntity revived = folderRepository.save(existing);
+            createFolderMarker(revived);
+            return mapToResponse(revived);
         }
 
         FileFolderEntity folder = new FileFolderEntity();
-        folder.setUserId(request.getUserId());
-        folder.setParentId(request.getParentId());
-        folder.setName(request.getName());
+        folder.setUserId(userId);
+        folder.setParentId(parentId);
+        folder.setName(folderName);
         folder.setIsActive("Y");
-        folder.setCreatedBy(request.getUserId());
-
-        // Calculate path - will be set by trigger, but we can set it manually too
-        if (request.getParentId() != null) {
-            FileFolderEntity parent = folderRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new RuntimeException("Parent folder not found"));
-            folder.setPath(parent.getPath() + "/" + request.getName());
-        } else {
-            folder.setPath("/" + request.getName());
-        }
+        folder.setCreatedBy(userId);
+        folder.setPath(storagePath);
 
         FileFolderEntity saved = folderRepository.save(folder);
+        createFolderMarker(saved);
         return mapToResponse(saved);
     }
 
     @Transactional(readOnly = true)
     public List<FolderResponse> getFoldersByUser(UUID userId) {
-        List<FileFolderEntity> folders = folderRepository.findByUserIdAndIsActive(userId, "Y");
+        List<FileFolderEntity> folders = folderRepository.findAllByUserIdOrderByPath(userId, "Y");
         return folders.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -100,13 +137,22 @@ public class FolderService {
         FileFolderEntity folder = folderRepository.findByIdAndUserIdAndIsActive(folderId, userId, "Y")
                 .orElseThrow(() -> new RuntimeException("Folder not found"));
 
-        if (request.getName() != null && !request.getName().equals(folder.getName())) {
-            // Check for duplicate name
-            if (folderRepository.existsByUserIdAndNameAndParentIdAndIsActive(
-                    userId, request.getName(), folder.getParentId(), "Y")) {
-                throw new RuntimeException("Folder with this name already exists in the same location");
+        String oldPath = folder.getPath();
+        if (request.getName() != null) {
+            String folderName = normalizeFolderName(request.getName());
+            if (folderName.equals(folder.getName())) {
+                folder.setName(folderName);
+            } else {
+                // Check for duplicate name
+                if (folderRepository.existsByUserIdAndNameAndParentIdAndIsActive(
+                        userId, folderName, folder.getParentId(), "Y")) {
+                    throw new ConflictException("Folder with this name already exists in the same location");
+                }
+                String storagePath = buildFolderPath(userId, folder.getParentId(), folderName);
+                ensureStoragePathAvailable(userId, storagePath, folderId);
+                folder.setName(folderName);
+                folder.setPath(storagePath);
             }
-            folder.setName(request.getName());
         }
 
         if (request.getParentId() != null && !request.getParentId().equals(folder.getParentId())) {
@@ -116,6 +162,8 @@ public class FolderService {
 
         folder.setUpdatedBy(userId);
         FileFolderEntity updated = folderRepository.save(folder);
+        updateDescendantPaths(userId, oldPath, updated.getPath());
+        replaceFolderMarker(updated, oldPath);
         return mapToResponse(updated);
     }
 
@@ -139,11 +187,13 @@ public class FolderService {
         folder.setIsActive("N");
         folder.setUpdatedBy(userId);
         folderRepository.save(folder);
+        deleteFolderMarker(folder);
     }
 
     private void moveFolder(FileFolderEntity folder, UUID newParentId) {
         if (newParentId != null) {
-            FileFolderEntity newParent = folderRepository.findById(newParentId)
+            FileFolderEntity newParent = folderRepository.findByIdAndUserIdAndIsActive(newParentId, folder.getUserId(),
+                    "Y")
                     .orElseThrow(() -> new RuntimeException("New parent folder not found"));
 
             // Check for circular reference
@@ -151,11 +201,51 @@ public class FolderService {
                 throw new RuntimeException("Cannot move folder to its own descendant");
             }
 
-            folder.setPath(newParent.getPath() + "/" + folder.getName());
+            String storagePath = buildFolderPath(folder.getUserId(), newParentId, folder.getName());
+            ensureStoragePathAvailable(folder.getUserId(), storagePath, folder.getId());
+            folder.setPath(storagePath);
         } else {
-            folder.setPath("/" + folder.getName());
+            String storagePath = buildFolderPath(folder.getUserId(), null, folder.getName());
+            ensureStoragePathAvailable(folder.getUserId(), storagePath, folder.getId());
+            folder.setPath(storagePath);
         }
         folder.setParentId(newParentId);
+    }
+
+    private void ensureStoragePathAvailable(UUID userId, String storagePath, UUID currentFolderId) {
+        if (folderRepository.existsByUserIdAndPathAndIsActiveAndIdNot(userId, storagePath, "Y", currentFolderId)) {
+            throw new ConflictException("Folder with this storage path already exists in the same location");
+        }
+    }
+
+    private Optional<FileFolderEntity> findFolderByNameAndParent(UUID userId, String folderName, UUID parentId) {
+        if (parentId == null) {
+            return folderRepository.findByUserIdAndNameAndParentIdIsNull(userId, folderName);
+        }
+        return folderRepository.findByUserIdAndNameAndParentId(userId, folderName, parentId);
+    }
+
+    private String buildFolderPath(UUID userId, UUID parentId, String folderName) {
+        if (parentId == null) {
+            return StorageObjectKeyUtils.buildFolderStoragePath(null, folderName);
+        }
+        FileFolderEntity parent = folderRepository.findByIdAndUserIdAndIsActive(parentId, userId, "Y")
+                .orElseThrow(() -> new NotFoundException("Parent folder not found"));
+        return StorageObjectKeyUtils.buildFolderStoragePath(parent.getPath(), folderName);
+    }
+
+    private void updateDescendantPaths(UUID userId, String oldPath, String newPath) {
+        if (oldPath == null || newPath == null || oldPath.equals(newPath)) {
+            return;
+        }
+        List<FileFolderEntity> descendants = folderRepository.findByUserIdAndPathStartsWith(
+                userId, oldPath + "/%", "Y");
+        for (FileFolderEntity descendant : descendants) {
+            descendant.setPath(StorageObjectKeyUtils.normalizeStoragePath(
+                    newPath + descendant.getPath().substring(oldPath.length())));
+            descendant.setUpdatedBy(userId);
+        }
+        folderRepository.saveAll(descendants);
     }
 
     private boolean isDescendant(UUID ancestorId, UUID descendantId) {
@@ -169,6 +259,88 @@ public class FolderService {
         }
 
         return isDescendant(ancestorId, descendant.get().getParentId());
+    }
+
+    private void createFolderMarker(FileFolderEntity folder) {
+        String markerObjectKey = StorageObjectKeyUtils.buildFolderMarkerObjectKey(folder.getUserId(),
+                folder.getPath());
+        try {
+            objectStorageService.upload(new ByteArrayInputStream(new byte[0]), 0, "application/x-directory",
+                    markerObjectKey);
+        } catch (RuntimeException ex) {
+            // The folder is already persisted in the database; the MinIO marker is
+            // only a best-effort placeholder for empty directories. Never fail
+            // folder creation just because the object store hiccuped.
+            log.warn("Failed to create MinIO folder marker {} for user {} path {} (folder still created)",
+                    markerObjectKey, folder.getUserId(), folder.getPath(), ex);
+        }
+    }
+
+    private void replaceFolderMarker(FileFolderEntity folder, String oldPath) {
+        createFolderMarker(folder);
+        if (oldPath == null || oldPath.equals(folder.getPath())) {
+            return;
+        }
+        deleteFolderMarker(folder.getUserId(), oldPath);
+    }
+
+    private void deleteFolderMarker(FileFolderEntity folder) {
+        deleteFolderMarker(folder.getUserId(), folder.getPath());
+    }
+
+    private void deleteFolderMarker(UUID userId, String path) {
+        List<String> markerObjectKeys = List.of(
+                StorageObjectKeyUtils.buildFolderMarkerObjectKey(userId, path),
+                StorageObjectKeyUtils.buildLegacyFolderMarkerObjectKey(userId, path));
+        Runnable cleanup = () -> CompletableFuture.runAsync(() -> {
+            for (String markerObjectKey : markerObjectKeys) {
+                try {
+                    objectStorageService.delete(markerObjectKey);
+                } catch (RuntimeException ex) {
+                    log.warn("Failed to delete MinIO folder marker {} for user {} path {}", markerObjectKey, userId,
+                            path, ex);
+                }
+            }
+        });
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cleanup.run();
+                }
+            });
+            return;
+        }
+
+        cleanup.run();
+    }
+
+    private String normalizeFolderName(String value) {
+        if (value == null) {
+            throw new RuntimeException("Folder name is required");
+        }
+        String normalized = value.trim().replaceAll("[\\\\/]+", "-");
+        if (normalized.isBlank()) {
+            throw new RuntimeException("Folder name is required");
+        }
+        return normalized;
+    }
+
+    private String sanitizePathSegment(String value) {
+        if (value == null) {
+            return "";
+        }
+        String asciiValue = Normalizer.normalize(value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .replace('đ', 'd')
+                .replace('Đ', 'D');
+        return asciiValue
+                .replaceAll("[\\\\/]+", "-")
+                .replaceAll("[^a-zA-Z0-9._ -]", "_")
+                .replaceAll("\\s+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^[_ .-]+|[_ .-]+$", "");
     }
 
     private FolderResponse mapToResponse(FileFolderEntity folder) {

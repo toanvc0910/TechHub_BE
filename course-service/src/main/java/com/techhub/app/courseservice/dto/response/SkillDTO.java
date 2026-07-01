@@ -1,6 +1,6 @@
 package com.techhub.app.courseservice.dto.response;
 
-import com.techhub.app.courseservice.enums.SkillCategory;
+import com.techhub.app.commonservice.enums.SkillCategory;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,4 +15,5 @@ public class SkillDTO {
     private String name;
     private String thumbnail;
     private SkillCategory category;
+    private UUID createdBy;
 }

@@ -43,6 +43,17 @@ public interface FileRepository extends JpaRepository<FileEntity, UUID> {
         Page<FileEntity> searchByKeyword(@Param("userId") UUID userId, @Param("keyword") String keyword,
                         @Param("isActive") String isActive, Pageable pageable);
 
+        @Query("SELECT f FROM FileEntity f WHERE f.userId = :userId AND f.folderId = :folderId AND " +
+                        "(LOWER(f.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(f.originalName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(f.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
+                        "f.isActive = :isActive")
+        Page<FileEntity> searchByFolderAndKeyword(@Param("userId") UUID userId,
+                        @Param("folderId") UUID folderId,
+                        @Param("keyword") String keyword,
+                        @Param("isActive") String isActive,
+                        Pageable pageable);
+
         @Query(value = "SELECT * FROM files f WHERE f.user_id = :userId AND :tag = ANY(f.tags) AND f.is_active = 'Y'", nativeQuery = true)
         List<FileEntity> findByUserIdAndTag(@Param("userId") UUID userId, @Param("tag") String tag);
 

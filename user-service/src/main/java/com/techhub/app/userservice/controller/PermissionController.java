@@ -1,12 +1,17 @@
 package com.techhub.app.userservice.controller;
 
+import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.payload.GlobalResponse;
+import com.techhub.app.commonservice.payload.PageGlobalResponse;
 import com.techhub.app.userservice.dto.request.PermissionCheckRequest;
 import com.techhub.app.userservice.dto.request.UserPermissionRequest;
 import com.techhub.app.userservice.dto.response.PermissionResponse;
 import com.techhub.app.userservice.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
@@ -28,113 +34,129 @@ import java.util.UUID;
 @Slf4j
 public class PermissionController {
 
-    private final PermissionService permissionService;
+        private final PermissionService permissionService;
 
-    @GetMapping("/effective")
-    public ResponseEntity<GlobalResponse<List<PermissionResponse>>> getEffectivePermissions(
-            @PathVariable UUID userId,
-            HttpServletRequest request) {
-        try {
-            List<PermissionResponse> permissions = permissionService.getEffectivePermissions(userId);
-            return ResponseEntity.ok(
-                    GlobalResponse.success("Effective permissions retrieved", permissions)
-                            .withPath(request.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Failed to get effective permissions for {}", userId, e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.<List<PermissionResponse>>error(e.getMessage(), 400)
-                            .withPath(request.getRequestURI()));
+        @GetMapping("/effective")
+        public ResponseEntity<GlobalResponse<List<PermissionResponse>>> getEffectivePermissions(
+                        @PathVariable UUID userId,
+                        HttpServletRequest request) {
+                List<PermissionResponse> permissions = permissionService.getEffectivePermissions(userId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Effective permissions retrieved", permissions)
+                                                .withPath(request.getRequestURI()));
         }
-    }
 
-    @PostMapping("/check")
-    public ResponseEntity<GlobalResponse<Boolean>> checkPermission(
-            @PathVariable UUID userId,
-            @Valid @RequestBody PermissionCheckRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            HttpServletRequest httpRequest) {
-        log.info("🔐 [PermissionController] ========== PERMISSION CHECK REQUEST ==========");
-        log.info("🔐 [PermissionController] UserId: {}", userId);
-        log.info("🔐 [PermissionController] URL: {}", request.getUrl());
-        log.info("🔐 [PermissionController] Method: {}", request.getMethod());
-        log.info("🔐 [PermissionController] Request URI: {}", httpRequest.getRequestURI());
-        log.info("🔐 [PermissionController] Auth Header: {}", authHeader != null ? "Bearer ***" : "null");
+        @GetMapping("/catalog")
+        public ResponseEntity<PageGlobalResponse<PermissionResponse>> getUserPermissionCatalog(
+                        @PathVariable UUID userId,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "20") int size,
+                        @RequestParam(required = false) String search,
+                        HttpServletRequest request) {
+                int safePage = Math.max(page, 0);
+                int safeSize = Math.min(Math.max(size, 1), 50);
+                Pageable pageable = PageRequest.of(safePage, safeSize);
+                String normalizedSearch = search == null ? null : search.trim();
 
-        try {
-            log.info("🔐 [PermissionController] Calling PermissionService.hasPermission...");
-            boolean allowed = permissionService.hasPermission(userId, request.getUrl(), request.getMethod());
+                Page<PermissionResponse> permissions = permissionService.getUserPermissionCatalog(
+                                userId,
+                                normalizedSearch,
+                                pageable);
 
-            log.info("🔐 [PermissionController] Permission check result: {} ({})",
-                    allowed, allowed ? "ALLOWED ✅" : "DENIED ❌");
-            log.info("🔐 [PermissionController] ========== PERMISSION CHECK RESPONSE ==========");
+                PageGlobalResponse.PaginationInfo paginationInfo = PageGlobalResponse.PaginationInfo.builder()
+                                .page(permissions.getNumber())
+                                .size(permissions.getSize())
+                                .totalElements(permissions.getTotalElements())
+                                .totalPages(permissions.getTotalPages())
+                                .first(permissions.isFirst())
+                                .last(permissions.isLast())
+                                .hasNext(permissions.hasNext())
+                                .hasPrevious(permissions.hasPrevious())
+                                .build();
 
-            return ResponseEntity.ok(
-                    GlobalResponse.success("Permission evaluated", allowed)
-                            .withPath(httpRequest.getRequestURI()));
-        } catch (Exception e) {
-            log.error("❌ [PermissionController] Failed to check permission for {} on {} {}",
-                    userId, request.getMethod(), request.getUrl(), e);
-            log.info("🔐 [PermissionController] ========== PERMISSION CHECK ERROR ==========");
-
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.<Boolean>error(e.getMessage(), 400)
-                            .withPath(httpRequest.getRequestURI()));
+                return ResponseEntity.ok(
+                                PageGlobalResponse
+                                                .success("User permission catalog retrieved",
+                                                                permissions.getContent(), paginationInfo)
+                                                .withPath(request.getRequestURI()));
         }
-    }
 
-    @PostMapping
-    public ResponseEntity<GlobalResponse<PermissionResponse>> upsertUserPermission(
-            @PathVariable UUID userId,
-            @Valid @RequestBody UserPermissionRequest request,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest httpRequest) {
-        try {
-            UUID actorId = parseUuid(actorHeader);
-
-            PermissionResponse response = permissionService.upsertUserPermission(
-                    userId,
-                    request.getPermissionId(),
-                    Boolean.TRUE.equals(request.getAllowed()),
-                    Boolean.TRUE.equals(request.getActive()),
-                    actorId);
-
-            return ResponseEntity.ok(
-                    GlobalResponse.success("User permission saved", response)
-                            .withPath(httpRequest.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Failed to upsert user permission for {} - {}", userId, request.getPermissionId(), e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.<PermissionResponse>error(e.getMessage(), 400)
-                            .withPath(httpRequest.getRequestURI()));
+        @GetMapping("/overrides")
+        public ResponseEntity<GlobalResponse<List<PermissionResponse>>> getUserPermissionOverrides(
+                        @PathVariable UUID userId,
+                        HttpServletRequest request) {
+                List<PermissionResponse> permissions = permissionService.getUserPermissionOverrides(userId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("User permission overrides retrieved", permissions)
+                                                .withPath(request.getRequestURI()));
         }
-    }
 
-    @DeleteMapping("/{permissionId}")
-    public ResponseEntity<GlobalResponse<?>> deactivateUserPermission(
-            @PathVariable UUID userId,
-            @PathVariable UUID permissionId,
-            @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
-            HttpServletRequest httpRequest) {
-        try {
-            UUID actorId = parseUuid(actorHeader);
-            permissionService.deactivateUserPermission(userId, permissionId, actorId);
-            return ResponseEntity.ok(
-                    GlobalResponse.success("User permission deactivated", null)
-                            .withPath(httpRequest.getRequestURI()));
-        } catch (Exception e) {
-            log.error("Failed to deactivate user permission {} for user {}", permissionId, userId, e);
-            return ResponseEntity.badRequest()
-                    .body(GlobalResponse.<Object>error(e.getMessage(), 400)
-                            .withPath(httpRequest.getRequestURI()));
-        }
-    }
+        @PostMapping("/check")
+        public ResponseEntity<GlobalResponse<Boolean>> checkPermission(
+                        @PathVariable UUID userId,
+                        @Valid @RequestBody PermissionCheckRequest request,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader,
+                        HttpServletRequest httpRequest) {
+                log.info("🔐 [PermissionController] ========== PERMISSION CHECK REQUEST ==========");
+                log.info("🔐 [PermissionController] UserId: {}", userId);
+                log.info("🔐 [PermissionController] URL: {}", request.getUrl());
+                log.info("🔐 [PermissionController] Method: {}", request.getMethod());
+                log.info("🔐 [PermissionController] Request URI: {}", httpRequest.getRequestURI());
+                log.info("🔐 [PermissionController] Auth Header: {}", authHeader != null ? "Bearer ***" : "null");
 
-    private UUID parseUuid(String raw) {
-        try {
-            return raw != null && !raw.isBlank() ? UUID.fromString(raw) : null;
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid UUID received in header: {}", raw);
-            return null;
+                log.info("🔐 [PermissionController] Calling PermissionService.hasPermission...");
+                boolean allowed = permissionService.hasPermission(userId, request.getUrl(), request.getMethod());
+
+                log.info("🔐 [PermissionController] Permission check result: {} ({})",
+                                allowed, allowed ? "ALLOWED ✅" : "DENIED ❌");
+                log.info("🔐 [PermissionController] ========== PERMISSION CHECK RESPONSE ==========");
+
+                return ResponseEntity.ok(
+                                GlobalResponse.success("Permission evaluated", allowed)
+                                                .withPath(httpRequest.getRequestURI()));
         }
-    }
+
+        @PostMapping
+        public ResponseEntity<GlobalResponse<PermissionResponse>> upsertUserPermission(
+                        @PathVariable UUID userId,
+                        @Valid @RequestBody UserPermissionRequest request,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest httpRequest) {
+                UUID actorId = parseUuid(actorHeader);
+
+                PermissionResponse response = permissionService.upsertUserPermission(
+                                userId,
+                                request.getPermissionId(),
+                                Boolean.TRUE.equals(request.getAllowed()),
+                                Boolean.TRUE.equals(request.getActive()),
+                                actorId);
+
+                return ResponseEntity.ok(
+                                GlobalResponse.success("User permission saved", response)
+                                                .withPath(httpRequest.getRequestURI()));
+        }
+
+        @DeleteMapping("/{permissionId}")
+        public ResponseEntity<GlobalResponse<?>> deactivateUserPermission(
+                        @PathVariable UUID userId,
+                        @PathVariable UUID permissionId,
+                        @RequestHeader(value = "X-User-Id", required = false) String actorHeader,
+                        HttpServletRequest httpRequest) {
+                UUID actorId = parseUuid(actorHeader);
+                permissionService.deactivateUserPermission(userId, permissionId, actorId);
+                return ResponseEntity.ok(
+                                GlobalResponse.success("User permission deactivated", null)
+                                                .withPath(httpRequest.getRequestURI()));
+        }
+
+        private UUID parseUuid(String raw) {
+                if (raw == null || raw.isBlank()) {
+                        return null;
+                }
+                try {
+                        return UUID.fromString(raw);
+                } catch (IllegalArgumentException exception) {
+                        throw new BadRequestException("Invalid X-User-Id header format");
+                }
+        }
 }

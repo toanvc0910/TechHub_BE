@@ -1,5 +1,6 @@
 package com.techhub.app.learningpathservice.exception;
 
+import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.payload.GlobalResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,17 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<GlobalResponse<Void>> handleForbiddenException(
+            ForbiddenException ex, HttpServletRequest request) {
+        log.warn("Forbidden: {} {}", request.getRequestURI(), ex.getMessage());
+
+        GlobalResponse<Void> response = GlobalResponse.error(ex.getMessage(), HttpStatus.FORBIDDEN.value());
+        response.setPath(request.getRequestURI());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<GlobalResponse<Void>> handleRuntimeException(

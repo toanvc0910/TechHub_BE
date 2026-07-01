@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -28,6 +29,8 @@ public class BlogMapper {
         blog.setContent(request.getContent().trim());
         blog.setThumbnail(request.getThumbnail() != null ? request.getThumbnail().trim() : null);
         blog.setTags(normalizeTags(request.getTags()));
+        blog.setRelatedCourseIds(normalizeUuids(request.getRelatedCourseIds()));
+        blog.setRelatedLessonIds(normalizeUuids(request.getRelatedLessonIds()));
         blog.setAttachments(toAttachmentEntities(request.getAttachments()));
         if (request.getStatus() != null) {
             blog.setStatus(request.getStatus());
@@ -42,6 +45,8 @@ public class BlogMapper {
                 .thumbnail(blog.getThumbnail())
                 .status(blog.getStatus())
                 .tags(blog.getTags())
+                .relatedCourseIds(normalizeUuids(blog.getRelatedCourseIds()))
+                .relatedLessonIds(normalizeUuids(blog.getRelatedLessonIds()))
                 .attachments(toAttachmentDtos(blog.getAttachments()))
                 .authorId(blog.getAuthorId())
                 .created(blog.getCreated())
@@ -59,6 +64,16 @@ public class BlogMapper {
                 .map(String::trim)
                 .map(String::toLowerCase)
                 .filter(tag -> !tag.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    private List<UUID> normalizeUuids(List<UUID> ids) {
+        if (ids == null) {
+            return Collections.emptyList();
+        }
+        return ids.stream()
+                .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
     }

@@ -1,10 +1,13 @@
 package com.techhub.app.courseservice.service.impl;
 
 import com.techhub.app.commonservice.context.UserContext;
+import com.techhub.app.commonservice.enums.Language;
+import com.techhub.app.commonservice.enums.UserRole;
 import com.techhub.app.commonservice.exception.BadRequestException;
 import com.techhub.app.commonservice.exception.ForbiddenException;
 import com.techhub.app.commonservice.exception.NotFoundException;
 import com.techhub.app.commonservice.exception.UnauthorizedException;
+import com.techhub.app.courseservice.client.FileServiceClient;
 import com.techhub.app.courseservice.dto.request.ChapterRequest;
 import com.techhub.app.courseservice.dto.request.CourseRequest;
 import com.techhub.app.courseservice.dto.request.LessonAssetRequest;
@@ -30,6 +33,7 @@ import com.techhub.app.courseservice.event.LessonEvent;
 import com.techhub.app.courseservice.event.EventPublisher;
 import com.techhub.app.courseservice.entity.Skill;
 import com.techhub.app.courseservice.entity.Tag;
+import com.techhub.app.courseservice.enums.CourseLevel;
 import com.techhub.app.courseservice.enums.CourseStatus;
 import com.techhub.app.courseservice.enums.EnrollmentStatus;
 import com.techhub.app.courseservice.enums.LessonAssetType;
@@ -46,17 +50,25 @@ import com.techhub.app.courseservice.repository.SkillRepository;
 import com.techhub.app.courseservice.repository.TagRepository;
 import com.techhub.app.courseservice.service.CourseNotificationService;
 import com.techhub.app.courseservice.service.CourseService;
+import com.techhub.app.courseservice.service.LearningStreakService;
+import com.techhub.app.courseservice.service.LessonDurationCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.criteria.JoinType;
+import javax.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -69,8 +81,9 @@ import java.util.stream.Collectors;
 @Transactional
 public class CourseServiceImpl implements CourseService {
 
-    private static final String ROLE_ADMIN = "ADMIN";
-    private static final String ROLE_INSTRUCTOR = "INSTRUCTOR";
+    private static final String ROLE_SUPER_ADMIN = UserRole.SUPER_ADMIN.name();
+    private static final String ROLE_ADMIN = UserRole.ADMIN.name();
+    private static final String ROLE_INSTRUCTOR = UserRole.INSTRUCTOR.name();
 
     private final CourseRepository courseRepository;
     private final ChapterRepository chapterRepository;
@@ -84,43 +97,50 @@ public class CourseServiceImpl implements CourseService {
     private final SkillRepository skillRepository;
     private final TagRepository tagRepository;
     private final CourseNotificationService courseNotificationService;
+    private final LearningStreakService learningStreakService;
+    private final LessonDurationCalculator lessonDurationCalculator;
+    private final FileServiceClient fileServiceClient;
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CourseSummaryResponse> getCourses(String search, Pageable pageable) {
+    public Page<CourseSummaryResponse> getCourses(UUID instructorId, CourseStatus status, String search,
+            CourseLevel level, Language language, BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds,
+            List<UUID> tagIds, Pageable pageable) {
         String normalized = normalizeSearch(search);
-        boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN);
+        boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN);
+        CourseStatus visibleStatus = isAdmin ? status : CourseStatus.PUBLISHED;
+        CourseLevel normalizedLevel = level == CourseLevel.ALL_LEVELS ? null : level;
+        log.info("Search courses: instructorId={}, requestedStatus={}, effectiveStatus={}, search={}, page={}, size={}",
+                instructorId, status, visibleStatus, normalized, pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<Course> courses;
-        if (isAdmin) {
-            // ADMIN: Xem tất cả courses (mọi status)
-            courses = courseRepository.searchCourses(null, normalized, pageable);
-        } else {
-            // INSTRUCTOR, LEARNER, Guest: Xem tất cả courses PUBLISHED
-            courses = courseRepository.searchCourses(CourseStatus.PUBLISHED.name(), normalized, pageable);
-        }
-        return courses.map(this::buildCourseSummary);
+        Page<Course> courses = courseRepository.findAll(
+                buildCourseSearchSpecification(instructorId, visibleStatus, normalized, normalizedLevel, language,
+                        minPrice, maxPrice, normalizeIdList(skillIds), normalizeIdList(tagIds)),
+                pageable);
+        return mapCourseSummaries(courses);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CourseSummaryResponse> getMyCourses(String search, Pageable pageable) {
+    public Page<CourseSummaryResponse> getMyCourses(String search, CourseStatus status, CourseLevel level,
+            Language language, BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds,
+            Pageable pageable) {
         String normalized = normalizeSearch(search);
         UUID currentUserId = UserContext.getCurrentUserId();
-        boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN);
+        boolean isAdmin = UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN);
+        CourseLevel normalizedLevel = level == CourseLevel.ALL_LEVELS ? null : level;
 
-        Page<Course> courses;
-        if (isAdmin) {
-            // ADMIN: Xem tất cả courses (mọi status)
-            courses = courseRepository.searchCourses(null, normalized, pageable);
-        } else if (currentUserId != null) {
-            // INSTRUCTOR: Xem tất cả courses của mình (mọi status: DRAFT, PUBLISHED, etc.)
-            courses = courseRepository.searchInstructorCourses(currentUserId, normalized, pageable);
-        } else {
-            // Không có user -> trả về rỗng
-            courses = Page.empty(pageable);
+        // Restrict by instructor for non-admin users; admins see every author's courses.
+        UUID instructorScope = isAdmin ? null : currentUserId;
+        if (!isAdmin && currentUserId == null) {
+            return Page.empty(pageable);
         }
-        return courses.map(this::buildCourseSummary);
+
+        Page<Course> courses = courseRepository.findAll(
+                buildCourseSearchSpecification(instructorScope, status, normalized, normalizedLevel, language, minPrice,
+                        maxPrice, normalizeIdList(skillIds), normalizeIdList(tagIds)),
+                pageable);
+        return mapCourseSummaries(courses);
     }
 
     @Override
@@ -164,6 +184,7 @@ public class CourseServiceImpl implements CourseService {
                 .unlockedChapterIds(snapshot.getUnlockedChapterIds())
                 .lockedChapterIds(snapshot.getLockedChapterIds())
                 .completedLessons(snapshot.getCompletedLessons())
+                .learningStreak(currentUserId != null ? learningStreakService.getStreakForUser(currentUserId) : null)
                 .build();
     }
 
@@ -261,7 +282,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         if (request.getInstructorId() != null && !request.getInstructorId().equals(course.getInstructorId())) {
-            if (!UserContext.hasAnyRole(ROLE_ADMIN)) {
+            if (!UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN)) {
                 throw new ForbiddenException("Only admins can reassign course instructors");
             }
             course.setInstructorId(request.getInstructorId());
@@ -467,6 +488,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         Lesson lesson = courseMapper.toLessonEntity(request, chapter, currentUserId, orderIndex);
+        lesson.setEstimatedDuration(lessonDurationCalculator.calculate(request));
         lessonRepository.save(lesson);
         log.info("Lesson {} created in chapter {}", lesson.getId(), chapterId);
 
@@ -511,9 +533,9 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new NotFoundException("Lesson not found"));
 
         courseMapper.updateLesson(lesson, request, currentUserId);
-        lessonRepository.save(lesson);
+        recalculateAndSaveLessonDuration(lesson, request.getVideoDuration());
         log.info("Lesson {} updated in chapter {}", lessonId, chapterId);
-        
+
         // Publish lesson event for AI indexing
         try {
             LessonEvent lessonEvent = LessonEvent.builder()
@@ -531,7 +553,7 @@ public class CourseServiceImpl implements CourseService {
         } catch (Exception e) {
             log.warn("Failed to publish lesson event for indexing", e);
         }
-        
+
         return buildLessonResponse(lesson, course, null);
     }
 
@@ -553,7 +575,7 @@ public class CourseServiceImpl implements CourseService {
         // ✅ HARD DELETE - Xóa cứng luôn
         lessonRepository.delete(lesson);
         log.info("✅ Lesson {} hard-deleted (CASCADE will delete all assets & progress)", lessonId);
-        
+
         // Publish lesson delete event for AI indexing (remove from vector DB)
         try {
             LessonEvent lessonEvent = LessonEvent.builder()
@@ -601,6 +623,11 @@ public class CourseServiceImpl implements CourseService {
         Lesson lesson = resolveLesson(courseId, chapterId, lessonId);
 
         validateLessonAssetRequest(request);
+        LessonAsset existingAsset = findMatchingLessonAsset(lessonId, request);
+        if (existingAsset != null) {
+            log.info("Reusing existing asset {} for lesson {}", existingAsset.getId(), lessonId);
+            return buildAssetResponse(existingAsset, course);
+        }
 
         Integer orderIndex = request.getOrderIndex();
         if (orderIndex == null) {
@@ -610,6 +637,7 @@ public class CourseServiceImpl implements CourseService {
 
         LessonAsset asset = courseMapper.toLessonAssetEntity(request, lesson, currentUserId, orderIndex);
         lessonAssetRepository.save(asset);
+        recalculateAndSaveLessonDuration(lesson, null);
         log.info("Asset {} created for lesson {}", asset.getId(), lessonId);
 
         // Send notification to enrolled students about new content
@@ -643,6 +671,7 @@ public class CourseServiceImpl implements CourseService {
 
         courseMapper.updateLessonAsset(asset, request, currentUserId);
         lessonAssetRepository.save(asset);
+        recalculateAndSaveLessonDuration(asset.getLesson(), null);
         log.info("Asset {} updated for lesson {}", assetId, lessonId);
         return buildAssetResponse(asset, course);
     }
@@ -661,7 +690,70 @@ public class CourseServiceImpl implements CourseService {
         asset.setUpdatedBy(currentUserId);
         asset.setUpdated(OffsetDateTime.now());
         lessonAssetRepository.save(asset);
+        recalculateAndSaveLessonDuration(asset.getLesson(), null);
         log.info("Asset {} soft-deleted for lesson {}", assetId, lessonId);
+    }
+
+    private void recalculateAndSaveLessonDuration(Lesson lesson, Integer requestVideoDuration) {
+        if (lesson == null) {
+            return;
+        }
+        List<LessonAsset> activeAssets = lessonAssetRepository
+                .findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId());
+        lesson.setEstimatedDuration(lessonDurationCalculator.calculate(
+                lesson,
+                activeAssets,
+                requestVideoDuration,
+                loadVideoFileDurations(activeAssets)));
+        lessonRepository.save(lesson);
+    }
+
+    private Map<UUID, Integer> loadVideoFileDurations(List<LessonAsset> assets) {
+        UUID currentUserId = UserContext.getCurrentUserId();
+        if (currentUserId == null || assets == null || assets.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<UUID, Integer> durations = new HashMap<>();
+        for (LessonAsset asset : assets) {
+            if (asset == null || asset.getAssetType() != LessonAssetType.VIDEO || asset.getFileId() == null) {
+                continue;
+            }
+            try {
+                ResponseEntity<Map<String, Object>> response = fileServiceClient.getFile(asset.getFileId(),
+                        currentUserId);
+                Integer duration = extractFileDuration(response != null ? response.getBody() : null);
+                if (duration != null && duration > 0) {
+                    durations.put(asset.getFileId(), duration);
+                }
+            } catch (Exception e) {
+                log.warn("Could not load video duration for file {}", asset.getFileId(), e);
+            }
+        }
+        return durations;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Integer extractFileDuration(Map<String, Object> responseBody) {
+        if (responseBody == null) {
+            return null;
+        }
+        Object data = responseBody.get("data");
+        if (!(data instanceof Map<?, ?> dataMap)) {
+            return null;
+        }
+        Object duration = ((Map<String, Object>) dataMap).get("duration");
+        if (duration instanceof Number number) {
+            return Math.max(0, (int) Math.round(number.doubleValue()));
+        }
+        if (duration == null) {
+            return null;
+        }
+        try {
+            return Math.max(0, (int) Math.round(Double.parseDouble(String.valueOf(duration))));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private Lesson resolveLesson(UUID courseId, UUID chapterId, UUID lessonId) {
@@ -675,18 +767,63 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new NotFoundException("Chapter not found"));
     }
 
+    /**
+     * Maps a page of courses to summaries without the per-course N+1 query storm.
+     * Collections (skills/tags) are initialized in two batch queries and the
+     * enrollment/rating aggregates are fetched in two more batch queries, so the
+     * whole page costs a constant number of queries instead of ~5 per course.
+     */
+    private Page<CourseSummaryResponse> mapCourseSummaries(Page<Course> courses) {
+        List<Course> content = courses.getContent();
+        if (content.isEmpty()) {
+            return courses.map(c -> buildCourseSummary(c, 0L, null, 0L));
+        }
+
+        List<UUID> courseIds = content.stream().map(Course::getId).collect(Collectors.toList());
+
+        // Initialize lazy collections on the already-loaded entities (one query each).
+        courseRepository.fetchWithSkills(courseIds);
+        courseRepository.fetchWithTags(courseIds);
+
+        // Batch enrollment counts.
+        Map<UUID, Long> enrollmentByCourse = new java.util.HashMap<>();
+        for (Object[] row : enrollmentRepository.countActiveByCourseIds(courseIds)) {
+            enrollmentByCourse.put((UUID) row[0], ((Number) row[1]).longValue());
+        }
+
+        // Batch rating average + count.
+        Map<UUID, Double> avgByCourse = new java.util.HashMap<>();
+        Map<UUID, Long> ratingCountByCourse = new java.util.HashMap<>();
+        for (Object[] row : ratingRepository.getRatingStatsByTargetIds(courseIds, RatingTarget.COURSE.name())) {
+            UUID id = UUID.fromString(row[0].toString());
+            avgByCourse.put(id, row[1] != null ? ((Number) row[1]).doubleValue() : null);
+            ratingCountByCourse.put(id, row[2] != null ? ((Number) row[2]).longValue() : 0L);
+        }
+
+        return courses.map(course -> buildCourseSummary(course,
+                enrollmentByCourse.getOrDefault(course.getId(), 0L),
+                avgByCourse.get(course.getId()),
+                ratingCountByCourse.getOrDefault(course.getId(), 0L)));
+    }
+
     private CourseSummaryResponse buildCourseSummary(Course course) {
-        CourseFileResource thumbnail = buildFileResourceFromUrl(course.getThumbnail());
-        CourseFileResource intro = buildFileResourceFromUrl(course.getIntroVideoFile());
         long totalEnrollments = enrollmentRepository.countByCourseAndIsActiveTrue(course);
         Double averageRating = ratingRepository.getAverageScore(course.getId(), RatingTarget.COURSE.name());
         long ratingCount = ratingRepository.countByTargetIdAndTargetTypeAndIsActiveTrue(course.getId(),
                 RatingTarget.COURSE);
+        return buildCourseSummary(course, totalEnrollments, averageRating, ratingCount);
+    }
+
+    private CourseSummaryResponse buildCourseSummary(Course course, long totalEnrollments, Double averageRating,
+            long ratingCount) {
+        CourseFileResource thumbnail = buildFileResourceFromUrl(course.getThumbnail());
+        CourseFileResource intro = buildFileResourceFromUrl(course.getIntroVideoFile());
         return CourseSummaryResponse.builder()
                 .id(course.getId())
                 .title(course.getTitle())
                 .description(course.getDescription())
                 .price(course.getPrice())
+                .currency(course.getCurrency())
                 .discountPrice(course.getDiscountPrice())
                 .promoEndDate(course.getPromoEndDate())
                 .status(course.getStatus())
@@ -700,7 +837,8 @@ public class CourseServiceImpl implements CourseService {
                                         cs.getSkill().getId(),
                                         cs.getSkill().getName(),
                                         cs.getSkill().getThumbnail(),
-                                        cs.getSkill().getCategory());
+                                        cs.getSkill().getCategory(),
+                                        cs.getSkill().getCreatedBy());
                             }
                             return dto;
                         })
@@ -713,7 +851,8 @@ public class CourseServiceImpl implements CourseService {
                             if (ct.getTag() != null) {
                                 dto = new TagDTO(
                                         ct.getTag().getId(),
-                                        ct.getTag().getName());
+                                        ct.getTag().getName(),
+                                        ct.getTag().getCreatedBy());
                             }
                             return dto;
                         })
@@ -743,6 +882,24 @@ public class CourseServiceImpl implements CourseService {
 
         List<Chapter> chapterEntities = chapterRepository
                 .findByCourse_IdAndIsActiveTrueOrderByOrderIndexAsc(course.getId());
+
+        // Batch-load lessons for all chapters (avoid N+1: one query instead of one per chapter)
+        List<UUID> chapterIds = chapterEntities.stream().map(Chapter::getId).collect(Collectors.toList());
+        Map<UUID, List<Lesson>> lessonsByChapter = chapterIds.isEmpty()
+                ? Collections.emptyMap()
+                : lessonRepository.findByChapter_IdInAndIsActiveTrueOrderByOrderIndexAsc(chapterIds).stream()
+                        .collect(Collectors.groupingBy(lesson -> lesson.getChapter().getId(),
+                                LinkedHashMap::new, Collectors.toList()));
+
+        // Batch-load assets for all lessons (avoid N+1: one query instead of one per lesson)
+        List<UUID> lessonIds = lessonsByChapter.values().stream()
+                .flatMap(List::stream).map(Lesson::getId).collect(Collectors.toList());
+        Map<UUID, List<LessonAsset>> assetsByLesson = lessonIds.isEmpty()
+                ? Collections.emptyMap()
+                : lessonAssetRepository.findByLesson_IdInAndIsActiveTrueOrderByOrderIndexAsc(lessonIds).stream()
+                        .collect(Collectors.groupingBy(asset -> asset.getLesson().getId(),
+                                LinkedHashMap::new, Collectors.toList()));
+
         List<ChapterResponse> chapterResponses = new ArrayList<>();
         List<UUID> unlockedChapters = new ArrayList<>();
         List<UUID> lockedChapters = new ArrayList<>();
@@ -759,8 +916,7 @@ public class CourseServiceImpl implements CourseService {
 
         for (int index = 0; index < chapterEntities.size(); index++) {
             Chapter chapter = chapterEntities.get(index);
-            List<Lesson> lessonEntities = lessonRepository
-                    .findByChapter_IdAndIsActiveTrueOrderByOrderIndexAsc(chapter.getId());
+            List<Lesson> lessonEntities = lessonsByChapter.getOrDefault(chapter.getId(), Collections.emptyList());
 
             List<LessonResponse> lessonResponses = new ArrayList<>();
             double chapterMandatoryWeight = 0;
@@ -768,7 +924,8 @@ public class CourseServiceImpl implements CourseService {
 
             for (Lesson lesson : lessonEntities) {
                 Progress progress = progressByLesson.get(lesson.getId());
-                LessonResponse lessonResponse = buildLessonResponse(lesson, course, progress);
+                List<LessonAsset> lessonAssets = assetsByLesson.getOrDefault(lesson.getId(), Collections.emptyList());
+                LessonResponse lessonResponse = buildLessonResponse(lesson, course, progress, lessonAssets);
                 lessonResponses.add(lessonResponse);
 
                 boolean mandatory = lesson.getMandatory() == null || lesson.getMandatory();
@@ -896,10 +1053,17 @@ public class CourseServiceImpl implements CourseService {
     }
 
     private LessonResponse buildLessonResponse(Lesson lesson, Course course, Progress progress) {
-        List<LessonAssetResponse> assets = lessonAssetRepository
-                .findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId()).stream()
-                .map(asset -> buildAssetResponse(asset, course))
-                .collect(Collectors.toList());
+        return buildLessonResponse(lesson, course, progress,
+                lessonAssetRepository.findByLesson_IdAndIsActiveTrueOrderByOrderIndexAsc(lesson.getId()));
+    }
+
+    private LessonResponse buildLessonResponse(Lesson lesson, Course course, Progress progress,
+            List<LessonAsset> lessonAssets) {
+        Map<String, LessonAssetResponse> uniqueAssets = new LinkedHashMap<>();
+        lessonAssets.forEach(asset -> uniqueAssets.putIfAbsent(
+                buildLessonAssetIdentity(asset),
+                buildAssetResponse(asset, course)));
+        List<LessonAssetResponse> assets = new ArrayList<>(uniqueAssets.values());
 
         Float completion = progress != null && progress.getCompletion() != null
                 ? Math.max(0f, Math.min(1f, progress.getCompletion()))
@@ -933,6 +1097,32 @@ public class CourseServiceImpl implements CourseService {
                 .completedAt(progress != null ? progress.getCompletedAt() : null)
                 .progressUpdatedAt(progress != null ? progress.getUpdated() : null)
                 .build();
+    }
+
+    private LessonAsset findMatchingLessonAsset(UUID lessonId, LessonAssetRequest request) {
+        if (request.getFileId() != null) {
+            return lessonAssetRepository
+                    .findFirstByLesson_IdAndAssetTypeAndFileIdAndIsActiveTrueOrderByCreatedAsc(
+                            lessonId, request.getAssetType(), request.getFileId())
+                    .orElse(null);
+        }
+        if (request.getExternalUrl() != null && !request.getExternalUrl().isBlank()) {
+            return lessonAssetRepository
+                    .findFirstByLesson_IdAndAssetTypeAndExternalUrlAndIsActiveTrueOrderByCreatedAsc(
+                            lessonId, request.getAssetType(), request.getExternalUrl().trim())
+                    .orElse(null);
+        }
+        return null;
+    }
+
+    private String buildLessonAssetIdentity(LessonAsset asset) {
+        if (asset.getFileId() != null) {
+            return asset.getAssetType() + ":file:" + asset.getFileId();
+        }
+        if (asset.getExternalUrl() != null && !asset.getExternalUrl().isBlank()) {
+            return asset.getAssetType() + ":url:" + asset.getExternalUrl().trim();
+        }
+        return "asset:" + asset.getId();
     }
 
     private LessonAssetResponse buildAssetResponse(LessonAsset asset, Course course) {
@@ -974,7 +1164,7 @@ public class CourseServiceImpl implements CourseService {
         if (userId == null) {
             return false;
         }
-        return userId.equals(course.getInstructorId()) || UserContext.hasAnyRole(ROLE_ADMIN);
+        return userId.equals(course.getInstructorId()) || UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN);
     }
 
     private void ensureCanManage(Course course, UUID currentUserId) {
@@ -992,7 +1182,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     private void ensureInstructorOrAdmin() {
-        if (!UserContext.hasAnyRole(ROLE_ADMIN, ROLE_INSTRUCTOR)) {
+        if (!UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN, ROLE_INSTRUCTOR)) {
             throw new ForbiddenException("Only instructors or admins can perform this action");
         }
     }
@@ -1001,7 +1191,7 @@ public class CourseServiceImpl implements CourseService {
         if (requestedInstructorId == null || requestedInstructorId.equals(currentUserId)) {
             return currentUserId;
         }
-        if (!UserContext.hasAnyRole(ROLE_ADMIN)) {
+        if (!UserContext.hasAnyRole(ROLE_ADMIN, ROLE_SUPER_ADMIN)) {
             throw new ForbiddenException("Only admins can assign courses to other instructors");
         }
         return requestedInstructorId;
@@ -1137,6 +1327,9 @@ public class CourseServiceImpl implements CourseService {
                         log.info("mapSkillsToCourse: Skill '{}' not found, creating new", skillName);
                         Skill newSkill = new Skill();
                         newSkill.setName(skillName);
+                        UUID currentUserId = requireCurrentUser();
+                        newSkill.setCreatedBy(currentUserId);
+                        newSkill.setUpdatedBy(currentUserId);
                         Skill saved = skillRepository.save(newSkill);
                         log.info("mapSkillsToCourse: Created skill ID: {}, name: '{}'", saved.getId(), saved.getName());
                         return saved;
@@ -1202,6 +1395,9 @@ public class CourseServiceImpl implements CourseService {
                         OffsetDateTime now = OffsetDateTime.now();
                         newTag.setCreated(now);
                         newTag.setUpdated(now);
+                        UUID currentUserId = requireCurrentUser();
+                        newTag.setCreatedBy(currentUserId);
+                        newTag.setUpdatedBy(currentUserId);
                         Tag saved = tagRepository.save(newTag);
                         log.info("mapTagsToCourse: Created tag ID: {}, name: '{}'", saved.getId(), saved.getName());
                         return saved;
@@ -1219,6 +1415,66 @@ public class CourseServiceImpl implements CourseService {
 
         log.info("mapTagsToCourse: Final course tags count: {}", course.getCourseTags().size());
         log.info("========== mapTagsToCourse END ==========");
+    }
+
+    private Specification<Course> buildCourseSearchSpecification(UUID instructorId, CourseStatus status, String search,
+            CourseLevel level,
+            Language language, BigDecimal minPrice, BigDecimal maxPrice, List<UUID> skillIds, List<UUID> tagIds) {
+        return (root, query, criteriaBuilder) -> {
+            if (query != null) {
+                query.distinct(true);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(criteriaBuilder.isTrue(root.get("isActive")));
+
+            if (instructorId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("instructorId"), instructorId));
+            }
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            }
+            if (search != null) {
+                String pattern = "%" + search.toLowerCase() + "%";
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("title")), pattern),
+                        criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("description"), "")),
+                                pattern)));
+            }
+            if (level != null) {
+                predicates.add(criteriaBuilder.equal(root.get("level"), level));
+            }
+            if (language != null) {
+                predicates.add(criteriaBuilder.equal(root.get("language"), language));
+            }
+
+            javax.persistence.criteria.Expression<BigDecimal> effectivePrice = criteriaBuilder
+                    .coalesce(root.get("discountPrice"), root.get("price"));
+            if (minPrice != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(effectivePrice, minPrice));
+            }
+            if (maxPrice != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(effectivePrice, maxPrice));
+            }
+            if (!skillIds.isEmpty()) {
+                predicates.add(root.join("courseSkills", JoinType.INNER).get("skill").get("id").in(skillIds));
+            }
+            if (!tagIds.isEmpty()) {
+                predicates.add(root.join("courseTags", JoinType.INNER).get("tag").get("id").in(tagIds));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private List<UUID> normalizeIdList(List<UUID> ids) {
+        if (ids == null) {
+            return Collections.emptyList();
+        }
+        return ids.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     private String normalizeSearch(String search) {

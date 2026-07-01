@@ -13,6 +13,8 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
     List<Lesson> findByChapter_IdAndIsActiveTrueOrderByOrderIndexAsc(UUID chapterId);
 
+    List<Lesson> findByChapter_IdInAndIsActiveTrueOrderByOrderIndexAsc(List<UUID> chapterIds);
+
     Optional<Lesson> findByIdAndChapter_IdAndIsActiveTrue(UUID id, UUID chapterId);
 
     @Query("SELECT COALESCE(MAX(l.orderIndex), 0) FROM Lesson l " +

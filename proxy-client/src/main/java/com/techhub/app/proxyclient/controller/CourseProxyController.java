@@ -2,6 +2,8 @@ package com.techhub.app.proxyclient.controller;
 
 import com.techhub.app.proxyclient.client.CourseServiceClient;
 import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
@@ -28,22 +30,42 @@ public class CourseProxyController {
     public ResponseEntity<String> getMyCourses(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String language,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) List<UUID> skillIds,
+            @RequestParam(required = false) List<UUID> tagIds,
             @RequestHeader("Authorization") String authHeader) {
-        return courseServiceClient.getMyCourses(page, size, search, authHeader);
+        return courseServiceClient.getMyCourses(page, size, search, status, level, language, minPrice, maxPrice,
+                skillIds, tagIds, authHeader);
     }
 
     // Course core operations
     @GetMapping
     public ResponseEntity<String> getAllCourses(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search) {
-        return courseServiceClient.getAllCourses(page, size, search);
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String language,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) List<UUID> skillIds,
+            @RequestParam(required = false) List<UUID> tagIds) {
+        return courseServiceClient.getAllCourses(page, size, search, level, language, minPrice, maxPrice, skillIds,
+                tagIds);
     }
 
     @PostMapping
     public ResponseEntity<String> createCourse(@RequestBody Object createRequest,
             @RequestHeader("Authorization") String authHeader) {
         return courseServiceClient.createCourse(createRequest, authHeader);
+    }
+
+    @GetMapping("/streak")
+    public ResponseEntity<String> getLearningStreak(@RequestHeader("Authorization") String authHeader) {
+        return courseServiceClient.getLearningStreak(authHeader);
     }
 
     @GetMapping("/{courseId}")
@@ -283,6 +305,14 @@ public class CourseProxyController {
         return courseServiceClient.getExercises(courseId, lessonId, authHeader);
     }
 
+    @GetMapping("/{courseId}/lessons/{lessonId}/leaderboard")
+    public ResponseEntity<String> getLessonLeaderboard(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @RequestParam(value = "limit", defaultValue = "10") int limit,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return courseServiceClient.getLessonLeaderboard(courseId, lessonId, limit, authHeader);
+    }
+
     @PostMapping("/{courseId}/lessons/{lessonId}/exercises")
     public ResponseEntity<String> createExercises(@PathVariable String courseId,
             @PathVariable String lessonId,
@@ -306,6 +336,25 @@ public class CourseProxyController {
             @PathVariable String exerciseId,
             @RequestHeader("Authorization") String authHeader) {
         return courseServiceClient.deleteExercise(courseId, lessonId, exerciseId, authHeader);
+    }
+
+    // Instructor/admin: list the latest submission per learner for an exercise
+    @GetMapping("/{courseId}/lessons/{lessonId}/exercises/{exerciseId}/submissions")
+    public ResponseEntity<String> getExerciseSubmissions(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @PathVariable String exerciseId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return courseServiceClient.getExerciseSubmissions(courseId, lessonId, exerciseId, authHeader);
+    }
+
+    // Instructor/admin: grade a submission (score and/or written feedback)
+    @PutMapping("/{courseId}/lessons/{lessonId}/submissions/{submissionId}/grade")
+    public ResponseEntity<String> gradeSubmission(@PathVariable String courseId,
+            @PathVariable String lessonId,
+            @PathVariable String submissionId,
+            @RequestBody Object request,
+            @RequestHeader("Authorization") String authHeader) {
+        return courseServiceClient.gradeSubmission(courseId, lessonId, submissionId, request, authHeader);
     }
 
     // Workspace

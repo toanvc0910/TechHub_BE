@@ -65,6 +65,9 @@ public class Submission {
     @Column(name = "graded_by")
     private UUID gradedBy;
 
+    @Column(name = "feedback", columnDefinition = "TEXT")
+    private String feedback;
+
     @Column(name = "created", nullable = false)
     private OffsetDateTime created;
 

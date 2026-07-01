@@ -4,13 +4,26 @@ import com.techhub.app.courseservice.entity.Course;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface CourseRepository extends JpaRepository<Course, UUID> {
+public interface CourseRepository extends JpaRepository<Course, UUID>, JpaSpecificationExecutor<Course> {
+
+       // Initialize courseSkills + skill on the given (already-paged) courses in a single query.
+       // Fetch one collection per query to avoid MultipleBagFetchException.
+       @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.courseSkills cs LEFT JOIN FETCH cs.skill " +
+                     "WHERE c.id IN :ids")
+       List<Course> fetchWithSkills(@Param("ids") List<UUID> ids);
+
+       // Initialize courseTags + tag on the given (already-paged) courses in a single query.
+       @Query("SELECT DISTINCT c FROM Course c LEFT JOIN FETCH c.courseTags ct LEFT JOIN FETCH ct.tag " +
+                     "WHERE c.id IN :ids")
+       List<Course> fetchWithTags(@Param("ids") List<UUID> ids);
 
        @Query(value = "SELECT * FROM courses c " +
                      "WHERE c.is_active = 'Y' " +

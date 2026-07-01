@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(python -m venv .venv)",
+      "Bash(.venv/Scripts/python.exe -m pip install -r requirements.txt)",
+      "Bash(.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8091 --host 0.0.0.0)",
+      "Bash(curl -s -o /dev/null -w \"health: %{http_code}\\\\n\" http://localhost:8091/actuator/health)",
+      "Bash(curl -s -o /dev/null -w \"docs: %{http_code}\\\\n\" http://localhost:8091/docs)",
+      "Bash(curl -s http://localhost:8091/api/ai/health)",
+      "Bash(ls -la ai-service-fastapi/.gitignore)",
+      "Bash(ls -la .gitignore)",
+      "Bash(grep -iE \"\\\\.pyc$|/.venv/|__pycache__\")",
+      "Bash(grep -zZiE \"\\\\.pyc$|__pycache__\")",
+      "Bash(xargs -0 git rm --cached --quiet)",
+      "Bash(grep -ciE \"\\\\.pyc$|__pycache__\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('next:', \\(p.dependencies&&p.dependencies.next\\)\\)\")",
+      "Bash(ls -ld .next)",
+      "Bash(echo \"=== TSC EXIT: $? ===\")",
+      "Bash(python -c \"import psycopg2; print\\('psycopg2 ok'\\)\")",
+      "Bash(python -c \"import pg8000; print\\('pg8000 ok'\\)\")",
+      "Bash(python)",
+      "Bash(cat Dockerfile 2>/dev/null | grep -iE \"uvicorn|CMD|ENTRYPOINT|keep-alive|timeout\"; echo \"---compose---\"; grep -iE \"uvicorn|ai-service|8091|keep-alive|command\" ../compose.yml 2>/dev/null | head; echo \"---start scripts---\"; ls *.sh 2>/dev/null; grep -rniE \"timeout.keep.alive|timeout_keep_alive|uvicorn\" --include=*.py --include=*.sh --include=Dockerfile . 2>/dev/null | grep -iv \"import\\\\|#\" | head)",
+      "Read(//d/Work/TechHub/**)",
+      "Bash(xargs grep -l \"AiExerciseFeedbackClient\\\\|AiServiceClient\")",
+      "Bash(xargs grep -l \"learning path\\\\|exercise\\\\|AI\")",
+      "Bash(python -m py_compile app/services/analytics/metric_registry.py app/services/analytics/sql_templates.py app/services/analytics/planner.py app/services/analytics_service.py app/orchestration/nodes/entity_extraction_node.py app/orchestration/router/intent_router.py app/services/data_contract/metrics.py)",
+      "Bash(python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 python -m pytest tests/ -k \"analytics or intent or entity or planner or step03 or step09\" -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest --version)",
+      "Bash(.venv/Scripts/python.exe -m pip install pytest pytest-asyncio -q)",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m pytest tests/test_step03_analytics_semantic_layer.py tests/test_step09_chat_grounding_and_intent_quality.py -q)",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m pytest tests/test_step03_analytics_semantic_layer.py -q)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(cd /d/Work/TechHub/TechHub_BE/ai-service-fastapi && ls -a | grep -i env; echo \"=== db-ish keys \\(masked\\) ===\"; grep -iE \"DATASOURCE|POSTGRES|DB_|DATABASE|HOST|PORT\" .env 2>/dev/null | sed -E 's/\\(PASSWORD|password\\)=.*/\\\\1=***/' | head -30)",
+      "Read(//d/d/Work/TechHub/TechHub_BE/**)",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -c ' *)"
+    ]
+  }
+}

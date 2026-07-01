@@ -17,5 +17,9 @@ public interface NotificationService {
 
     long countUnread(UUID userId);
 
+    void deleteNotification(UUID notificationId, UUID userId);
+
+    int deleteAllNotifications(UUID userId);
+
     Notification createNotification(Notification notification);
 }

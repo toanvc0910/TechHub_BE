@@ -2,6 +2,7 @@ package com.techhub.app.proxyclient.kafka;
 
 import com.techhub.app.commonservice.kafka.KafkaTopics;
 import com.techhub.app.commonservice.kafka.event.PermissionEvent;
+import com.techhub.app.proxyclient.cache.EndpointSecurityCacheService;
 import com.techhub.app.proxyclient.cache.PermissionCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Component;
 public class PermissionCacheInvalidationConsumer {
 
     private final PermissionCacheService permissionCacheService;
+    private final EndpointSecurityCacheService endpointSecurityCacheService;
 
     @KafkaListener(topics = KafkaTopics.PERMISSION_UPDATED_TOPIC, groupId = "proxy-client-permission-cache-group", containerFactory = "kafkaListenerContainerFactory")
     public void handlePermissionUpdated(PermissionEvent event, Acknowledgment acknowledgment) {
@@ -80,6 +82,22 @@ public class PermissionCacheInvalidationConsumer {
             log.info("Cleared all permission cache due to {} update", event.getEventType());
         } catch (Exception e) {
             log.error("Error clearing all permission cache", e);
+        }
+    }
+
+    @KafkaListener(topics = KafkaTopics.ENDPOINT_SECURITY_UPDATED_TOPIC, groupId = "proxy-client-endpoint-security-group", containerFactory = "kafkaListenerContainerFactory")
+    public void handleEndpointSecurityUpdated(Object event, Acknowledgment acknowledgment) {
+        try {
+            log.info("Received endpoint security policy update event — reloading policies");
+            endpointSecurityCacheService.reload();
+            if (acknowledgment != null) {
+                acknowledgment.acknowledge();
+            }
+        } catch (Exception e) {
+            log.error("Error processing endpoint security update event", e);
+            if (acknowledgment != null) {
+                acknowledgment.acknowledge();
+            }
         }
     }
 }

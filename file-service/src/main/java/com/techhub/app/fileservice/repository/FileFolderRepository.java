@@ -25,6 +25,12 @@ public interface FileFolderRepository extends JpaRepository<FileFolderEntity, UU
     Optional<FileFolderEntity> findByUserIdAndNameAndParentIdAndIsActive(UUID userId, String name, UUID parentId,
             String isActive);
 
+    Optional<FileFolderEntity> findByUserIdAndNameAndParentId(UUID userId, String name, UUID parentId);
+
+    Optional<FileFolderEntity> findByUserIdAndNameAndParentIdIsNull(UUID userId, String name);
+
+    Optional<FileFolderEntity> findByUserIdAndPath(UUID userId, String path);
+
     @Query("SELECT f FROM FileFolderEntity f WHERE f.userId = :userId AND f.isActive = :isActive ORDER BY f.path")
     List<FileFolderEntity> findAllByUserIdOrderByPath(@Param("userId") UUID userId, @Param("isActive") String isActive);
 
@@ -33,4 +39,8 @@ public interface FileFolderRepository extends JpaRepository<FileFolderEntity, UU
             @Param("pathPattern") String pathPattern, @Param("isActive") String isActive);
 
     boolean existsByUserIdAndNameAndParentIdAndIsActive(UUID userId, String name, UUID parentId, String isActive);
+
+    boolean existsByUserIdAndPathAndIsActive(UUID userId, String path, String isActive);
+
+    boolean existsByUserIdAndPathAndIsActiveAndIdNot(UUID userId, String path, String isActive, UUID id);
 }

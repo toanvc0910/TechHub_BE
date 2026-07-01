@@ -35,6 +35,10 @@ public class TransactionItem {
     @Column(name = "price_at_purchase", nullable = false, precision = 10, scale = 2)
     private BigDecimal priceAtPurchase;
 
+    @Column(name = "price_currency", length = 3)
+    @Builder.Default
+    private String priceCurrency = "VND";
+
     @Column(name = "quantity")
     @Builder.Default
     private Integer quantity = 1;
@@ -56,12 +60,18 @@ public class TransactionItem {
 
     @PrePersist
     protected void onCreate() {
+        if (priceCurrency == null || priceCurrency.isBlank()) {
+            priceCurrency = "VND";
+        }
         created = ZonedDateTime.now();
         updated = ZonedDateTime.now();
     }
 
     @PreUpdate
     protected void onUpdate() {
+        if (priceCurrency == null || priceCurrency.isBlank()) {
+            priceCurrency = "VND";
+        }
         updated = ZonedDateTime.now();
     }
 }

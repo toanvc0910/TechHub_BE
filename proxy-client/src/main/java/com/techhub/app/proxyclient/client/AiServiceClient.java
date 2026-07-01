@@ -31,6 +31,13 @@ public interface AiServiceClient {
         ResponseEntity<String> recommendScheduled(@RequestBody Object request,
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 
+        @GetMapping("/api/ai/recommendations/history")
+        ResponseEntity<String> getRecommendationHistory(
+                        @RequestParam UUID userId,
+                        @RequestParam(required = false) String mode,
+                        @RequestParam(required = false, defaultValue = "20") Integer limit,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
         @PostMapping("/api/ai/chat/messages")
         ResponseEntity<String> chat(@RequestBody Object request,
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
@@ -43,11 +50,73 @@ public interface AiServiceClient {
         ResponseEntity<String> reindexLessons(
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 
+        @PostMapping("/api/ai/admin/reindex-blogs")
+        ResponseEntity<String> reindexBlogs(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @PostMapping("/api/ai/admin/reindex-data-contract")
+        ResponseEntity<String> reindexDataContract(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
         @PostMapping("/api/ai/admin/reindex-all")
         ResponseEntity<String> reindexAll(@RequestHeader(value = "Authorization", required = false) String authHeader);
 
         @GetMapping("/api/ai/admin/qdrant-stats")
         ResponseEntity<String> getQdrantStats(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/runtime-stats")
+        ResponseEntity<String> getRuntimeStats(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/data-contract")
+        ResponseEntity<String> getDataContract(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/data-contract/validate")
+        ResponseEntity<String> validateDataContract(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @PostMapping("/api/ai/admin/data-contract/sync")
+        ResponseEntity<String> syncDataContract(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/langfuse-traces")
+        ResponseEntity<String> getLangfuseTraces(
+                        @RequestParam(required = false, defaultValue = "1") Integer page,
+                        @RequestParam(required = false, defaultValue = "50") Integer limit,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/langfuse-trace/{traceId}")
+        ResponseEntity<String> getLangfuseTraceDetail(
+                        @PathVariable String traceId,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/langfuse-analytics")
+        ResponseEntity<String> getLangfuseAnalytics(
+                        @RequestParam(required = false, defaultValue = "7") Integer days,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/provider-config")
+        ResponseEntity<String> getProviderConfig(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @PostMapping("/api/ai/admin/provider-config")
+        ResponseEntity<String> updateProviderConfig(
+                        @RequestBody Object request,
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/provider-health")
+        ResponseEntity<String> getProviderHealth(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @GetMapping("/api/ai/admin/available-models")
+        ResponseEntity<String> getAvailableModels(
+                        @RequestHeader(value = "Authorization", required = false) String authHeader);
+
+        @PostMapping("/api/ai/admin/ingest-file-uploaded")
+        ResponseEntity<String> ingestFileUploaded(
+                        @RequestBody Object request,
                         @RequestHeader(value = "Authorization", required = false) String authHeader);
 
         // ============================================

@@ -22,7 +22,7 @@ spring:
       leak-detection-threshold: 60000
   jpa:
     hibernate:
-      ddl-auto: update  # Temporarily to sync schema
+      ddl-auto: update # Temporarily to sync schema
     show-sql: false
     properties:
       hibernate:
@@ -38,11 +38,16 @@ spring:
       properties:
         spring.json.add.type.headers: false
     consumer:
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
         spring.json.use.type.headers: false
+  cloud:
+    openfeign:
+      client:
+        config:
+          AI-SERVICE:
+            connectTimeout: ${AI_FEEDBACK_CONNECT_TIMEOUT_MS:1000}
+            readTimeout: ${AI_FEEDBACK_READ_TIMEOUT_MS:2000}
 
 # Kafka Topics Configuration
 kafka:
@@ -101,3 +106,12 @@ app:
       login: ${WEBSOCKET_RELAY_LOGIN:guest}
       passcode: ${WEBSOCKET_RELAY_PASSCODE:guest}
       virtual-host: ${WEBSOCKET_RELAY_VHOST:/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

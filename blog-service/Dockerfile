@@ -1,5 +1,5 @@
 # Sử dụng image Java JRE nhẹ
-FROM eclipse-temurin:11-jre
+FROM eclipse-temurin:17-jre
 
 # Biến truyền vào khi build
 ARG PROJECT_VERSION=0.1.0
@@ -12,7 +12,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /home/app
 
 # Copy file JAR vào container (đổi tên jar đúng với blog-service)
-COPY target/blog-service-v2.5.12.jar app.jar
+COPY target/blog-service-*.jar app.jar
 
 # Biến môi trường cho Spring profile
 ENV SPRING_PROFILES_ACTIVE=dev

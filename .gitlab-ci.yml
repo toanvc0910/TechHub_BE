@@ -1,0 +1,117 @@
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH =~ /^dev\/.*$/'
+    - when: never
+
+stages:
+  - build
+  - docker
+  - deploy
+
+variables:
+  DOCKER_NAMESPACE: "toandeptroai"
+  IMAGE_TAG: "0.1.0"
+  JAVA_VERSION: "17"
+  MAVEN_VERSION: "3.9.11"
+  MAVEN_IMAGE: "maven:3.9.11-eclipse-temurin-17"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "-B -DskipTests"
+  GIT_DEPTH: "20"
+
+default:
+  interruptible: true
+  cache:
+    key:
+      files:
+        - pom.xml
+        - common-service/pom.xml
+        - service-discovery/pom.xml
+        - api-gateway/pom.xml
+        - proxy-client/pom.xml
+        - user-service/pom.xml
+        - blog-service/pom.xml
+        - course-service/pom.xml
+        - learning-path-service/pom.xml
+        - payment-service/pom.xml
+        - analytics-service/pom.xml
+        - file-service/pom.xml
+        - notification-service/pom.xml
+        - ai-service/pom.xml
+    paths:
+      - .m2/repository
+
+build_backend:
+  stage: build
+  image: $MAVEN_IMAGE
+  resource_group: ci-$CI_COMMIT_REF_SLUG
+  script:
+    - set -e
+    - java -version
+    - mvn -version
+    - mvn $MAVEN_CLI_OPTS clean package
+  artifacts:
+    when: on_success
+    expire_in: 1 day
+    paths:
+      - common-service/target/*.jar
+      - service-discovery/target/*.jar
+      - api-gateway/target/*.jar
+      - proxy-client/target/*.jar
+      - user-service/target/*.jar
+      - blog-service/target/*.jar
+      - course-service/target/*.jar
+      - learning-path-service/target/*.jar
+      - payment-service/target/*.jar
+      - analytics-service/target/*.jar
+      - file-service/target/*.jar
+      - notification-service/target/*.jar
+      - ai-service/target/*.jar
+
+build_and_push_images:
+  stage: docker
+  image: docker:24.0.9
+  services:
+    - name: docker:24.0.9-dind
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  needs:
+    - job: build_backend
+      artifacts: true
+  resource_group: ci-$CI_COMMIT_REF_SLUG
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+  script:
+    - set -e
+    - export SHA_TAG="$CI_COMMIT_SHA"
+    - |
+      for service in service-discovery api-gateway proxy-client user-service blog-service course-service learning-path-service payment-service analytics-service file-service notification-service ai-service; do
+        echo "Building and pushing ${service}"
+        build_dir="${service}"
+        if [ "${service}" = "ai-service" ]; then
+          build_dir="ai-service-fastapi"
+        fi
+        docker build -f "${build_dir}/Dockerfile" -t "${DOCKER_NAMESPACE}/${service}:${IMAGE_TAG}" -t "${DOCKER_NAMESPACE}/${service}:${SHA_TAG}" "${build_dir}"
+        docker push "${DOCKER_NAMESPACE}/${service}:${IMAGE_TAG}"
+        docker push "${DOCKER_NAMESPACE}/${service}:${SHA_TAG}"
+      done
+
+redeploy_portainer:
+  stage: deploy
+  image: curlimages/curl:8.7.1
+  needs:
+    - build_and_push_images
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - |
+      if [ -n "$PORTAINER_WEBHOOK_URL" ]; then
+        echo "Triggering Portainer redeploy webhook"
+        curl -fsSL -X POST "$PORTAINER_WEBHOOK_URL"
+        echo "Done"
+      else
+        echo "PORTAINER_WEBHOOK_URL is not set"
+        exit 1
+      fi

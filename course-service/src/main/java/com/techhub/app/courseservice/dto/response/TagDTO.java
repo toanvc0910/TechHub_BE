@@ -11,4 +11,5 @@ import java.util.UUID;
 public class TagDTO {
     private UUID id;
     private String name;
+    private UUID createdBy;
 }

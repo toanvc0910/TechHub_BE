@@ -28,4 +28,6 @@ public class ExerciseResponse {
     private SubmissionStatus lastSubmissionStatus;
     private Float bestScore;
     private OffsetDateTime lastSubmittedAt;
+    private String lastAnswer;
+    private String lastFeedback;
 }

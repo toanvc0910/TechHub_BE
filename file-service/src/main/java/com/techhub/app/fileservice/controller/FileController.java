@@ -1,22 +1,25 @@
 package com.techhub.app.fileservice.controller;
 
+import com.techhub.app.commonservice.payload.GlobalResponse;
+import com.techhub.app.commonservice.payload.PageGlobalResponse;
 import com.techhub.app.fileservice.dto.response.FileResponse;
 import com.techhub.app.fileservice.dto.response.FileStatisticsResponse;
+import com.techhub.app.fileservice.service.StoredFileContent;
 import com.techhub.app.fileservice.service.FileManagementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
+import javax.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/files")
@@ -28,194 +31,181 @@ public class FileController {
     private final FileManagementService fileManagementService;
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, Object>> uploadFile(
+    public ResponseEntity<GlobalResponse<FileResponse>> uploadFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam("userId") UUID userId,
             @RequestParam(value = "folderId", required = false) UUID folderId,
             @RequestParam(value = "tags", required = false) String[] tags,
-            @RequestParam(value = "description", required = false) String description) {
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "uploadSource", required = false) String uploadSource,
+            HttpServletRequest request) {
 
         log.info("Uploading file: {} by user: {}", file.getOriginalFilename(), userId);
 
-        try {
-            FileResponse response = fileManagementService.uploadFile(file, userId, folderId, tags, description);
+        FileResponse response = fileManagementService.uploadFile(file, userId, folderId, tags, description,
+                uploadSource);
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("message", "File uploaded successfully");
-            result.put("data", response);
-
-            return ResponseEntity.ok(result);
-
-        } catch (IllegalArgumentException e) {
-            log.error("Validation error: {}", e.getMessage());
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-
-        } catch (Exception e) {
-            log.error("Error uploading file", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to upload file: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("File uploaded successfully", response)
+                        .withPath(request.getRequestURI()));
     }
 
     @PostMapping("/upload/multiple")
-    public ResponseEntity<Map<String, Object>> uploadMultipleFiles(
+    public ResponseEntity<GlobalResponse<List<FileResponse>>> uploadMultipleFiles(
             @RequestParam("files") List<MultipartFile> files,
             @RequestParam("userId") UUID userId,
             @RequestParam(value = "folderId", required = false) UUID folderId,
             @RequestParam(value = "tags", required = false) String[] tags,
-            @RequestParam(value = "description", required = false) String description) {
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "uploadSource", required = false) String uploadSource,
+            HttpServletRequest request) {
 
         log.info("Uploading {} files by user: {}", files.size(), userId);
 
-        try {
-            List<FileResponse> responses = fileManagementService.uploadMultipleFiles(files, userId, folderId, tags,
-                    description);
+        List<FileResponse> responses = fileManagementService.uploadMultipleFiles(files, userId, folderId, tags,
+                description, uploadSource);
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("message", "Files uploaded successfully");
-            result.put("data", responses);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error uploading files", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to upload files: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.success("Files uploaded successfully", responses)
+                        .withPath(request.getRequestURI()));
     }
 
     @DeleteMapping("/{fileId}")
-    public ResponseEntity<Map<String, Object>> deleteFile(
+    public ResponseEntity<GlobalResponse<Void>> deleteFile(
             @PathVariable UUID fileId,
-            @RequestParam UUID userId) {
+            @RequestParam UUID userId,
+            HttpServletRequest request) {
         log.info("Deleting file: {} by user: {}", fileId, userId);
+        fileManagementService.deleteFile(userId, fileId);
 
-        try {
-            fileManagementService.deleteFile(userId, fileId);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("message", "File deleted successfully");
-
-            return ResponseEntity.ok(result);
-
-        } catch (RuntimeException e) {
-            log.error("Error deleting file: {}", e.getMessage(), e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-
-        } catch (Exception e) {
-            log.error("Error deleting file", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to delete file: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
+        return ResponseEntity.ok(
+                GlobalResponse.<Void>success("File deleted successfully", null)
+                        .withPath(request.getRequestURI()));
     }
 
     @GetMapping("/{fileId}")
-    public ResponseEntity<Map<String, Object>> getFile(
+    public ResponseEntity<GlobalResponse<FileResponse>> getFile(
+            @PathVariable UUID fileId,
+            @RequestParam UUID userId,
+            HttpServletRequest request) {
+        log.info("Getting file: {} for user: {}", fileId, userId);
+        FileResponse response = fileManagementService.getFileById(userId, fileId);
+
+        return ResponseEntity.ok(
+                GlobalResponse.success("File retrieved successfully", response)
+                        .withPath(request.getRequestURI()));
+    }
+
+    @GetMapping("/{fileId}/content")
+    public ResponseEntity<InputStreamResource> getFileContent(
             @PathVariable UUID fileId,
             @RequestParam UUID userId) {
-        log.info("Getting file: {} for user: {}", fileId, userId);
+        log.info("Streaming file content: {} for user: {}", fileId, userId);
+        return buildStreamResponse(fileManagementService.getFileContent(userId, fileId));
+    }
 
-        try {
-            FileResponse response = fileManagementService.getFileById(userId, fileId);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("data", response);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error getting file", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to get file: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-        }
+    @GetMapping("/{fileId}/thumbnail")
+    public ResponseEntity<InputStreamResource> getFileThumbnail(
+            @PathVariable UUID fileId,
+            @RequestParam UUID userId) {
+        log.info("Streaming file thumbnail: {} for user: {}", fileId, userId);
+        return buildStreamResponse(fileManagementService.getFileThumbnail(userId, fileId));
     }
 
     @GetMapping("/folder/{folderId}")
-    public ResponseEntity<Map<String, Object>> getFilesByFolder(
+    public ResponseEntity<?> getFilesByFolder(
             @PathVariable UUID folderId,
-            @RequestParam UUID userId) {
+            @RequestParam UUID userId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String keyword,
+            HttpServletRequest request) {
         log.info("Getting files in folder: {} for user: {}", folderId, userId);
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
 
-        try {
-            List<FileResponse> files = fileManagementService.getFilesByFolder(userId, folderId);
+        if (page != null || size != null || !normalizedKeyword.isEmpty()) {
+            PageRequest pageRequest = PageRequest.of(
+                    Math.max(page != null ? page : 0, 0),
+                    Math.max(size != null ? size : 20, 1));
+            Page<FileResponse> files = normalizedKeyword.isEmpty()
+                    ? fileManagementService.getFilesByFolderPaginated(userId, folderId, pageRequest)
+                    : fileManagementService.searchFilesByFolder(userId, folderId, normalizedKeyword, pageRequest);
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("data", files);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error getting files by folder", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to get files: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.ok(
+                    PageGlobalResponse.success(
+                            "Files retrieved successfully",
+                            files.getContent(),
+                            buildPaginationInfo(files))
+                            .withPath(request.getRequestURI()));
         }
+
+        List<FileResponse> files = fileManagementService.getFilesByFolder(userId, folderId);
+
+        return ResponseEntity.ok(
+                GlobalResponse.success("Files retrieved successfully", files)
+                        .withPath(request.getRequestURI()));
     }
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> listFiles(
+    public ResponseEntity<PageGlobalResponse<FileResponse>> listFiles(
             @RequestParam UUID userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            HttpServletRequest request) {
         log.info("Listing files for user: {}", userId);
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        Page<FileResponse> files = normalizedKeyword.isEmpty()
+                ? fileManagementService.getFilesByUser(userId, PageRequest.of(page, size))
+                : fileManagementService.searchFiles(userId, normalizedKeyword, PageRequest.of(page, size));
 
-        try {
-            Page<FileResponse> files = fileManagementService.getFilesByUser(userId, PageRequest.of(page, size));
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("data", files);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error listing files", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to list files: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-        }
+        return ResponseEntity.ok(
+                PageGlobalResponse.success("Files listed successfully", files.getContent(), buildPaginationInfo(files))
+                        .withPath(request.getRequestURI()));
     }
 
     @GetMapping("/statistics")
-    public ResponseEntity<Map<String, Object>> getStatistics(@RequestParam UUID userId) {
+    public ResponseEntity<GlobalResponse<FileStatisticsResponse>> getStatistics(@RequestParam UUID userId,
+            HttpServletRequest request) {
         log.info("Getting file statistics for user: {}", userId);
+        FileStatisticsResponse stats = fileManagementService.getFileStatistics(userId);
 
-        try {
-            FileStatisticsResponse stats = fileManagementService.getFileStatistics(userId);
+        return ResponseEntity.ok(
+                GlobalResponse.success("Statistics retrieved successfully", stats)
+                        .withPath(request.getRequestURI()));
+    }
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("status", "success");
-            result.put("data", stats);
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            log.error("Error getting statistics", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("status", "error");
-            error.put("message", "Failed to get statistics: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    private ResponseEntity<InputStreamResource> buildStreamResponse(StoredFileContent content) {
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (content.getContentType() != null && !content.getContentType().isBlank()) {
+            mediaType = MediaType.parseMediaType(content.getContentType());
         }
+
+        String safeFilename = content.getFilename() == null || content.getFilename().isBlank()
+                ? "file"
+                : content.getFilename().replace("\"", "");
+
+        ResponseEntity.BodyBuilder responseBuilder = ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + safeFilename + "\"");
+
+        if (content.getContentLength() != null && content.getContentLength() >= 0) {
+            responseBuilder.contentLength(content.getContentLength());
+        }
+
+        return responseBuilder.body(new InputStreamResource(content.getInputStream()));
+    }
+
+    private PageGlobalResponse.PaginationInfo buildPaginationInfo(Page<?> page) {
+        return PageGlobalResponse.PaginationInfo.builder()
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .first(page.isFirst())
+                .last(page.isLast())
+                .hasNext(page.hasNext())
+                .hasPrevious(page.hasPrevious())
+                .build();
     }
 }

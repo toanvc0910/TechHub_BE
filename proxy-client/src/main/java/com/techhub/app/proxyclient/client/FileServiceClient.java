@@ -21,7 +21,8 @@ public interface FileServiceClient {
                         @RequestParam("userId") UUID userId,
                         @RequestParam(value = "folderId", required = false) UUID folderId,
                         @RequestParam(value = "tags", required = false) String[] tags,
-                        @RequestParam(value = "description", required = false) String description);
+                        @RequestParam(value = "description", required = false) String description,
+                        @RequestParam(value = "uploadSource", required = false) String uploadSource);
 
         @PostMapping(value = "/api/files/upload/multiple", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         ResponseEntity<Map<String, Object>> uploadMultipleFiles(
@@ -29,10 +30,21 @@ public interface FileServiceClient {
                         @RequestParam("userId") UUID userId,
                         @RequestParam(value = "folderId", required = false) UUID folderId,
                         @RequestParam(value = "tags", required = false) String[] tags,
-                        @RequestParam(value = "description", required = false) String description);
+                        @RequestParam(value = "description", required = false) String description,
+                        @RequestParam(value = "uploadSource", required = false) String uploadSource);
 
         @GetMapping("/api/files/{fileId}")
         ResponseEntity<Map<String, Object>> getFile(
+                        @PathVariable("fileId") UUID fileId,
+                        @RequestParam("userId") UUID userId);
+
+        @GetMapping("/api/files/{fileId}/content")
+        ResponseEntity<byte[]> getFileContent(
+                        @PathVariable("fileId") UUID fileId,
+                        @RequestParam("userId") UUID userId);
+
+        @GetMapping("/api/files/{fileId}/thumbnail")
+        ResponseEntity<byte[]> getFileThumbnail(
                         @PathVariable("fileId") UUID fileId,
                         @RequestParam("userId") UUID userId);
 
@@ -40,12 +52,16 @@ public interface FileServiceClient {
         ResponseEntity<Map<String, Object>> listFiles(
                         @RequestParam("userId") UUID userId,
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "20") int size);
+                        @RequestParam(defaultValue = "20") int size,
+                        @RequestParam(value = "keyword", required = false) String keyword);
 
         @GetMapping("/api/files/folder/{folderId}")
         ResponseEntity<Map<String, Object>> getFilesByFolder(
                         @PathVariable("folderId") UUID folderId,
-                        @RequestParam("userId") UUID userId);
+                        @RequestParam("userId") UUID userId,
+                        @RequestParam(value = "page", required = false) Integer page,
+                        @RequestParam(value = "size", required = false) Integer size,
+                        @RequestParam(value = "keyword", required = false) String keyword);
 
         @DeleteMapping("/api/files/{fileId}")
         ResponseEntity<Map<String, Object>> deleteFile(
